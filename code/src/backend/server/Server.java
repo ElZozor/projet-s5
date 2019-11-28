@@ -1,9 +1,21 @@
 package backend.server;
 
 import jdk.internal.jline.internal.Nullable;
+import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONObject;
+import sun.nio.cs.UTF_8;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.net.Socket;
+import java.security.*;
+import java.util.Base64;
 import java.util.Random;
 
 
@@ -12,10 +24,12 @@ public interface Server {
     // Theses are all the variables that will be used by both client
     // and server to create and receive messages
 
+    String TYPE_KEY_XCHANGE         = "keyxchange";
     String TYPE_CONNECTION          = "connection";
     String TYPE_REGISTRATION        = "registration";
     String TYPE_TICKET              = "ticket";
     String TYPE_MESSAGE             = "message";
+    String TYPE_RESPONSE            = "response";
 
     String TYPE_DATA                = "data";
 
@@ -36,30 +50,109 @@ public interface Server {
     String MESSAGE_TICKET_ID        = "ticketid";
     String MESSAGE_CONTENTS         = "contents";
 
+    String RESPONSE_VALUE           = "value";
+    String RESPONSE_SUCCESS         = "success";
+    String RESPONSE_ERROR           = "error";
 
-    String ALPHA_NUM_STRING = "AZERTYUIOPQSDFGHJKLMWXCVBNazertyuiopqsdfghjklmwxcvbn1234567890";
-
-    int TOKEN_SIZE = 256;
+    int BUFFER_SIZE = 256;
 
 
-    String getToken();
+
+    @Nullable
+    PrivateKey getPrivateKey();
+
+    @Nullable
+    PublicKey getPublicKey();
+
+    @Nullable
+    PublicKey getOtherPublicKey();
 
 
     /**
-     * Sign a message with a token.
+     * Encrypt a message via a public key.
      *
      * @param data      The message
-     * @param token     The token
-     * @return          The signed message as a String
+     * @param pk        The public key to encrypt data
+     * @return          The encrypted message as a String
      */
     @Nullable
-    default String signData(String data, String token) {
+    static String encryptMessage(String data, PublicKey pk) {
         //TODO Complete this
-        if (token == null) {
+        if (pk == null) {
             return null;
         }
 
-        return aosijas;
+        try {
+
+            Cipher encryptCypher = Cipher.getInstance("RSA");
+            encryptCypher.init(Cipher.ENCRYPT_MODE, pk);
+
+            byte[] cipher = encryptCypher.doFinal(data.getBytes());
+
+            return Base64.getEncoder().encodeToString(cipher);
+
+        } catch (NoSuchPaddingException | NoSuchAlgorithmException
+                | InvalidKeyException | BadPaddingException
+                | IllegalBlockSizeException e) {
+            e.printStackTrace();
+
+            return null;
+        }
+    }
+
+
+    /**
+     * Decrypt a message via a private key.
+     *
+     * @param data      The message
+     * @param pk        The private key to encrypt data
+     * @return          The decrypted message as a String
+     */
+    @Nullable
+    static String decryptMessage(String data, PrivateKey pk) {
+        //TODO Complete this
+        if (pk == null) {
+            return null;
+        }
+
+        try {
+
+            byte[] bytes = Base64.getDecoder().decode(data);
+
+            Cipher decryptCypher = Cipher.getInstance("RSA");
+            decryptCypher.init(Cipher.DECRYPT_MODE, pk);
+
+            String decipher = new String(decryptCypher.doFinal(data.getBytes()));
+
+            return decipher;
+
+        } catch (NoSuchPaddingException | NoSuchAlgorithmException
+                | InvalidKeyException | BadPaddingException
+                | IllegalBlockSizeException e) {
+            e.printStackTrace();
+
+            return null;
+        }
+    }
+
+
+    /**
+     * Create a key exchange message that will be used
+     * to send public key between the server and the client
+     *
+     * @param pk    The public key
+     * @return      The message
+     */
+    static String createKeyExchangeMessage(PublicKey pk) {
+        JSONObject keyExchangeMessage = new JSONObject();
+        keyExchangeMessage.put("type", TYPE_KEY_XCHANGE);
+
+        JSONObject key = new JSONObject();
+        key.put("key", pk.getEncoded());
+
+        keyExchangeMessage.put("data", key);
+
+        return keyExchangeMessage.toString();
     }
 
 
@@ -67,12 +160,13 @@ public interface Server {
      * Create a standardized connection message that's signed and valid.
      * If the token is not defined, the result of this function will be null.
      *
+     * @param pk        The public key that will be used to sign the message
      * @param id        The user id
      * @param password  The user password
      * @return          The signed message or null
      */
     @Nullable
-    default String createConnectionMessage(String id, String password) {
+    static String createConnectionMessage(PublicKey pk, String id, String password) {
         JSONObject connectionMessage = new JSONObject();
         connectionMessage.put("type", TYPE_CONNECTION);
 
@@ -82,7 +176,7 @@ public interface Server {
 
         connectionMessage.put(TYPE_DATA, data);
 
-        return signData(connectionMessage.toString(), getToken());
+        return encryptMessage(connectionMessage.toString(), pk);
     }
 
 
@@ -90,6 +184,7 @@ public interface Server {
      * Create a standardized registration message that's signed and valid.
      * If the token is not defined, the result of this function will be null.
      *
+     * @param pk        The public key that will be used to sign the message
      * @param id        The user id
      * @param password  The user password
      * @param name      The user name
@@ -97,7 +192,7 @@ public interface Server {
      * @return          The signed message or null
      */
     @Nullable
-    default String createRegistrationMessage(String id, String password, String name, String surname) {
+    static String createRegistrationMessage(PublicKey pk, String id, String password, String name, String surname) {
         JSONObject registrationMessage = new JSONObject();
         registrationMessage.put("type", TYPE_REGISTRATION);
 
@@ -109,7 +204,7 @@ public interface Server {
 
         registrationMessage.put(TYPE_DATA, data);
 
-        return signData(registrationMessage.toString(), getToken());
+        return encryptMessage(registrationMessage.toString(), pk);
     }
 
 
@@ -117,6 +212,7 @@ public interface Server {
      * Create a standardized ticket message that's signed and valid.
      * If the token is not defined, the result of this function will be null.
      *
+     * @param pk        The public key that will be used to sign the message
      * @param id        The user id
      * @param title     The ticket title
      * @param message   The ticket message
@@ -125,7 +221,7 @@ public interface Server {
      * @return          The signed message or null
      */
     @Nullable
-    default String createTicketMessage(String id, String title, String message, String groups) {
+    static String createTicketMessage(PublicKey pk, String id, String title, String message, String groups) {
         JSONObject registrationMessage = new JSONObject();
         registrationMessage.put("type", TYPE_REGISTRATION);
 
@@ -137,7 +233,7 @@ public interface Server {
 
         registrationMessage.put(TYPE_DATA, data);
 
-        return signData(registrationMessage.toString(), getToken());
+        return encryptMessage(registrationMessage.toString(), pk);
     }
 
 
@@ -145,6 +241,7 @@ public interface Server {
      * Create a standardized message that's signed and valid.
      * If the token is not defined, the result of this function will be null.
      *
+     * @param pk        The public key that will be used to sign the message
      * @param id        The user id
      * @param ticketid  The ticket title
      * @param contents  The message contents
@@ -152,7 +249,7 @@ public interface Server {
      * @return          The signed message or null
      */
     @Nullable
-    default String createMessage(String id, String ticketid, String contents) {
+    static String createClassicMessage(PublicKey pk, String id, String ticketid, String contents) {
         JSONObject registrationMessage = new JSONObject();
         registrationMessage.put("type", TYPE_REGISTRATION);
 
@@ -163,7 +260,7 @@ public interface Server {
 
         registrationMessage.put(TYPE_DATA, data);
 
-        return signData(registrationMessage.toString(), getToken());
+        return encryptMessage(registrationMessage.toString(), pk);
     }
 
 
@@ -175,15 +272,63 @@ public interface Server {
      * @return The random token
      */
     @NotNull
-    default String generateToken() {
-        StringBuilder builder = new StringBuilder();
-        Random random = new Random();
+    static KeyPair generateRSAKey() throws NoSuchAlgorithmException {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(2048, new SecureRandom());
 
-        for (int i = 0; i < TOKEN_SIZE; ++i) {
-            builder.append(ALPHA_NUM_STRING.charAt(random.nextInt(ALPHA_NUM_STRING.length())));
+        return generator.generateKeyPair();
+    }
+
+
+    /**
+     * Send a success message
+     */
+    static void sendResponseMessage(PublicKey pk, OutputStreamWriter socketOutputStream, Boolean success) throws IOException {
+        JSONObject response = new JSONObject();
+        response.put("type", TYPE_RESPONSE);
+
+        JSONObject data = new JSONObject();
+
+        if (success) {
+            data.put(RESPONSE_VALUE, RESPONSE_SUCCESS);
+        } else {
+            data.put(RESPONSE_VALUE, RESPONSE_ERROR);
+        }
+
+        response.put("data", data);
+
+        socketOutputStream.write(encryptMessage(response.toString(), pk));
+        socketOutputStream.flush();
+    }
+
+
+    /**
+     * Used to send data through a socket.
+     * @param socketWriter  The socket output stream
+     * @param data          The data to send
+     * @throws IOException  Exception if write has failed
+     */
+    default void sendData(OutputStreamWriter socketWriter, String data) throws IOException {
+        socketWriter.write(data);
+        socketWriter.flush();
+    }
+
+
+    default String readData(InputStreamReader socketReader) throws IOException {
+        int nChar = BUFFER_SIZE;
+        char[] buffer = new char[BUFFER_SIZE];
+
+        StringBuilder builder = new StringBuilder();
+
+        while (socketReader.ready() && nChar == BUFFER_SIZE) {
+            nChar = socketReader.read(buffer, 0, 256);
+
+            builder.append(buffer);
         }
 
         return builder.toString();
     }
+
+
 
 }
