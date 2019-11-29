@@ -34,12 +34,12 @@ public class Client implements Server {
 
     @Override
     public PrivateKey getPrivateKey() {
-        return null;
+        return mRSAKey.getPrivate();
     }
 
     @Override
     public PublicKey getPublicKey() {
-        return null;
+        return mRSAKey.getPublic();
     }
 
     @Override

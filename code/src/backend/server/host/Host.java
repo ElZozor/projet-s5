@@ -4,6 +4,7 @@ import backend.server.Server;
 
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.net.Socket;
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
@@ -31,8 +32,9 @@ public class Host extends Thread implements Server {
 
         while (Host.isRunning) {
             try {
-                mServerSocket.accept();
-            } catch (IOException e) {
+                Socket client = mServerSocket.accept();
+                new ClientManager(client);
+            } catch (IOException | NoSuchAlgorithmException e) {
                 e.printStackTrace();
             }
         }
