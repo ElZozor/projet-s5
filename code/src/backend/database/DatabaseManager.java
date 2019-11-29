@@ -7,6 +7,7 @@ public class DatabaseManager {
     private static final String DB_URL = "jdbc:mysql://localhost/EMP";
     private static final String USER_TABLE_NAME     = "users";
     private static final String TICKETS_TABLE_NAME  = "tickets";
+    private static final String MESSAGE_TABLE_NAME  = "messages";
 
     private static DatabaseManager mDatabase;
 
@@ -135,6 +136,46 @@ public class DatabaseManager {
         );
 
         return true;
+    }
+
+
+    /**
+     * Insert a new message into the database
+     *
+     * @param id            The used id
+     * @param ticketid      The ticket id
+     * @param contents      The message contents
+     * @return              Whether the request is a success
+     * @throws SQLException Can thow an exception if the database can't be reached
+     */
+    public Boolean addNewMessage(String id, String ticketid, String contents) throws SQLException {
+
+        if (id == null || ticketid == null || contents == null) {
+            return false;
+        }
+
+        if (id.isEmpty() || ticketid.isEmpty() || contents.isEmpty()) {
+            return false;
+        }
+
+        Statement statement = databaseConnection.createStatement();
+        String request = String.format(
+                "SELECT groups FROM %s WHERE id='%s'",
+                USER_TABLE_NAME, id
+        );
+
+        if (statement.execute(request)) {
+            request = String.format(
+                    "INSERT INTO %s (id, ticketid, contents) VALUES ('%s' '%s' '%s')",
+                    id, ticketid, contents
+            );
+
+            return statement.execute(request);
+        }
+
+
+        return false;
+
     }
 
 }

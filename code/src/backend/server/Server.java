@@ -281,7 +281,13 @@ public interface Server {
 
 
     /**
-     * Send a success message
+     * Used to send a response message.
+     * It's mostly used by the host.
+     *
+     * @param pk
+     * @param socketOutputStream
+     * @param success
+     * @throws IOException
      */
     static void sendResponseMessage(PublicKey pk, OutputStreamWriter socketOutputStream, Boolean success) throws IOException {
         JSONObject response = new JSONObject();
@@ -314,6 +320,13 @@ public interface Server {
     }
 
 
+    /**
+     * Used to receive data from a socket.
+     *
+     * @param socketReader  The socket input reader
+     * @return              The data
+     * @throws IOException  Exception if read has failed
+     */
     default String readData(InputStreamReader socketReader) throws IOException {
         int nChar = BUFFER_SIZE;
         char[] buffer = new char[BUFFER_SIZE];

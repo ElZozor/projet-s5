@@ -107,15 +107,15 @@ public class ClientManager extends Thread implements Server {
                 break;
 
             case Server.TYPE_REGISTRATION :
-                handleRegistration(message);
+                handleRegistration(message.getJSONObject("data"));
                 break;
 
             case Server.TYPE_TICKET :
-                handleTicket(message);
+                handleTicket(message.getJSONObject("data"));
                 break;
 
             case Server.TYPE_MESSAGE :
-                handleClassicMessage(message);
+                handleClassicMessage(message.getJSONObject("data"));
                 break;
 
             default:
@@ -265,9 +265,46 @@ public class ClientManager extends Thread implements Server {
                 String groups   = messageData.getString("groups");
 
                 DatabaseManager databaseManager = DatabaseManager.getInstance();
-                databaseManager.createNewTicket(id, title, message, groups, new Date().getTime());
+                queryResult = databaseManager.createNewTicket(id, title, message, groups, new Date().getTime());
 
             }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+
+        try {
+            Server.sendResponseMessage(pk, mWriteStream, queryResult);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+
+    private void handleClassicMessage(JSONObject messageData) {
+        Boolean queryResult = false;
+        PublicKey pk = getOtherPublicKey();
+
+        if (pk == null) {
+            return ;
+        }
+
+
+        try {
+
+            if (messageData.has("id") && messageData.has("ticketid") && messageData.has("contents")) {
+
+                String id = messageData.getString("id");
+                String ticketid = messageData.getString("ticketid");
+                String contents = messageData.getString("contents");
+
+                DatabaseManager database = DatabaseManager.getInstance();
+                queryResult = database.addNewMessage(id, ticketid, contents);
+
+            }
+
         } catch (SQLException e) {
             e.printStackTrace();
         }
