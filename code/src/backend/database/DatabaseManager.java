@@ -1,10 +1,12 @@
 package backend.database;
 
+import debug.Debugger;
+
 import java.sql.*;
 
 public class DatabaseManager {
 
-    private static final String DB_URL = "jdbc:mysql://localhost/EMP";
+    private static final String DB_URL = "jdbc:mysql://localhost:3306/EMP";
     private static final String USER_TABLE_NAME     = "users";
     private static final String TICKETS_TABLE_NAME  = "tickets";
     private static final String MESSAGE_TABLE_NAME  = "messages";
@@ -34,7 +36,12 @@ public class DatabaseManager {
     private Connection databaseConnection;
 
     private DatabaseManager() throws SQLException {
-        databaseConnection = DriverManager.getConnection(DB_URL);
+        try {
+            Class.forName("com.mysql.jdbc.Driver");
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+        databaseConnection = DriverManager.getConnection(DB_URL, "java", "password");
     }
 
     /**
@@ -63,7 +70,7 @@ public class DatabaseManager {
         } else {
             request = String.format(
                     "SELECT * FROM %s WHERE id='%s' AND password='%s'",
-                    id, password
+                    USER_TABLE_NAME, id, password
             );
         }
 
@@ -94,13 +101,16 @@ public class DatabaseManager {
             return false;
         }
 
+
         Statement statement = databaseConnection.createStatement();
         String request = String.format(
-                "INSERT INTO %s (id, password, name, surname) VALUES ('%s' '%s' '%s' '%s')",
+                "INSERT INTO %s (id, password, name, surname) VALUES ('%s', '%s', '%s', '%s')",
                 USER_TABLE_NAME, id, password, name, surname
         );
 
-        statement.executeQuery(request);
+        Debugger.logMessage("DataBaseManager", "Executing following request: " + request);
+
+        statement.executeUpdate(request);
 
         return true;
     }
@@ -131,7 +141,7 @@ public class DatabaseManager {
 
         Statement statement = databaseConnection.createStatement();
         String request = String.format(
-                "INSERT INTO %s (id, title, message, groups, date) VALUES ('%s' '%s' '%s' '%s' '%s')",
+                "INSERT INTO %s (id, title, message, groups, date) VALUES ('%s', '%s', '%s', '%s', '%s')",
                 id, title, message, groups, Long.toString(date)
         );
 
@@ -166,11 +176,11 @@ public class DatabaseManager {
 
         if (statement.execute(request)) {
             request = String.format(
-                    "INSERT INTO %s (id, ticketid, contents) VALUES ('%s' '%s' '%s')",
+                    "INSERT INTO %s (id, ticketid, contents) VALUES ('%s', '%s', '%s')",
                     id, ticketid, contents
             );
 
-            return statement.execute(request);
+            return statement.executeUpdate(request) > 0;
         }
 
 

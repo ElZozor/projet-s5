@@ -2,10 +2,11 @@ package backend.server.host;
 
 import backend.database.DatabaseManager;
 import backend.server.Server;
+import debug.Debugger;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import javax.xml.crypto.Data;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -19,7 +20,7 @@ import java.util.Date;
 
 public class ClientManager extends Thread implements Server {
 
-
+    private final static String DBG_COLOR = Debugger.YELLOW;
 
     private final Socket mSocket;
     private OutputStreamWriter mWriteStream;
@@ -35,8 +36,10 @@ public class ClientManager extends Thread implements Server {
         mWriteStream = new OutputStreamWriter(mSocket.getOutputStream(), StandardCharsets.UTF_8);
         mReadStream  = new InputStreamReader(mSocket.getInputStream(), StandardCharsets.UTF_8);
 
-        mRSAKey = Server.generateRSAKey();
-        sendData(mWriteStream, Server.createKeyExchangeMessage(getPublicKey()));
+        mRSAKey = generateRSAKey();
+        sendData(mWriteStream, createKeyExchangeMessage(getPublicKey()));
+
+        Debugger.logColorMessage(DBG_COLOR, "ClientManager", "New client manager created");
     }
 
     /**
@@ -51,24 +54,31 @@ public class ClientManager extends Thread implements Server {
     public void run() {
         super.run();
 
-        StringBuilder jsonConstruct = new StringBuilder();
+        Debugger.logColorMessage(DBG_COLOR, "ClientManager", "client manager is listening");
 
-        while (Host.isRunning) {
+
+        while (Host.isRunning && mSocket.isConnected()) {
 
             try {
                 String message = readData(mReadStream);
+                if (message.isEmpty()) {
+                    continue;
+                }
+
+
                 JSONObject messageAsJSON = null;
 
                 try {
                     messageAsJSON = new JSONObject(message);
                 } catch (JSONException e) {
                     try {
-                        messageAsJSON = new JSONObject(Server.decryptMessage(message, getPrivateKey()));
+                        messageAsJSON = new JSONObject(decryptMessage(message, getPrivateKey()));
                     } catch (JSONException f) {
                         f.printStackTrace();
                     }
                 }
 
+                Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Message received:" + messageAsJSON);
                 if (messageAsJSON != null) {
                     if (messageAsJSON.has("type") && messageAsJSON.has("data")) {
                         handleMessage(messageAsJSON);
@@ -98,27 +108,33 @@ public class ClientManager extends Thread implements Server {
      */
     private void handleMessage(JSONObject message) {
 
-        switch (message.getString("type")) {
-            case Server.TYPE_KEY_XCHANGE :
+        switch (message.optString("type")) {
+            case TYPE_KEY_XCHANGE :
                 handleKeyExchange(message.getJSONObject("data"));
 
-            case Server.TYPE_CONNECTION :
+            case TYPE_CONNECTION :
                 handleConnection(message.getJSONObject("data"));
                 break;
 
-            case Server.TYPE_REGISTRATION :
+            case TYPE_REGISTRATION :
                 handleRegistration(message.getJSONObject("data"));
                 break;
 
-            case Server.TYPE_TICKET :
+            case TYPE_TICKET :
                 handleTicket(message.getJSONObject("data"));
                 break;
 
-            case Server.TYPE_MESSAGE :
+            case TYPE_MESSAGE :
                 handleClassicMessage(message.getJSONObject("data"));
                 break;
 
             default:
+                try {
+                    sendResponseMessage(getPublicKey(), mWriteStream, false);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
                 break;
         }
 
@@ -133,13 +149,20 @@ public class ClientManager extends Thread implements Server {
     private void handleKeyExchange(JSONObject messageData) {
         try {
 
-            String key = messageData.getString("key");
+            JSONArray key = messageData.getJSONArray("key");
+
+            byte[] result = new byte[key.length()];
+            for (int i = 0; i < key.length(); ++i) {
+                result[i] = (byte)(key.getInt(i) & 0xFF);
+            }
 
             KeyFactory factory = KeyFactory.getInstance("RSA");
-            X509EncodedKeySpec encodedKeySpec = new X509EncodedKeySpec(key.getBytes());
+            X509EncodedKeySpec encodedKeySpec = new X509EncodedKeySpec(result);
             mOtherPublicKey =  factory.generatePublic(encodedKeySpec);
 
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+            sendData(mWriteStream, createKeyExchangeMessage(getPublicKey()));
+
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException | IOException e) {
             e.printStackTrace();
         }
     }
@@ -178,7 +201,7 @@ public class ClientManager extends Thread implements Server {
 
 
         try {
-            Server.sendResponseMessage(pk, mWriteStream, queryResult);
+            sendResponseMessage(pk, mWriteStream, queryResult);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -216,6 +239,12 @@ public class ClientManager extends Thread implements Server {
                 DatabaseManager database = DatabaseManager.getInstance();
                 Boolean presentInDatabase = database.checkUserPresence(id, password, false);
 
+                Debugger.logColorMessage(
+                        DBG_COLOR,
+                        "ClientManager",
+                        (presentInDatabase ? "Present" : "Not present") + " in database"
+                );
+
                 if (!presentInDatabase) {
                     queryResult = database.registerNewUser(id, password, name, surname);
                 }
@@ -229,7 +258,7 @@ public class ClientManager extends Thread implements Server {
 
 
         try {
-            Server.sendResponseMessage(pk, mWriteStream, queryResult);
+            sendResponseMessage(pk, mWriteStream, queryResult);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -275,7 +304,7 @@ public class ClientManager extends Thread implements Server {
 
 
         try {
-            Server.sendResponseMessage(pk, mWriteStream, queryResult);
+            sendResponseMessage(pk, mWriteStream, queryResult);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -283,7 +312,13 @@ public class ClientManager extends Thread implements Server {
     }
 
 
+    /**
+     * Used to handle a classic message.
+     *
+     * @param messageData   The message data.
+     */
     private void handleClassicMessage(JSONObject messageData) {
+        Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Classic message: \n" + messageData.toString());
         Boolean queryResult = false;
         PublicKey pk = getOtherPublicKey();
 
@@ -311,7 +346,7 @@ public class ClientManager extends Thread implements Server {
 
 
         try {
-            Server.sendResponseMessage(pk, mWriteStream, queryResult);
+            sendResponseMessage(pk, mWriteStream, queryResult);
         } catch (IOException e) {
             e.printStackTrace();
         }

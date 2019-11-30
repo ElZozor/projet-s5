@@ -14,6 +14,7 @@
           <target>1.8</target>
         </configuration>
       </plugin>
+
     </plugins>
   </build>
   <dependencies>
@@ -22,11 +23,18 @@
   		<artifactId>java-jwt</artifactId>
   		<version>3.8.3</version>
   	</dependency>
-  	<dependency>
-  		<groupId>org.clojure</groupId>
-  		<artifactId>java.jdbc</artifactId>
-  		<version>0.7.10</version>
-  	</dependency>
+      <!-- https://mvnrepository.com/artifact/org.clojure/java.jdbc -->
+      <dependency>
+          <groupId>org.clojure</groupId>
+          <artifactId>java.jdbc</artifactId>
+          <version>0.7.10</version>
+      </dependency>
+      <dependency>
+          <groupId>mysql</groupId>
+          <artifactId>mysql-connector-java</artifactId>
+          <version>5.1.39</version>
+      </dependency>
+
       <dependency>
           <groupId>com.googlecode.json-simple</groupId>
           <artifactId>json-simple</artifactId>

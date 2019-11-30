@@ -1,22 +1,18 @@
 package backend.server;
 
-import jdk.internal.jline.internal.Nullable;
-import org.jetbrains.annotations.NonNls;
-import org.jetbrains.annotations.NotNull;
+import debug.Debugger;
 import org.json.JSONObject;
-import sun.nio.cs.UTF_8;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.net.Socket;
 import java.security.*;
 import java.util.Base64;
-import java.util.Random;
 
 
 public interface Server {
@@ -57,14 +53,10 @@ public interface Server {
     int BUFFER_SIZE = 256;
 
 
-
-    @Nullable
     PrivateKey getPrivateKey();
 
-    @Nullable
     PublicKey getPublicKey();
 
-    @Nullable
     PublicKey getOtherPublicKey();
 
 
@@ -75,10 +67,10 @@ public interface Server {
      * @param pk        The public key to encrypt data
      * @return          The encrypted message as a String
      */
-    @Nullable
-    static String encryptMessage(String data, PublicKey pk) {
+    default String encryptMessage(String data, PublicKey pk) {
         //TODO Complete this
         if (pk == null) {
+            Debugger.logMessage("Server encryptMessage", "Public Key is null !");
             return null;
         }
 
@@ -108,8 +100,7 @@ public interface Server {
      * @param pk        The private key to encrypt data
      * @return          The decrypted message as a String
      */
-    @Nullable
-    static String decryptMessage(String data, PrivateKey pk) {
+    default String decryptMessage(String data, PrivateKey pk) {
         //TODO Complete this
         if (pk == null) {
             return null;
@@ -122,7 +113,7 @@ public interface Server {
             Cipher decryptCypher = Cipher.getInstance("RSA");
             decryptCypher.init(Cipher.DECRYPT_MODE, pk);
 
-            String decipher = new String(decryptCypher.doFinal(data.getBytes()));
+            String decipher = new String(decryptCypher.doFinal(bytes));
 
             return decipher;
 
@@ -143,7 +134,7 @@ public interface Server {
      * @param pk    The public key
      * @return      The message
      */
-    static String createKeyExchangeMessage(PublicKey pk) {
+    default String createKeyExchangeMessage(PublicKey pk) {
         JSONObject keyExchangeMessage = new JSONObject();
         keyExchangeMessage.put("type", TYPE_KEY_XCHANGE);
 
@@ -165,8 +156,7 @@ public interface Server {
      * @param password  The user password
      * @return          The signed message or null
      */
-    @Nullable
-    static String createConnectionMessage(PublicKey pk, String id, String password) {
+    default String createConnectionMessage(PublicKey pk, String id, String password) {
         JSONObject connectionMessage = new JSONObject();
         connectionMessage.put("type", TYPE_CONNECTION);
 
@@ -191,8 +181,7 @@ public interface Server {
      * @param surname   The user surname
      * @return          The signed message or null
      */
-    @Nullable
-    static String createRegistrationMessage(PublicKey pk, String id, String password, String name, String surname) {
+    default String createRegistrationMessage(PublicKey pk, String id, String password, String name, String surname) {
         JSONObject registrationMessage = new JSONObject();
         registrationMessage.put("type", TYPE_REGISTRATION);
 
@@ -220,8 +209,7 @@ public interface Server {
      *
      * @return          The signed message or null
      */
-    @Nullable
-    static String createTicketMessage(PublicKey pk, String id, String title, String message, String groups) {
+    default String createTicketMessage(PublicKey pk, String id, String title, String message, String groups) {
         JSONObject registrationMessage = new JSONObject();
         registrationMessage.put("type", TYPE_REGISTRATION);
 
@@ -248,10 +236,10 @@ public interface Server {
      *
      * @return          The signed message or null
      */
-    @Nullable
-    static String createClassicMessage(PublicKey pk, String id, String ticketid, String contents) {
+    default String createClassicMessage(PublicKey pk, String id, String ticketid, String contents) {
+        Debugger.logMessage("Server", "create classic message called");
         JSONObject registrationMessage = new JSONObject();
-        registrationMessage.put("type", TYPE_REGISTRATION);
+        registrationMessage.put("type", TYPE_MESSAGE);
 
         JSONObject data = new JSONObject();
         data.put(MESSAGE_ID, id);
@@ -259,6 +247,11 @@ public interface Server {
         data.put(MESSAGE_CONTENTS, contents);
 
         registrationMessage.put(TYPE_DATA, data);
+
+        Debugger.logMessage(
+                "Server",
+                "Message is: " + registrationMessage
+        );
 
         return encryptMessage(registrationMessage.toString(), pk);
     }
@@ -271,8 +264,7 @@ public interface Server {
      *
      * @return The random token
      */
-    @NotNull
-    static KeyPair generateRSAKey() throws NoSuchAlgorithmException {
+    default KeyPair generateRSAKey() throws NoSuchAlgorithmException {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
         generator.initialize(2048, new SecureRandom());
 
@@ -289,7 +281,7 @@ public interface Server {
      * @param success
      * @throws IOException
      */
-    static void sendResponseMessage(PublicKey pk, OutputStreamWriter socketOutputStream, Boolean success) throws IOException {
+    default void sendResponseMessage(PublicKey pk, OutputStreamWriter socketOutputStream, Boolean success) throws IOException {
         JSONObject response = new JSONObject();
         response.put("type", TYPE_RESPONSE);
 
@@ -315,6 +307,7 @@ public interface Server {
      * @throws IOException  Exception if write has failed
      */
     default void sendData(OutputStreamWriter socketWriter, String data) throws IOException {
+        Debugger.logMessage("Server sendData", "Sending following data: " + data);
         socketWriter.write(data);
         socketWriter.flush();
     }
@@ -335,6 +328,42 @@ public interface Server {
 
         while (socketReader.ready() && nChar == BUFFER_SIZE) {
             nChar = socketReader.read(buffer, 0, 256);
+
+            for (int i = 0; i < nChar; ++i) {
+                builder.append(buffer[i]);
+            }
+
+        }
+
+        String data = builder.toString();
+        if (data.length() > 0) {
+            Debugger.logMessage("Server", "Data received: " + data);
+        }
+
+        return data;
+    }
+
+
+
+    /**
+     * Used to receive data from a socket.
+     *
+     * @param socketReader  The socket input reader
+     * @return              The data
+     * @throws IOException  Exception if read has failed
+     */
+    default String readDataBlocking(InputStreamReader socketReader) throws IOException {
+        int nChar = BUFFER_SIZE;
+        char[] buffer = new char[BUFFER_SIZE];
+
+        StringBuilder builder = new StringBuilder();
+
+        while (nChar == BUFFER_SIZE) {
+            nChar = socketReader.read(buffer, 0, 256);
+
+            for (int i = nChar; i < BUFFER_SIZE; ++i) {
+                buffer[i] = 0;
+            }
 
             builder.append(buffer);
         }

@@ -1,57 +1,40 @@
 package backend.server.host;
 
-import backend.server.Server;
+import debug.Debugger;
 
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
 
-public class Host extends Thread implements Server {
+public class Host extends Thread {
+
+    public static final String DBG_COLOR = Debugger.RED;
 
     public static final int PORT = 6666;
     public static Boolean isRunning = false;
 
     private ServerSocket mServerSocket;
 
-    private KeyPair mRSAKey;
-    private PublicKey mOtherPublicKey;
-
-    public Host() throws IOException, NoSuchAlgorithmException {
+    public Host() throws IOException {
         mServerSocket = new ServerSocket(PORT);
-
-        mRSAKey = Server.generateRSAKey();
     }
 
     @Override
     public void run() {
         super.run();
+        isRunning = true;
+        Debugger.logColorMessage(DBG_COLOR, "Server", "Host is running !");
 
         while (Host.isRunning) {
             try {
                 Socket client = mServerSocket.accept();
-                new ClientManager(client);
+                Debugger.logColorMessage(DBG_COLOR, "Server", "Connection detected");
+
+                new ClientManager(client).start();
             } catch (IOException | NoSuchAlgorithmException e) {
                 e.printStackTrace();
             }
         }
-    }
-
-    @Override
-    public PrivateKey getPrivateKey() {
-        return mRSAKey.getPrivate();
-    }
-
-    @Override
-    public PublicKey getPublicKey() {
-        return mRSAKey.getPublic();
-    }
-
-    @Override
-    public PublicKey getOtherPublicKey() {
-        return mOtherPublicKey;
     }
 }
