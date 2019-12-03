@@ -6,7 +6,7 @@ import java.sql.*;
 
 public class DatabaseManager {
 
-    private static final String DB_URL = "jdbc:mysql://localhost:3306/EMP";
+    private static final String DB_URL = "jdbc:mysql://localhost";
     private static final String USER_TABLE_NAME     = "users";
     private static final String TICKETS_TABLE_NAME  = "tickets";
     private static final String MESSAGE_TABLE_NAME  = "messages";
@@ -41,8 +41,10 @@ public class DatabaseManager {
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
         }
-        databaseConnection = DriverManager.getConnection(DB_URL, "java", "password");
+        databaseConnection = DriverManager.getConnection(DB_URL, "root", "");
     }
+
+
 
     /**
      * Check whether an user is present into the database
@@ -64,13 +66,13 @@ public class DatabaseManager {
         String request;
         if (checkPassword) {
             request = String.format(
-                    "SELECT * FROM %s WHERE id='%s'",
-                    id
+                    "SELECT * FROM %s WHERE id='%s' AND password='%s'",
+                    USER_TABLE_NAME, id, password
             );
         } else {
             request = String.format(
-                    "SELECT * FROM %s WHERE id='%s' AND password='%s'",
-                    USER_TABLE_NAME, id, password
+                    "SELECT * FROM %s WHERE id='%s'",
+                    id
             );
         }
 
@@ -110,9 +112,8 @@ public class DatabaseManager {
 
         Debugger.logMessage("DataBaseManager", "Executing following request: " + request);
 
-        statement.executeUpdate(request);
 
-        return true;
+        return (statement.executeUpdate(request) == 1);
     }
 
 
