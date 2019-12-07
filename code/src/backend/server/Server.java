@@ -337,16 +337,16 @@ public interface Server {
 
         do {
             try {
-                nChar = socketReader.read(buffer, 0, 256);
+                nChar = socketReader.read(buffer, 0, BUFFER_SIZE);
                 if (nChar < 0) {
                     nChar = 0;
                 }
 
-                for (int i = nChar; i < BUFFER_SIZE; ++i) {
-                    buffer[i] = 0;
+                for (int i = 0; i < nChar; ++i) {
+                    builder.append(buffer[i]);
                 }
 
-                builder.append(buffer);
+
             } catch (SocketTimeoutException e) {
                 System.err.println("Socket timeout detected, aborting...");
             }

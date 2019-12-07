@@ -1,5 +1,6 @@
 package backend.server.host;
 
+import backend.server.Server;
 import debug.Debugger;
 
 import java.io.IOException;
@@ -32,7 +33,7 @@ public class Host extends Thread {
                 Debugger.logColorMessage(DBG_COLOR, "Server", "Connection detected");
 
                 new ClientManager(client).start();
-            } catch (IOException | NoSuchAlgorithmException e) {
+            } catch (IOException | Server.ServerInitializationFailedException e) {
                 e.printStackTrace();
             }
         }

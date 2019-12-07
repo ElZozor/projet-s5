@@ -85,8 +85,10 @@ public class ClientManager extends Thread implements Server {
                 JSONObject messageAsJSON = null;
 
                 try {
+                    Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Trying to json this message: " + message);
                     messageAsJSON = new JSONObject(message);
                 } catch (JSONException e) {
+                    e.printStackTrace();
                     try {
                         messageAsJSON = new JSONObject(decryptMessage(message, getPrivateKey()));
                     } catch (JSONException | NoSuchPaddingException
@@ -180,13 +182,7 @@ public class ClientManager extends Thread implements Server {
             X509EncodedKeySpec encodedKeySpec = new X509EncodedKeySpec(result);
             mOtherPublicKey =  factory.generatePublic(encodedKeySpec);
 
-
-            try {
-                Thread.sleep(6000);
-                sendData(mWriteStream, createKeyExchangeMessage(getPublicKey()));
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+            sendData(mWriteStream, createKeyExchangeMessage(getPublicKey()));
 
 
 
