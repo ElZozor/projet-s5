@@ -7,10 +7,10 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.net.SocketTimeoutException;
 import java.security.*;
 import java.util.Base64;
 
@@ -29,18 +29,18 @@ public interface Server {
 
     String TYPE_DATA                = "data";
 
-    String CONNECTION_ID            = "id";
+    String CONNECTION_INE           = "ine";
     String CONNECTION_PASSWORD      = "password";
 
-    String REGISTRATION_ID          = "id";
+    String REGISTRATION_INE         = "ine";
     String REGISTRATION_PASSWORD    = "password";
     String REGISTRATION_NAME        = "name";
     String REGISTRATION_SURNAME     = "surname";
 
     String TICKET_ID                = "id";
     String TICKET_TITLE             = "title";
-    String TICKET_MESSAGE           = "name";
-    String TICKET_GROUPS            = "surname";
+    String TICKET_MESSAGE           = "message";
+    String TICKET_GROUP             = "group";
 
     String MESSAGE_ID               = "id";
     String MESSAGE_TICKET_ID        = "ticketid";
@@ -49,6 +49,7 @@ public interface Server {
     String RESPONSE_VALUE           = "value";
     String RESPONSE_SUCCESS         = "success";
     String RESPONSE_ERROR           = "error";
+    String RESPONSE_REASON          = "reason";
 
     int BUFFER_SIZE = 256;
 
@@ -68,7 +69,6 @@ public interface Server {
      * @return          The encrypted message as a String
      */
     default String encryptMessage(String data, PublicKey pk) {
-        //TODO Complete this
         if (pk == null) {
             Debugger.logMessage("Server encryptMessage", "Public Key is null !");
             return null;
@@ -100,30 +100,23 @@ public interface Server {
      * @param pk        The private key to encrypt data
      * @return          The decrypted message as a String
      */
-    default String decryptMessage(String data, PrivateKey pk) {
-        //TODO Complete this
+    default String decryptMessage(String data, PrivateKey pk)
+            throws NoSuchPaddingException, NoSuchAlgorithmException,
+            InvalidKeyException, BadPaddingException, IllegalBlockSizeException {
         if (pk == null) {
             return null;
         }
 
-        try {
-
-            byte[] bytes = Base64.getDecoder().decode(data);
-
-            Cipher decryptCypher = Cipher.getInstance("RSA");
-            decryptCypher.init(Cipher.DECRYPT_MODE, pk);
-
-            String decipher = new String(decryptCypher.doFinal(bytes));
-
-            return decipher;
-
-        } catch (NoSuchPaddingException | NoSuchAlgorithmException
-                | InvalidKeyException | BadPaddingException
-                | IllegalBlockSizeException e) {
-            e.printStackTrace();
-
+        if (data == null || data.isEmpty()) {
             return null;
         }
+
+        byte[] bytes = Base64.getDecoder().decode(data);
+
+        Cipher decryptCypher = Cipher.getInstance("RSA");
+        decryptCypher.init(Cipher.DECRYPT_MODE, pk);
+
+        return new String(decryptCypher.doFinal(bytes));
     }
 
 
@@ -152,16 +145,16 @@ public interface Server {
      * If the token is not defined, the result of this function will be null.
      *
      * @param pk        The public key that will be used to sign the message
-     * @param id        The user id
+     * @param ine       The user INE
      * @param password  The user password
      * @return          The signed message or null
      */
-    default String createConnectionMessage(PublicKey pk, String id, String password) {
+    default String createConnectionMessage(PublicKey pk, String ine, String password) {
         JSONObject connectionMessage = new JSONObject();
         connectionMessage.put("type", TYPE_CONNECTION);
 
         JSONObject data = new JSONObject();
-        data.put(CONNECTION_ID, id);
+        data.put(CONNECTION_INE, ine);
         data.put(CONNECTION_PASSWORD, password);
 
         connectionMessage.put(TYPE_DATA, data);
@@ -175,21 +168,21 @@ public interface Server {
      * If the token is not defined, the result of this function will be null.
      *
      * @param pk        The public key that will be used to sign the message
-     * @param id        The user id
      * @param password  The user password
      * @param name      The user name
      * @param surname   The user surname
+     * @param INE       The user INE (i.e student number)
      * @return          The signed message or null
      */
-    default String createRegistrationMessage(PublicKey pk, String id, String password, String name, String surname) {
+    default String createRegistrationMessage(PublicKey pk, String password, String name, String surname, String INE) {
         JSONObject registrationMessage = new JSONObject();
         registrationMessage.put("type", TYPE_REGISTRATION);
 
         JSONObject data = new JSONObject();
-        data.put(REGISTRATION_ID, id);
         data.put(REGISTRATION_PASSWORD, password);
         data.put(REGISTRATION_NAME, name);
         data.put(REGISTRATION_SURNAME, surname);
+        data.put(REGISTRATION_INE, INE);
 
         registrationMessage.put(TYPE_DATA, data);
 
@@ -202,22 +195,20 @@ public interface Server {
      * If the token is not defined, the result of this function will be null.
      *
      * @param pk        The public key that will be used to sign the message
-     * @param id        The user id
      * @param title     The ticket title
      * @param message   The ticket message
      * @param groups    The ticket groups
      *
      * @return          The signed message or null
      */
-    default String createTicketMessage(PublicKey pk, String id, String title, String message, String groups) {
+    default String createTicketMessage(PublicKey pk, String title, String message, String groups) {
         JSONObject registrationMessage = new JSONObject();
         registrationMessage.put("type", TYPE_REGISTRATION);
 
         JSONObject data = new JSONObject();
-        data.put(TICKET_ID, id);
         data.put(TICKET_TITLE, title);
         data.put(TICKET_MESSAGE, message);
-        data.put(TICKET_GROUPS, groups);
+        data.put(TICKET_GROUP, groups);
 
         registrationMessage.put(TYPE_DATA, data);
 
@@ -230,19 +221,17 @@ public interface Server {
      * If the token is not defined, the result of this function will be null.
      *
      * @param pk        The public key that will be used to sign the message
-     * @param id        The user id
      * @param ticketid  The ticket title
      * @param contents  The message contents
      *
      * @return          The signed message or null
      */
-    default String createClassicMessage(PublicKey pk, String id, String ticketid, String contents) {
+    default String createClassicMessage(PublicKey pk, String ticketid, String contents) {
         Debugger.logMessage("Server", "create classic message called");
         JSONObject registrationMessage = new JSONObject();
         registrationMessage.put("type", TYPE_MESSAGE);
 
         JSONObject data = new JSONObject();
-        data.put(MESSAGE_ID, id);
         data.put(MESSAGE_TICKET_ID, ticketid);
         data.put(MESSAGE_CONTENTS, contents);
 
@@ -273,30 +262,48 @@ public interface Server {
 
 
     /**
-     * Used to send a response message.
-     * It's mostly used by the host.
+     * Used to send an Ack response ( query has succeed )
      *
-     * @param pk
-     * @param socketOutputStream
-     * @param success
-     * @throws IOException
+     * @param pk                    The public key to encrypt the data
+     * @param socketOutputStream    The output stream for the data
+     * @throws IOException          Can be thrown while writing into the stream
      */
-    default void sendResponseMessage(PublicKey pk, OutputStreamWriter socketOutputStream, Boolean success) throws IOException {
+    default void sendAckMessage(PublicKey pk, OutputStreamWriter socketOutputStream) throws IOException {
         JSONObject response = new JSONObject();
         response.put("type", TYPE_RESPONSE);
 
         JSONObject data = new JSONObject();
+        data.put(RESPONSE_VALUE, RESPONSE_SUCCESS);
 
-        if (success) {
-            data.put(RESPONSE_VALUE, RESPONSE_SUCCESS);
-        } else {
-            data.put(RESPONSE_VALUE, RESPONSE_ERROR);
-        }
-
-        response.put("data", data);
+        response.put(TYPE_DATA, data);
 
         socketOutputStream.write(encryptMessage(response.toString(), pk));
         socketOutputStream.flush();
+    }
+
+
+    /**
+     * Used to send a Nack response ( query has failed )
+     *
+     * @param pk                    The public key to encrypt the data
+     * @param socketOutputStream    The ouput stream for the data
+     * @param reason                The reason why the query has failed
+     * @throws IOException          Can be thrown while writing into the stream
+     */
+    default void sendNackMessage(PublicKey pk, OutputStreamWriter socketOutputStream, String reason) throws IOException {
+
+        JSONObject response = new JSONObject();
+        response.put("type", TYPE_RESPONSE);
+
+        JSONObject data = new JSONObject();
+        data.put(RESPONSE_VALUE, RESPONSE_ERROR);
+        data.put(RESPONSE_REASON, reason);
+
+        response.put(TYPE_DATA, data);
+
+        socketOutputStream.write(encryptMessage(response.toString(), pk));
+        socketOutputStream.flush();
+
     }
 
 
@@ -313,36 +320,6 @@ public interface Server {
     }
 
 
-    /**
-     * Used to receive data from a socket.
-     *
-     * @param socketReader  The socket input reader
-     * @return              The data
-     * @throws IOException  Exception if read has failed
-     */
-    default String readData(InputStreamReader socketReader) throws IOException {
-        int nChar = BUFFER_SIZE;
-        char[] buffer = new char[BUFFER_SIZE];
-
-        StringBuilder builder = new StringBuilder();
-
-        while (socketReader.ready() && nChar == BUFFER_SIZE) {
-            nChar = socketReader.read(buffer, 0, 256);
-
-            for (int i = 0; i < nChar; ++i) {
-                builder.append(buffer[i]);
-            }
-
-        }
-
-        String data = builder.toString();
-        if (data.length() > 0) {
-            Debugger.logMessage("Server", "Data received: " + data);
-        }
-
-        return data;
-    }
-
 
 
     /**
@@ -352,25 +329,48 @@ public interface Server {
      * @return              The data
      * @throws IOException  Exception if read has failed
      */
-    default String readDataBlocking(InputStreamReader socketReader) throws IOException {
-        int nChar = BUFFER_SIZE;
+    default String readData(InputStreamReader socketReader, String defaultReturnValue) throws IOException {
+        int nChar = 0;
         char[] buffer = new char[BUFFER_SIZE];
 
         StringBuilder builder = new StringBuilder();
 
-        while (nChar == BUFFER_SIZE) {
-            nChar = socketReader.read(buffer, 0, 256);
+        do {
+            try {
+                nChar = socketReader.read(buffer, 0, 256);
+                if (nChar < 0) {
+                    nChar = 0;
+                }
 
-            for (int i = nChar; i < BUFFER_SIZE; ++i) {
-                buffer[i] = 0;
+                for (int i = nChar; i < BUFFER_SIZE; ++i) {
+                    buffer[i] = 0;
+                }
+
+                builder.append(buffer);
+            } catch (SocketTimeoutException e) {
+                System.err.println("Socket timeout detected, aborting...");
             }
+        } while (nChar == BUFFER_SIZE && socketReader.ready());
 
-            builder.append(buffer);
+
+        if (builder.length() == 0) {
+            return defaultReturnValue;
         }
 
         return builder.toString();
     }
 
+
+
+    class ServerInitializationFailedException extends Exception {
+        public ServerInitializationFailedException() {
+            super();
+        }
+
+        public ServerInitializationFailedException(String message) {
+            super(message);
+        }
+    }
 
 
 }

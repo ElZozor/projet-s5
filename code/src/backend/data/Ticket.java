@@ -1,5 +1,6 @@
 package backend.data;
 
+import clojure.lang.Sorted;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -11,18 +12,14 @@ import java.util.TreeSet;
 
 public class Ticket implements Comparable<Ticket> {
 
-    private static final String KEY_ID              = "id";
-    private static final String KEY_TITRE           = "titre";
-    private static final String KEY_PREMIER_MESSAGE = "premier_message";
-    private static final String KEY_DERNIER_MESSAGE = "dernier_message";
-    private static final String KEY_MESSAGES        = "messages";
+    private static final String KEY_ID       = "id";
+    private static final String KEY_TITRE    = "titre";
+    private static final String KEY_MESSAGES = "messages";
 
-    private Set<Message> mMessages;
+    private SortedSet<Message> mMessages;
 
-    private final Long mID;
+    private Long mID;
     private final String mTitre;
-    private final Message mPremierMessage;
-    private final Message mDernierMessage;
 
     public static Ticket fromJSON(JSONObject ticket) {
         Long id = ticket.getLong(KEY_ID);
@@ -43,8 +40,6 @@ public class Ticket implements Comparable<Ticket> {
 
         ticketAsJSON.put(KEY_ID, ticket.getID());
         ticketAsJSON.put(KEY_TITRE, ticket.getID());
-        ticketAsJSON.put(KEY_PREMIER_MESSAGE, ticket.getID());
-        ticketAsJSON.put(KEY_DERNIER_MESSAGE, ticket.getID());
 
         JSONArray messages = new JSONArray();
         for (Message m : ticket.getMessages()) {
@@ -56,12 +51,15 @@ public class Ticket implements Comparable<Ticket> {
         return ticketAsJSON;
     }
 
+    public Ticket(String titre, SortedSet<Message> messages) throws NoSuchElementException {
+        mMessages       = messages;
+        mTitre          = titre;
+    }
+
     public Ticket(Long id, String titre, SortedSet<Message> messages) throws NoSuchElementException {
         mID             = id;
         mMessages       = messages;
         mTitre          = titre;
-        mPremierMessage = messages.first();
-        mDernierMessage = messages.last();
     }
 
     public Set<Message> getMessages() {
@@ -76,12 +74,12 @@ public class Ticket implements Comparable<Ticket> {
         return mTitre;
     }
 
-    public Message getPremierMessage() {
-        return mPremierMessage;
+    public Message premierMessage() {
+        return mMessages.first();
     }
 
-    public Message getDernierMessage() {
-        return mDernierMessage;
+    public Message dernierMessage() {
+        return mMessages.last();
     }
 
     @Override

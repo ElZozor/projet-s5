@@ -27,7 +27,7 @@ public class Utilisateur {
 
 
 
-    private Utilisateur(long id, String nom, String prenom, String INE) {
+    public Utilisateur(long id, String nom, String prenom, String INE) {
         mID     = id;
         mNom    = nom;
         mPrenom = prenom;

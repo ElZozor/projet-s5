@@ -7,6 +7,9 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -15,10 +18,16 @@ import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
+import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Date;
 
 public class ClientManager extends Thread implements Server {
+
+
+    private final static String ERROR_MESSAGE_HANDLE_DEMAND     = "Le serveur ne peut pas traiter cette demande.";
+    private final static String ERROR_MESSAGE_DATABASE_ERROR    = "La base de donnée a rencontré une erreur.";
+    private final static String ERROR_MESSAGE_SERVER_ERROR      = "Le serveur a recontré une erreur.";
+    private final static String ERROR_MESSAGE_EMPTY_FIELD       = "Tous les champs doivent être correctement remplis !";
 
     private final static String DBG_COLOR = Debugger.YELLOW;
 
@@ -29,17 +38,25 @@ public class ClientManager extends Thread implements Server {
     private KeyPair mRSAKey;
     private PublicKey mOtherPublicKey;
 
+    private String userINE;
 
-    public ClientManager(final Socket socket) throws IOException, NoSuchAlgorithmException {
-        mSocket = socket;
 
-        mWriteStream = new OutputStreamWriter(mSocket.getOutputStream(), StandardCharsets.UTF_8);
-        mReadStream  = new InputStreamReader(mSocket.getInputStream(), StandardCharsets.UTF_8);
+    public ClientManager(final Socket socket) throws ServerInitializationFailedException {
 
-        mRSAKey = generateRSAKey();
-        sendData(mWriteStream, createKeyExchangeMessage(getPublicKey()));
+        try {
+            mSocket = socket;
+            mWriteStream = new OutputStreamWriter(mSocket.getOutputStream(), StandardCharsets.UTF_8);
+            mReadStream  = new InputStreamReader(mSocket.getInputStream(), StandardCharsets.UTF_8);
 
-        Debugger.logColorMessage(DBG_COLOR, "ClientManager", "New client manager created");
+            mRSAKey = generateRSAKey();
+            Debugger.logColorMessage(DBG_COLOR, "ClientManager", "New client manager created");
+        } catch (IOException | NoSuchAlgorithmException e) {
+            e.printStackTrace();
+
+            throw  new ServerInitializationFailedException();
+        }
+
+
     }
 
     /**
@@ -60,11 +77,10 @@ public class ClientManager extends Thread implements Server {
         while (Host.isRunning && mSocket.isConnected()) {
 
             try {
-                String message = readData(mReadStream);
+                String message = readData(mReadStream, "");
                 if (message.isEmpty()) {
                     continue;
                 }
-
 
                 JSONObject messageAsJSON = null;
 
@@ -73,15 +89,17 @@ public class ClientManager extends Thread implements Server {
                 } catch (JSONException e) {
                     try {
                         messageAsJSON = new JSONObject(decryptMessage(message, getPrivateKey()));
-                    } catch (JSONException f) {
+                    } catch (JSONException | NoSuchPaddingException
+                            | NoSuchAlgorithmException | InvalidKeyException
+                            | BadPaddingException | IllegalBlockSizeException f) {
                         f.printStackTrace();
                     }
-                }
-
-                Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Message received:" + messageAsJSON);
-                if (messageAsJSON != null) {
-                    if (messageAsJSON.has("type") && messageAsJSON.has("data")) {
-                        handleMessage(messageAsJSON);
+                } finally {
+                    if (messageAsJSON != null) {
+                        Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Message received:" + messageAsJSON);
+                        if (messageAsJSON.has("type") && messageAsJSON.has(TYPE_DATA)) {
+                            handleMessage(messageAsJSON);
+                        }
                     }
                 }
 
@@ -110,27 +128,28 @@ public class ClientManager extends Thread implements Server {
 
         switch (message.optString("type")) {
             case TYPE_KEY_XCHANGE :
-                handleKeyExchange(message.getJSONObject("data"));
+                handleKeyExchange(message.getJSONObject(TYPE_DATA));
+                break;
 
             case TYPE_CONNECTION :
-                handleConnection(message.getJSONObject("data"));
+                handleConnection(message.getJSONObject(TYPE_DATA));
                 break;
 
             case TYPE_REGISTRATION :
-                handleRegistration(message.getJSONObject("data"));
+                handleRegistration(message.getJSONObject(TYPE_DATA));
                 break;
 
             case TYPE_TICKET :
-                handleTicket(message.getJSONObject("data"));
+                handleTicketCreation(message.getJSONObject(TYPE_DATA));
                 break;
 
             case TYPE_MESSAGE :
-                handleClassicMessage(message.getJSONObject("data"));
+                handleClassicMessage(message.getJSONObject(TYPE_DATA));
                 break;
 
             default:
                 try {
-                    sendResponseMessage(getPublicKey(), mWriteStream, false);
+                    sendNackMessage(getPublicKey(), mWriteStream, ERROR_MESSAGE_HANDLE_DEMAND);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -147,6 +166,7 @@ public class ClientManager extends Thread implements Server {
      * @param messageData   The key exchange message.
      */
     private void handleKeyExchange(JSONObject messageData) {
+
         try {
 
             JSONArray key = messageData.getJSONArray("key");
@@ -160,11 +180,20 @@ public class ClientManager extends Thread implements Server {
             X509EncodedKeySpec encodedKeySpec = new X509EncodedKeySpec(result);
             mOtherPublicKey =  factory.generatePublic(encodedKeySpec);
 
-            sendData(mWriteStream, createKeyExchangeMessage(getPublicKey()));
+
+            try {
+                Thread.sleep(6000);
+                sendData(mWriteStream, createKeyExchangeMessage(getPublicKey()));
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+
 
         } catch (NoSuchAlgorithmException | InvalidKeySpecException | IOException e) {
             e.printStackTrace();
         }
+
     }
 
 
@@ -176,32 +205,53 @@ public class ClientManager extends Thread implements Server {
      */
     private void handleConnection(JSONObject messageData) {
 
-        Boolean queryResult = false;
+        boolean queryResult = false;
         PublicKey pk = getOtherPublicKey();
+        String fail_reason = "";
 
         if (pk == null) {
-            return ;
+            return;
         }
 
         try {
 
-            if (messageData.has("id") && messageData.has("password")) {
+            if (messageData.has(CONNECTION_INE) && messageData.has(CONNECTION_PASSWORD)) {
 
-                String id = messageData.getString("id");
-                String password = messageData.getString("password");
+                String ine      = messageData.getString(CONNECTION_INE);
+                String password = messageData.getString(CONNECTION_PASSWORD);
 
                 DatabaseManager database = DatabaseManager.getInstance();
-                queryResult = database.checkUserPresence(id, password, true);
+                ResultSet result = database.credentialsAreValid(ine, password);
+
+                queryResult = result.next();
+
+                if (queryResult) {
+                    userINE = ine;
+
+                    // TODO Ajouter l'utilisateur dans la hashmap de l'hôte.
+
+                }
+
+            } else {
+
+                fail_reason = ERROR_MESSAGE_EMPTY_FIELD;
 
             }
 
         } catch (SQLException e) {
             e.printStackTrace();
+            fail_reason = ERROR_MESSAGE_DATABASE_ERROR;
+        } catch (NoSuchAlgorithmException e) {
+            fail_reason = ERROR_MESSAGE_SERVER_ERROR;
         }
 
 
         try {
-            sendResponseMessage(pk, mWriteStream, queryResult);
+            if (queryResult) {
+                sendAckMessage(pk, mWriteStream);
+            } else {
+                sendNackMessage(pk, mWriteStream, fail_reason);
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -220,45 +270,49 @@ public class ClientManager extends Thread implements Server {
 
         Boolean queryResult = false;
         PublicKey pk = getPublicKey();
+        String fail_reason = "";
+
 
         if (pk == null) {
-            return ;
+            return;
         }
 
         try {
 
-            if (messageData.has("id") && messageData.has("password")
-                    && messageData.has("name") && messageData.has("surname")) {
+            if (messageData.has(REGISTRATION_INE) && messageData.has(REGISTRATION_NAME)
+                    && messageData.has(REGISTRATION_SURNAME) && messageData.has(REGISTRATION_PASSWORD)) {
 
-                String id = messageData.getString("id");
-                String password = messageData.getString("password");
-                String name = messageData.getString("name");
-                String surname = messageData.getString("surname");
+                String ine      = messageData.getString(REGISTRATION_INE);
+                String password = messageData.getString(REGISTRATION_PASSWORD);
+                String name     = messageData.getString(REGISTRATION_NAME);
+                String surname  = messageData.getString(REGISTRATION_SURNAME);
 
 
                 DatabaseManager database = DatabaseManager.getInstance();
-                Boolean presentInDatabase = database.checkUserPresence(id, password, false);
+                queryResult = database.registerNewUser(ine, password, name, surname);
 
-                Debugger.logColorMessage(
-                        DBG_COLOR,
-                        "ClientManager",
-                        (presentInDatabase ? "Present" : "Not present") + " in database"
-                );
+            } else {
 
-                if (!presentInDatabase) {
-                    queryResult = database.registerNewUser(id, password, name, surname);
-                }
+                fail_reason = ERROR_MESSAGE_EMPTY_FIELD;
 
             }
 
         } catch (SQLException e) {
             e.printStackTrace();
+            fail_reason = ERROR_MESSAGE_DATABASE_ERROR;
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+            fail_reason = ERROR_MESSAGE_SERVER_ERROR;
         }
 
 
 
         try {
-            sendResponseMessage(pk, mWriteStream, queryResult);
+            if (queryResult) {
+                sendAckMessage(pk, mWriteStream);
+            } else {
+                sendNackMessage(pk, mWriteStream, fail_reason);
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -273,10 +327,11 @@ public class ClientManager extends Thread implements Server {
      *
      * @param messageData   The message that contains the ticket informations
      */
-    private void handleTicket(JSONObject messageData) {
+    private void handleTicketCreation(JSONObject messageData) {
 
         Boolean queryResult = false;
         PublicKey pk = getOtherPublicKey();
+        String fail_reason = "";
 
         if (pk == null) {
             return ;
@@ -285,26 +340,36 @@ public class ClientManager extends Thread implements Server {
 
         try {
 
-            if (messageData.has("id") && messageData.has("title")
-                    && messageData.has("message") && messageData.has("groups")) {
+            if (messageData.has(TICKET_TITLE) && messageData.has(TICKET_MESSAGE) && messageData.has(TICKET_GROUP)) {
 
-                String id       = messageData.getString("id");
-                String title    = messageData.getString("title");
-                String message  = messageData.getString("message");
-                String groups   = messageData.getString("groups");
+                String title    = messageData.getString(TICKET_TITLE);
+                String message  = messageData.getString(TICKET_MESSAGE);
+                String group    = messageData.getString(TICKET_GROUP);
 
                 DatabaseManager databaseManager = DatabaseManager.getInstance();
-                queryResult = databaseManager.createNewTicket(id, title, message, groups, new Date().getTime());
+                queryResult = databaseManager.createNewTicket(userINE, title, message, group);
+
+            } else {
+
+                fail_reason = ERROR_MESSAGE_EMPTY_FIELD;
 
             }
 
         } catch (SQLException e) {
             e.printStackTrace();
+            fail_reason = ERROR_MESSAGE_DATABASE_ERROR;
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+            fail_reason = ERROR_MESSAGE_SERVER_ERROR;
         }
 
 
         try {
-            sendResponseMessage(pk, mWriteStream, queryResult);
+            if (queryResult) {
+                sendAckMessage(pk, mWriteStream);
+            } else {
+                sendNackMessage(pk, mWriteStream, fail_reason);
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -321,6 +386,7 @@ public class ClientManager extends Thread implements Server {
         Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Classic message: \n" + messageData.toString());
         Boolean queryResult = false;
         PublicKey pk = getOtherPublicKey();
+        String fail_reason = "";
 
         if (pk == null) {
             return ;
@@ -329,24 +395,35 @@ public class ClientManager extends Thread implements Server {
 
         try {
 
-            if (messageData.has("id") && messageData.has("ticketid") && messageData.has("contents")) {
+            if (messageData.has(MESSAGE_TICKET_ID) && messageData.has(MESSAGE_TICKET_ID)) {
 
-                String id = messageData.getString("id");
-                String ticketid = messageData.getString("ticketid");
-                String contents = messageData.getString("contents");
+                String ticketid = messageData.getString(MESSAGE_TICKET_ID);
+                String contents = messageData.getString(MESSAGE_CONTENTS);
 
                 DatabaseManager database = DatabaseManager.getInstance();
-                queryResult = database.addNewMessage(id, ticketid, contents);
+                queryResult = database.addNewMessage(userINE, ticketid, contents);
+
+            } else {
+
+                fail_reason = ERROR_MESSAGE_EMPTY_FIELD;
 
             }
 
         } catch (SQLException e) {
             e.printStackTrace();
+            fail_reason = ERROR_MESSAGE_DATABASE_ERROR;
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+            fail_reason = ERROR_MESSAGE_SERVER_ERROR;
         }
 
 
         try {
-            sendResponseMessage(pk, mWriteStream, queryResult);
+            if (queryResult) {
+                sendAckMessage(pk, mWriteStream);
+            } else {
+                sendNackMessage(pk, mWriteStream, fail_reason);
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
