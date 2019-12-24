@@ -23,7 +23,7 @@ CREATE TABLE UTILISATEUR(
     mot_de_passe VARCHAR(50) NOT NULL,
     nom VARCHAR(50) NOT NULL,
     prenom VARCHAR(50) NOT NULL,
-    ine INT NOT NULL,
+    ine VARCHAR(11) NOT NULL,
     type_util VARCHAR(50) NOT NULL,
     
     PRIMARY KEY(id_util),
