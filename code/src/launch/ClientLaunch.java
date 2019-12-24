@@ -4,13 +4,8 @@ import backend.server.Server;
 import backend.server.client.Client;
 import debug.Debugger;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
 import java.io.IOException;
 import java.net.Socket;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 
 public class ClientLaunch {
 

@@ -348,7 +348,7 @@ public interface Server {
 
 
             } catch (SocketTimeoutException e) {
-                System.err.println("Socket timeout detected, aborting...");
+                Debugger.logMessage("Server", "Socket timeout detected, aborting...");
             }
         } while (nChar == BUFFER_SIZE && socketReader.ready());
 

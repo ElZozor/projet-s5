@@ -96,6 +96,7 @@ public class Client implements Server {
      * @param messageData   The key exchange message.
      */
     private void handleKeyExchange(JSONObject messageData) {
+
         try {
 
             JSONArray key = messageData.getJSONArray("key");
@@ -113,6 +114,7 @@ public class Client implements Server {
         } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
             e.printStackTrace();
         }
+
     }
 
 
@@ -136,6 +138,7 @@ public class Client implements Server {
         }
 
         return data;
+
     }
 
 

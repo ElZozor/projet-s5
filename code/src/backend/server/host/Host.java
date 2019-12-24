@@ -6,7 +6,9 @@ import debug.Debugger;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.security.NoSuchAlgorithmException;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
 
 public class Host extends Thread {
 
@@ -16,6 +18,8 @@ public class Host extends Thread {
     public static Boolean isRunning = false;
 
     private ServerSocket mServerSocket;
+
+    private static HashMap<String, HashSet<ClientManager>> clientsByGroups = new HashMap<>();
 
     public Host() throws IOException {
         mServerSocket = new ServerSocket(PORT);
@@ -36,6 +40,20 @@ public class Host extends Thread {
             } catch (IOException | Server.ServerInitializationFailedException e) {
                 e.printStackTrace();
             }
+        }
+    }
+
+    public static void addClient(Collection<String> groups, ClientManager client) {
+        for (String group : groups) {
+            HashSet<ClientManager> clientSet = clientsByGroups.computeIfAbsent(group, k -> new HashSet<>());
+
+            clientSet.add(client);
+        }
+    }
+
+    public static void removeClient(Collection<String> groups, ClientManager client) {
+        for (String group : groups) {
+            clientsByGroups.get(group).remove(client);
         }
     }
 }
