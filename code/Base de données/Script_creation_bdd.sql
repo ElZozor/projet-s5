@@ -11,7 +11,7 @@ CREATE TABLE GROUPE(
     id_groupe INT NOT NULL AUTO_INCREMENT,
     label_grp VARCHAR(50) NOT NULL,
 
-    CONSTRAINT PK_GROUPE PRIMARY KEY(id_groupe),
+    PRIMARY KEY(id_groupe),
     
     CONSTRAINT CK_id_groupe CHECK  (id_groupe <> ''),
     CONSTRAINT CK_label_grp CHECK  (label_grp <> '')
@@ -26,7 +26,7 @@ CREATE TABLE UTILISATEUR(
     ine INT NOT NULL,
     type_util VARCHAR(50) NOT NULL,
     
-    CONSTRAINT PK_UTILISATEUR PRIMARY KEY(id_util),
+    PRIMARY KEY(id_util),
     
     CONSTRAINT CK_id_util CHECK  (id_util <> ''),
     CONSTRAINT CK_mot_de_passe CHECK  (mot_de_passe <> ''),
@@ -46,9 +46,9 @@ CREATE TABLE TICKET(
     id_util INT NOT NULL,
     id_groupe INT NOT NULL,
     
-    CONSTRAINT PK_TICKET PRIMARY KEY(id_ticket),
-    CONSTRAINT FK_TICKET_UTILISATEUR FOREIGN KEY(id_util) REFERENCES UTILISATEUR ON DELETE CASCADE, -- si l'utilisateur qui a créé le ticket est supprimé alors on supprime le ticket
-    CONSTRAINT FK_TICKET_GROUPE FOREIGN KEY(id_groupe)REFERENCES GROUPE ON DELETE CASCADE, -- pareil avec le groupe sur lequel se trouve le ticket
+    PRIMARY KEY(id_ticket),
+    FOREIGN KEY(id_util) REFERENCES UTILISATEUR ON DELETE CASCADE, -- si l'utilisateur qui a créé le ticket est supprimé alors on supprime le ticket
+    FOREIGN KEY(id_groupe)REFERENCES GROUPE ON DELETE CASCADE, -- pareil avec le groupe sur lequel se trouve le ticket
     
     CONSTRAINT CK_id_ticket CHECK  (id_ticket <> ''),
     CONSTRAINT CK_titre CHECK  (titre <> ''),
@@ -69,9 +69,9 @@ CREATE TABLE MESSAGE(
     id_ticket INT NOT NULL,
     id_util INT NOT NULL,
     
-    CONSTRAINT PK_MESSAGE PRIMARY KEY(id_message),
-    CONSTRAINT FK_MESSAGE_TICKET FOREIGN KEY(id_ticket) REFERENCES TICKET ON DELETE CASCADE,
-    CONSTRAINT FK_MESSAGE_UTILISATEUR FOREIGN KEY(id_util) REFERENCES UTILISATEUR ON DELETE CASCADE,
+    PRIMARY KEY(id_message),
+    FOREIGN KEY(id_ticket) REFERENCES TICKET ON DELETE CASCADE,
+    FOREIGN KEY(id_util) REFERENCES UTILISATEUR ON DELETE CASCADE,
     
     
     CONSTRAINT CK_id_message CHECK  (id_message <> ''),
@@ -85,17 +85,18 @@ CREATE TABLE VU(
     id_message INT NOT NULL,
     id_util INT NOT NULL,
     
-    CONSTRAINT PK_VU PRIMARY KEY(id_message,id_util),
-    CONSTRAINT FK_VU_MESSAGE FOREIGN KEY(id_message) REFERENCES MESSAGE ON DELETE CASCADE,
-    CONSTRAINT FK_VU_UTILISATEUR FOREIGN KEY(id_util) REFERENCES UTILISATEUR ON DELETE CASCADE
+    PRIMARY KEY(id_message,id_util),
+    FOREIGN KEY(id_message) REFERENCES MESSAGE ON DELETE CASCADE,
+    FOREIGN KEY(id_util) REFERENCES UTILISATEUR ON DELETE CASCADE
 
 );
+
 CREATE TABLE APPARTENIR(
     id_groupe INT NOT NULL,
     id_util INT NOT NULL, 
     
-    CONSTRAINT PK_APPARTENIR PRIMARY KEY(id_groupe,id_util),
-    CONSTRAINT FK_APPARTENIR_GROUPE FOREIGN KEY(id_groupe) REFERENCES GROUPE ON DELETE CASCADE,
-    CONSTRAINT FK_APPARTENIR_UTILISATEUR FOREIGN KEY(id_util) REFERENCES UTILISATEUR ON DELETE CASCADE
+    PRIMARY KEY(id_groupe,id_util),
+    FOREIGN KEY(id_groupe) REFERENCES GROUPE ON DELETE CASCADE,
+    FOREIGN KEY(id_util) REFERENCES UTILISATEUR ON DELETE CASCADE
     
 );
