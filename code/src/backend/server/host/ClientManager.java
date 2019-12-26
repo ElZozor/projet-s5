@@ -20,6 +20,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Collection;
 
 public class ClientManager extends Thread implements Server {
 
@@ -217,14 +218,14 @@ public class ClientManager extends Thread implements Server {
                 String password = messageData.getString(CONNECTION_PASSWORD);
 
                 DatabaseManager database = DatabaseManager.getInstance();
-                ResultSet result = database.credentialsAreValid(ine, password);
+                queryResult = database.credentialsAreValid(ine, password);
 
-                queryResult = result.next();
 
                 if (queryResult) {
-                    userINE = ine;
 
-                    // TODO Ajouter l'utilisateur dans la hashmap de l'hôte.
+                    userINE = ine;
+                    Collection<String> groups = database.retrieveAffiliatedGroups(userINE);
+                    Host.addClient(groups, this);
 
                 }
 
@@ -278,14 +279,16 @@ public class ClientManager extends Thread implements Server {
             if (messageData.has(REGISTRATION_INE) && messageData.has(REGISTRATION_NAME)
                     && messageData.has(REGISTRATION_SURNAME) && messageData.has(REGISTRATION_PASSWORD)) {
 
-                String ine      = messageData.getString(REGISTRATION_INE);
+                String ine = messageData.getString(REGISTRATION_INE);
                 String password = messageData.getString(REGISTRATION_PASSWORD);
-                String name     = messageData.getString(REGISTRATION_NAME);
-                String surname  = messageData.getString(REGISTRATION_SURNAME);
+                String name = messageData.getString(REGISTRATION_NAME);
+                String surname = messageData.getString(REGISTRATION_SURNAME);
+                String type = "type";
 
 
                 DatabaseManager database = DatabaseManager.getInstance();
-                queryResult = database.registerNewUser(ine, password, name, surname);
+                ResultSet set = database.registerNewUser(ine, password, name, surname, type);
+                queryResult = set != null && set.next();
 
             } else {
 

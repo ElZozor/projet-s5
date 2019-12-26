@@ -1,6 +1,5 @@
 package backend.data;
 
-import clojure.lang.Sorted;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -10,10 +9,11 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
-public class Ticket implements Comparable<Ticket> {
+import static backend.database.Keys.TICKET_ID;
+import static backend.database.Keys.TICKET_TITRE;
 
-    private static final String KEY_ID       = "id";
-    private static final String KEY_TITRE    = "titre";
+public class Ticket extends ProjectTable implements Comparable<Ticket> {
+
     private static final String KEY_MESSAGES = "messages";
 
     private SortedSet<Message> mMessages;
@@ -22,8 +22,8 @@ public class Ticket implements Comparable<Ticket> {
     private final String mTitre;
 
     public static Ticket fromJSON(JSONObject ticket) {
-        Long id = ticket.getLong(KEY_ID);
-        String titre = ticket.getString(KEY_TITRE);
+        Long id = ticket.getLong(TICKET_ID);
+        String titre = ticket.getString(TICKET_TITRE);
 
         JSONArray array = ticket.getJSONArray(KEY_MESSAGES);
         SortedSet<Message> messages = new TreeSet<>();
@@ -38,8 +38,8 @@ public class Ticket implements Comparable<Ticket> {
     public static JSONObject toJSON(Ticket ticket) {
         JSONObject ticketAsJSON = new JSONObject();
 
-        ticketAsJSON.put(KEY_ID, ticket.getID());
-        ticketAsJSON.put(KEY_TITRE, ticket.getID());
+        ticketAsJSON.put(TICKET_ID, ticket.getID());
+        ticketAsJSON.put(TICKET_TITRE, ticket.getID());
 
         JSONArray messages = new JSONArray();
         for (Message m : ticket.getMessages()) {

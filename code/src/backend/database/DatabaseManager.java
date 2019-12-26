@@ -1,5 +1,10 @@
 package backend.database;
 
+import backend.modele.GroupModel;
+import backend.modele.MessageModel;
+import backend.modele.TicketModel;
+import backend.modele.UserModel;
+import com.mysql.jdbc.StringUtils;
 import debug.Debugger;
 import org.jetbrains.annotations.NotNull;
 
@@ -8,49 +13,15 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.*;
 import java.util.Base64;
+import java.util.Collection;
+import java.util.LinkedList;
+import java.util.List;
+
+import static backend.database.Keys.*;
 
 public class DatabaseManager {
 
-    private static final String DB_URL = "jdbc:mysql://localhost";
-
-    private static final String TABLE_NAME_UTILISATEUR      = "utilisateur";
-    private static final String UTILISATEUR_ID              = "id";
-    private static final String UTILISATEUR_MDP             = "mot_de_passe";
-    private static final String UTILISATEUR_NOM             = "nom";
-    private static final String UTILISATEUR_PRENOM          = "prenom";
-    private static final String UTILISATEUR_HEURE_DER_MAJ   = "heure_derniere_maj";
-    private static final String UTILISATEUR_INE             = "ine";
-    private static final String UTILISATEUR_TYPE            = "type";
-
-    private static final String TABLE_NAME_TICKET           = "ticket";
-    private static final String TICKET_ID                   = "id";
-    private static final String TICKET_UTILISATEUR_ID       = "utilisateur_id";
-    private static final String TICKET_GROUP_ID             = "groupe_id";
-    private static final String TICKET_TITRE                = "titre";
-    private static final String TICKET_PREMIER_MESSAGE      = "premier_message";
-    private static final String TICKET_DERNIER_MESSAGE      = "dernier_message";
-
-    private static final String TABLE_NAME_MESSAGE          = "message";
-    private static final String MESSAGE_ID                  = "id";
-    private static final String MESSAGE_CONTENU             = "contenu";
-    private static final String MESSAGE_HEURE_ENVOIE        = "heure_envoie";
-    private static final String MESSAGE_UTILISATEUR_INE     = "utilisateur_ine";
-    private static final String MESSAGE_TICKET_ID           = "ticket_id";
-
-
-    private static final String TABLE_NAME_GROUPE           = "groupe";
-    private static final String GROUPE_ID                   = "id";
-    private static final String GROUPE_LABEL                = "label";
-
-    private static final String TABLE_NAME_VU               = "vu";
-    private static final String VU_UTILISATEUR_ID           = "utilisateur_id";
-    private static final String VU_MESSAGE_ID               = "message_id";
-
-    private static final String TABLE_NAME_ECRIRE           = "ecrire";
-    private static final String ECRIRE_UTILISATEUR_ID       = "utilisateur_id";
-    private static final String ECRIRE_MESSAGE_ID           = "message_id";
-    private static final String ECRIRE_TICKET_ID            = "ticket_id";
-
+    private static final String DB_URL = "jdbc:mysql://localhost/projets5";
 
 
     private static DatabaseManager mDatabase;
@@ -72,9 +43,6 @@ public class DatabaseManager {
     }
 
 
-
-
-
     private Connection databaseConnection;
     private MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
@@ -82,10 +50,11 @@ public class DatabaseManager {
         try {
             Class.forName("com.mysql.jdbc.Driver");
         } catch (ClassNotFoundException e) {
+            System.err.println("Cannot launch the database driver");
             e.printStackTrace();
         }
 
-        databaseConnection = DriverManager.getConnection(DB_URL, "root", "");
+        databaseConnection = DriverManager.getConnection(DB_URL, "projet", "");
     }
 
 
@@ -93,13 +62,22 @@ public class DatabaseManager {
         return Base64.getEncoder().encodeToString(digest.digest(password.getBytes(StandardCharsets.UTF_8)));
     }
 
+    private Boolean containsNullOrEmpty(String... args) {
+        for (String s : args) {
+            if (StringUtils.isNullOrEmpty(s)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
 
     /**
      * Check whether an user is present into the database
      *
-     * @param ine           the user ine
-     * @return              true if present otherwise false
+     * @param ine the user ine
+     * @return true if present otherwise false
      * @throws SQLException Can throw an exception if the database can't be reached
      */
     public Boolean userExists(String ine) throws SQLException {
@@ -119,7 +97,15 @@ public class DatabaseManager {
     }
 
 
-    public ResultSet credentialsAreValid(String ine, String password) throws SQLException {
+    /**
+     * Check if the user credentials are valid or not.
+     *
+     * @param ine      The user ine
+     * @param password The user password
+     * @return A boolean
+     * @throws SQLException Can be thrown during request
+     */
+    public Boolean credentialsAreValid(String ine, String password) throws SQLException {
         if (ine == null || password == null) {
             return null;
         }
@@ -133,43 +119,100 @@ public class DatabaseManager {
 
         ResultSet queryResult = statement.executeQuery(request);
 
-        return queryResult;
+        return queryResult.next();
     }
 
 
+    /**
+     * Retrieve all the groups that the concerned user is affialiated with.
+     *
+     * @param userINE The user INE
+     * @return All the groups as a Collection<String>
+     * @throws SQLException Can be thrown while accessing the database
+     */
+    public Collection<String> retrieveAffiliatedGroups(String userINE) throws SQLException {
+        if (userINE == null) {
+            return null;
+        }
+
+        Statement statement = databaseConnection.createStatement();
+        String request = String.format(
+                "SELECT DISTINCT %s.%s FROM %s, %s, %s "
+                        + " WHERE %s.%s = %s.%s AND %s.%s = %s.%s",
+                TABLE_NAME_GROUPE, GROUPE_LABEL, TABLE_NAME_GROUPE, TABLE_NAME_APPARTENIR, TABLE_NAME_UTILISATEUR,
+                TABLE_NAME_GROUPE, GROUPE_ID, TABLE_NAME_APPARTENIR, APPARTENIR_GROUPE_ID, TABLE_NAME_UTILISATEUR,
+                UTILISATEUR_INE, TABLE_NAME_APPARTENIR, APPARTENIR_UTILISATEUR_INE
+        );
+
+        ResultSet queryResult = statement.executeQuery(request);
+
+        List<String> groups = new LinkedList<>();
+        while (queryResult.next()) {
+            groups.add(queryResult.getString(GROUPE_LABEL));
+        }
+
+        return groups;
+    }
 
 
     /**
      * Register a new user in the user database
      *
-     * @param ine           the user ine
-     * @param password      the user password
-     * @param name          the user name
-     * @param surname       the user surname
-     * @return              whether the request is successful
+     * @param ine      the user ine
+     * @param password the user password
+     * @param name     the user name
+     * @param surname  the user surname
+     * @param type     the user type
+     * @return whether the request is successful
      * @throws SQLException Can throw an exception if the database can't be reached
      */
-    public Boolean registerNewUser(String ine, String password, String name, String surname) throws SQLException {
-        if (ine == null || password == null || name == null || surname == null) {
-            return false;
+    public ResultSet registerNewUser(String ine, String password, String name, String surname, String type) throws SQLException {
+        if (containsNullOrEmpty(ine, password, name, surname, type)) {
+            return null;
         }
 
-        Statement statement = databaseConnection.createStatement();
         String request = String.format(
-                "INSERT INTO %s (%s, %s, %s, %s) VALUES ('%s', '%s', '%s', '%s')",
+                "INSERT INTO %s (%s, %s, %s, %s, %s) VALUES ('%s', '%s', '%s', '%s', '%s')",
                 TABLE_NAME_UTILISATEUR,
-                UTILISATEUR_INE, UTILISATEUR_MDP, UTILISATEUR_NOM, UTILISATEUR_PRENOM,
-                ine, hashPassword(password), name, surname
+                UTILISATEUR_INE, UTILISATEUR_MDP, UTILISATEUR_NOM, UTILISATEUR_PRENOM, UTILISATEUR_TYPE,
+                ine, hashPassword(password), name, surname, type
         );
+
+        PreparedStatement statement = databaseConnection.prepareStatement(request, Statement.RETURN_GENERATED_KEYS);
 
         Debugger.logMessage("DataBaseManager", "Executing following request: " + request);
 
+        if (statement.executeUpdate() == 1) {
+            return statement.getGeneratedKeys();
+        }
 
-        return (statement.executeUpdate(request) == 1);
+        return null;
     }
 
 
+    public ResultSet createNewGroup(String label) throws SQLException {
+        if (containsNullOrEmpty(label)) {
+            return null;
+        }
 
+        String request = String.format(
+                "INSERT INTO %s (%s) VALUES ('%s')",
+                TABLE_NAME_GROUPE,
+                GROUPE_LABEL,
+                label
+        );
+
+        PreparedStatement statement = databaseConnection.prepareStatement(request, Statement.RETURN_GENERATED_KEYS);
+
+        Debugger.logMessage("DataBaseManager", "Executing following request: " + request);
+
+        if (statement.executeUpdate() == 1) {
+            return statement.getGeneratedKeys();
+        }
+
+        return null;
+
+    }
 
 
     public ResultSet insertNewMessage(String message) throws SQLException {
@@ -220,13 +263,6 @@ public class DatabaseManager {
     private ResultSet insertTicketMessageUserRelation(String ticketID, String userID, String messageID) throws SQLException {
         Statement statement = databaseConnection.createStatement();
 
-        final String ticketMessageUserRequest = String.format(
-                "INSERT INTO %s (%s, %s, %s) VALUES ('%s', '%s', '%s')",
-                TABLE_NAME_ECRIRE, ECRIRE_TICKET_ID, ECRIRE_UTILISATEUR_ID, ECRIRE_MESSAGE_ID,
-                ticketID, userID, messageID
-        );
-
-        statement.executeUpdate(ticketMessageUserRequest);
 
         return statement.getGeneratedKeys();
     }
@@ -310,5 +346,129 @@ public class DatabaseManager {
         return false;
 
     }
+
+
+    public UserModel retrieveUserModel() throws SQLException {
+        Statement statement = databaseConnection.createStatement();
+        String request = String.format(
+                "SELECT * FROM %s",
+                TABLE_NAME_UTILISATEUR
+        );
+
+        return new UserModel(statement.executeQuery(request));
+    }
+
+    public GroupModel retrieveGroupModel() throws SQLException {
+        Statement statement = databaseConnection.createStatement();
+        String request = String.format(
+                "SELECT * FROM %s",
+                TABLE_NAME_GROUPE
+        );
+
+        return new GroupModel(statement.executeQuery(request));
+    }
+
+
+    public MessageModel retrieveMessageModel() throws SQLException {
+        Statement statement = databaseConnection.createStatement();
+        String request = String.format(
+                "SELECT * FROM %s",
+                TABLE_NAME_MESSAGE
+        );
+
+        return new MessageModel(statement.executeQuery(request));
+    }
+
+    public TicketModel retrieveTicketModel() throws SQLException {
+        Statement statement = databaseConnection.createStatement();
+        String request = String.format(
+                "SELECT * FROM %s",
+                TABLE_NAME_TICKET
+        );
+
+        return new TicketModel(statement.executeQuery(request));
+    }
+
+    public Boolean deleteUser(Long id) throws SQLException {
+        Statement statement = databaseConnection.createStatement();
+        String request = String.format(
+                "DELETE FROM %s where %s = '%s'",
+                TABLE_NAME_UTILISATEUR,
+                UTILISATEUR_ID,
+                id.toString()
+        );
+
+        return statement.executeUpdate(request) == 1;
+    }
+
+    public Boolean deleteGroup(Long id) throws SQLException {
+        Statement statement = databaseConnection.createStatement();
+        String request = String.format(
+                "DELETE FROM %s where %s = '%s'",
+                TABLE_NAME_GROUPE,
+                GROUPE_ID,
+                id.toString()
+        );
+
+        return statement.executeUpdate(request) == 1;
+    }
+
+    public Boolean deleteTicket(Long id) throws SQLException {
+        Statement statement = databaseConnection.createStatement();
+        String request = String.format(
+                "DELETE FROM %s where %s = '%s'",
+                TABLE_NAME_TICKET,
+                TICKET_ID,
+                id.toString()
+        );
+
+        return statement.executeUpdate(request) == 1;
+    }
+
+    public Boolean deleteMessage(Long id) throws SQLException {
+        Statement statement = databaseConnection.createStatement();
+        String request = String.format(
+                "DELETE FROM %s where %s = '%s'",
+                TABLE_NAME_MESSAGE,
+                MESSAGE_ID,
+                id.toString()
+        );
+
+        return statement.executeUpdate(request) == 1;
+    }
+
+    public Boolean editExistingGroup(long id, String label) throws SQLException {
+        Statement statement = databaseConnection.createStatement();
+        String request = String.format(
+                "UPDATE %s SET %s = '%s' WHERE %s = '%s'",
+                TABLE_NAME_GROUPE,
+                GROUPE_LABEL, label,
+                GROUPE_ID, id
+        );
+
+        return statement.executeUpdate(request) == 1;
+    }
+
+    public Boolean editExistingUser(long id, String ine, String name, String surname, String type) throws SQLException {
+        Statement statement = databaseConnection.createStatement();
+        String request = String.format(
+                "UPDATE %s "
+                        + "SET "
+                        + "%s = '%s', "
+                        + "%s = '%s', "
+                        + "%s = '%s', "
+                        + "%s = '%s' "
+                        + "WHERE %s = '%s'",
+                TABLE_NAME_UTILISATEUR,
+                UTILISATEUR_INE, ine,
+                UTILISATEUR_NOM, name,
+                UTILISATEUR_PRENOM, surname,
+                UTILISATEUR_TYPE, type,
+                UTILISATEUR_ID, id
+        );
+
+        return statement.executeUpdate(request) == 1;
+    }
+
 
 }
