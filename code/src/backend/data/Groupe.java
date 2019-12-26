@@ -6,7 +6,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.TreeSet;
 
-public class Groupe implements Comparable<Groupe> {
+public class Groupe extends ProjectTable implements Comparable<Groupe> {
 
     private Long mID;
     private String mLabel;
@@ -23,7 +23,7 @@ public class Groupe implements Comparable<Groupe> {
         mLabel = set.getString(2);
     }
 
-    public long getID() {
+    public Long getID() {
         return mID;
     }
 

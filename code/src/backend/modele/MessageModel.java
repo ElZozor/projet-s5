@@ -4,14 +4,12 @@ import backend.data.Message;
 import com.mysql.jdbc.StringUtils;
 
 import javax.swing.event.TableModelListener;
-import javax.swing.table.TableModel;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.ListIterator;
 
-public class MessageModel extends SearchableModel {
+public class MessageModel extends SearchableModel<Message> {
     private static final String[] columnNames = {
             "ID",
             "CONTENU",
@@ -19,13 +17,12 @@ public class MessageModel extends SearchableModel {
             "ID TICKET",
             "ID USER"
     };
-    ArrayList<Message> messages = new ArrayList<>();
 
 
     public MessageModel(ResultSet set) {
         try {
             for (; set.next(); ) {
-                messages.add(new Message(set));
+                elements.add(new Message(set));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -37,7 +34,7 @@ public class MessageModel extends SearchableModel {
     }
 
     public void addRow(Message newMessage) {
-        ListIterator<Message> iterator = messages.listIterator();
+        ListIterator<Message> iterator = elements.listIterator();
 
         boolean inserted = false;
         for (; iterator.hasNext() && !inserted; ) {
@@ -50,12 +47,7 @@ public class MessageModel extends SearchableModel {
             }
         }
 
-        messages.add(newMessage);
-    }
-
-    @Override
-    public int getRowCount() {
-        return messages.size();
+        elements.add(newMessage);
     }
 
     @Override
@@ -89,7 +81,7 @@ public class MessageModel extends SearchableModel {
 
     @Override
     public Object getValueAt(int ligne, int colonne) {
-        Message m = messages.get(ligne);
+        Message m = elements.get(ligne);
 
         switch (colonne) {
             case 0:
@@ -132,14 +124,14 @@ public class MessageModel extends SearchableModel {
     }
 
     @Override
-    public TableModel retrieveSearchModel(String searched) {
+    public SearchableModel<Message> retrieveSearchModel(String searched) {
         if (StringUtils.isEmptyOrWhitespaceOnly(searched)) {
             return this;
         }
 
         MessageModel messageModel = new MessageModel();
 
-        Iterator<Message> ite = messages.iterator();
+        Iterator<Message> ite = elements.iterator();
         for (; ite.hasNext(); ) {
             Message m = ite.next();
             final String strs[] = {m.getUtilisateurINE().toString(), m.getTicketID().toString(), m.getHeureEnvoie().toString(), m.getContenu()};

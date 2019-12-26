@@ -389,5 +389,86 @@ public class DatabaseManager {
         return new TicketModel(statement.executeQuery(request));
     }
 
+    public Boolean deleteUser(Long id) throws SQLException {
+        Statement statement = databaseConnection.createStatement();
+        String request = String.format(
+                "DELETE FROM %s where %s = '%s'",
+                TABLE_NAME_UTILISATEUR,
+                UTILISATEUR_ID,
+                id.toString()
+        );
+
+        return statement.executeUpdate(request) == 1;
+    }
+
+    public Boolean deleteGroup(Long id) throws SQLException {
+        Statement statement = databaseConnection.createStatement();
+        String request = String.format(
+                "DELETE FROM %s where %s = '%s'",
+                TABLE_NAME_GROUPE,
+                GROUPE_ID,
+                id.toString()
+        );
+
+        return statement.executeUpdate(request) == 1;
+    }
+
+    public Boolean deleteTicket(Long id) throws SQLException {
+        Statement statement = databaseConnection.createStatement();
+        String request = String.format(
+                "DELETE FROM %s where %s = '%s'",
+                TABLE_NAME_TICKET,
+                TICKET_ID,
+                id.toString()
+        );
+
+        return statement.executeUpdate(request) == 1;
+    }
+
+    public Boolean deleteMessage(Long id) throws SQLException {
+        Statement statement = databaseConnection.createStatement();
+        String request = String.format(
+                "DELETE FROM %s where %s = '%s'",
+                TABLE_NAME_MESSAGE,
+                MESSAGE_ID,
+                id.toString()
+        );
+
+        return statement.executeUpdate(request) == 1;
+    }
+
+    public Boolean editExistingGroup(long id, String label) throws SQLException {
+        Statement statement = databaseConnection.createStatement();
+        String request = String.format(
+                "UPDATE %s SET %s = '%s' WHERE %s = '%s'",
+                TABLE_NAME_GROUPE,
+                GROUPE_LABEL, label,
+                GROUPE_ID, id
+        );
+
+        return statement.executeUpdate(request) == 1;
+    }
+
+    public Boolean editExistingUser(long id, String ine, String name, String surname, String type) throws SQLException {
+        Statement statement = databaseConnection.createStatement();
+        String request = String.format(
+                "UPDATE %s "
+                        + "SET "
+                        + "%s = '%s', "
+                        + "%s = '%s', "
+                        + "%s = '%s', "
+                        + "%s = '%s' "
+                        + "WHERE %s = '%s'",
+                TABLE_NAME_UTILISATEUR,
+                UTILISATEUR_INE, ine,
+                UTILISATEUR_NOM, name,
+                UTILISATEUR_PRENOM, surname,
+                UTILISATEUR_TYPE, type,
+                UTILISATEUR_ID, id
+        );
+
+        return statement.executeUpdate(request) == 1;
+    }
+
 
 }

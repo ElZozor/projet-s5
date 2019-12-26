@@ -4,30 +4,26 @@ import backend.data.Utilisateur;
 import com.mysql.jdbc.StringUtils;
 
 import javax.swing.event.TableModelListener;
-import javax.swing.table.TableModel;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.ListIterator;
 
-public class UserModel extends SearchableModel {
+public class UserModel extends SearchableModel<Utilisateur> {
 
     private static final String[] columnNames = {
             "ID",
             "INE",
             "NOM",
             "PRENOM",
-            "TYPE",
-            "ACTIONS"
+            "TYPE"
     };
 
-    ArrayList<Utilisateur> users = new ArrayList<>();
 
     public UserModel(ResultSet set) {
         try {
             for (; set.next(); ) {
-                users.add(new Utilisateur(set));
+                elements.add(new Utilisateur(set));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -39,7 +35,7 @@ public class UserModel extends SearchableModel {
     }
 
     public void addRow(Utilisateur newUser) {
-        ListIterator<Utilisateur> iterator = users.listIterator();
+        ListIterator<Utilisateur> iterator = elements.listIterator();
 
         boolean inserted = false;
         for (; iterator.hasNext() && !inserted; ) {
@@ -52,12 +48,12 @@ public class UserModel extends SearchableModel {
             }
         }
 
-        users.add(newUser);
+        elements.add(newUser);
     }
 
     @Override
     public int getRowCount() {
-        return users.size();
+        return elements.size();
     }
 
     @Override
@@ -91,7 +87,7 @@ public class UserModel extends SearchableModel {
 
     @Override
     public Object getValueAt(int ligne, int colonne) {
-        Utilisateur u = users.get(ligne);
+        Utilisateur u = elements.get(ligne);
 
         switch (colonne) {
             case 0:
@@ -113,7 +109,7 @@ public class UserModel extends SearchableModel {
 
     @Override
     public void setValueAt(Object o, int ligne, int colonne) {
-        Utilisateur u = users.get(ligne);
+        Utilisateur u = elements.get(ligne);
 
         switch (colonne) {
             case 0:
@@ -146,14 +142,14 @@ public class UserModel extends SearchableModel {
     }
 
     @Override
-    public TableModel retrieveSearchModel(String searched) {
+    public SearchableModel<Utilisateur> retrieveSearchModel(String searched) {
         if (StringUtils.isEmptyOrWhitespaceOnly(searched)) {
             return this;
         }
 
         UserModel userModel = new UserModel();
 
-        Iterator<Utilisateur> ite = users.iterator();
+        Iterator<Utilisateur> ite = elements.iterator();
         for (; ite.hasNext(); ) {
             Utilisateur u = ite.next();
             final String strs[] = {u.getPrenom(), u.getNom(), u.getINE(), u.getType()};

@@ -22,11 +22,17 @@ public class EditUserPanel extends JPanel {
     private JButton annulerButton = new JButton();
     private ServerUI parent;
 
+    private Utilisateur user;
 
-    public EditUserPanel(ServerUI parent) {
+    public EditUserPanel(ServerUI parent, Utilisateur user) {
         this.parent = parent;
         initialize();
         setActionListeners();
+
+        if (user != null) {
+            setFieldsValues(user);
+            this.user = user;
+        }
     }
 
     public void initialize() {
@@ -189,34 +195,80 @@ public class EditUserPanel extends JPanel {
 
 
         enregistrerButton.addActionListener(actionEvent -> {
-            final String INE = ineField.getText();
-            final String nom = nomField.getText();
-            final String prenom = prenomField.getText();
-            final String type = typeField.getText();
-            final String mdp = new String(mdpField.getPassword());
-
-            Boolean success = false;
-            ResultSet result;
-            try {
-                result = DatabaseManager.getInstance().registerNewUser(INE, mdp, nom, prenom, type);
-                success = (result != null) && result.next();
-
-                if (success) {
-                    ServerUIPanel.userTableModel.addRow(new Utilisateur(result.getLong(1), nom, prenom, INE, type));
-                }
-            } catch (SQLException | NoSuchAlgorithmException e) {
-                e.printStackTrace();
-            }
-
-            if (success) {
-                JOptionPane.showMessageDialog(this, "Utilisateur ajouté avec succès !");
-                if (parent != null) {
-                    parent.setMainPanel();
-                }
+            if (user == null) {
+                saveNewUser();
             } else {
-                JOptionPane.showMessageDialog(this, "Impossible d'ajouter l'utilisateur");
+                editExistingUser();
             }
         });
+    }
+
+
+    private void setFieldsValues(Utilisateur user) {
+        ineField.setText(user.getINE());
+        prenomField.setText(user.getPrenom());
+        nomField.setText(user.getNom());
+        typeField.setText(user.getType());
+    }
+
+
+    private void saveNewUser() {
+        final String INE = ineField.getText();
+        final String nom = nomField.getText();
+        final String prenom = prenomField.getText();
+        final String type = typeField.getText();
+        final String mdp = new String(mdpField.getPassword());
+
+        boolean success = false;
+        ResultSet result;
+        try {
+            result = DatabaseManager.getInstance().registerNewUser(INE, mdp, nom, prenom, type);
+            success = (result != null) && result.next();
+
+            if (success) {
+                ServerUIPanel.userTableModel.addRow(new Utilisateur(result.getLong(1), nom, prenom, INE, type));
+            }
+        } catch (SQLException | NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
+
+        if (success) {
+            JOptionPane.showMessageDialog(this, "Utilisateur ajouté avec succès !");
+            if (parent != null) {
+                parent.setMainPanel();
+            }
+        } else {
+            JOptionPane.showMessageDialog(this, "Impossible d'ajouter l'utilisateur");
+        }
+    }
+
+
+    private void editExistingUser() {
+        final String INE = ineField.getText();
+        final String nom = nomField.getText();
+        final String prenom = prenomField.getText();
+        final String type = typeField.getText();
+
+        boolean success = false;
+        try {
+            success = DatabaseManager.getInstance().editExistingUser(user.getID(), INE, nom, prenom, type);
+        } catch (NoSuchAlgorithmException | SQLException e) {
+            e.printStackTrace();
+        }
+
+        if (success) {
+            JOptionPane.showMessageDialog(this, "Utilisateur édité avec succès !");
+            user.setINE(INE);
+            user.setNom(nom);
+            user.setPrenom(prenom);
+            user.setType(type);
+        } else {
+            JOptionPane.showMessageDialog(this, "Impossible de modifier l'utilisateur");
+        }
+
+        if (parent != null) {
+            parent.setMainPanel();
+        }
     }
 
 }

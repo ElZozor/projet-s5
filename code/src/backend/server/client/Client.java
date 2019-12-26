@@ -31,13 +31,16 @@ public class Client implements Server {
     private PublicKey mOtherPublicKey;
 
 
-
+    @Override
+    public String createConnectionMessage(PublicKey pk, String ine, String password) {
+        return null;
+    }
 
     /**
      * This class is used on the client side.
      * It's used to communicate with the host.
      *
-     * @param socket                        The connexion socket
+     * @param socket The connexion socket
      * @throws ServerInitializationFailedException When the server can't be init
      */
     public Client(Socket socket)
@@ -192,13 +195,14 @@ public class Client implements Server {
 
         try {
 
-            returnedData = sendAndWaitForReturn(
-                    createConnectionMessage(
-                            getOtherPublicKey(),
-                            INE,
-                            password
-                    )
-            );
+            returnedData =
+                    sendAndWaitForReturn(
+                            createConnectionMessage(
+                                    getOtherPublicKey(),
+                                    INE,
+                                    password
+                            )
+                    );
 
         } catch (IOException e) {
             e.printStackTrace();

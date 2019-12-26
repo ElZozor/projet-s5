@@ -17,11 +17,17 @@ public class EditGroupPanel extends JPanel {
 
     private ServerUI parent;
 
+    private Groupe group;
 
-    public EditGroupPanel(ServerUI parent) {
+    public EditGroupPanel(ServerUI parent, Groupe group) {
         this.parent = parent;
         initialize();
         setActionListeners();
+
+        if (group != null) {
+            setFieldValues(group);
+            this.group = group;
+        }
     }
 
     private void initialize() {
@@ -92,29 +98,10 @@ public class EditGroupPanel extends JPanel {
 
     private void setActionListeners() {
         enregistrerButton.addActionListener(actionEvent -> {
-            final String label = labelField.getText();
-
-            boolean success = false;
-            ResultSet result;
-            try {
-                result = DatabaseManager.getInstance().createNewGroup(label);
-                success = (result != null) && result.next();
-
-                if (success) {
-                    ServerUIPanel.groupTableModel.addRow(new Groupe(result.getLong(1), label));
-                }
-            } catch (SQLException | NoSuchAlgorithmException e) {
-                e.printStackTrace();
-            }
-
-            if (success) {
-                JOptionPane.showMessageDialog(this, "Groupe ajouté avec succès !");
-                if (parent != null) {
-                    parent.setMainPanel();
-                }
-
+            if (group == null) {
+                createNewGroup();
             } else {
-                JOptionPane.showMessageDialog(this, "Impossible d'ajouter le groupe !");
+                updateExistingGroup();
             }
         });
 
@@ -123,6 +110,61 @@ public class EditGroupPanel extends JPanel {
                 parent.setMainPanel();
             }
         });
+    }
+
+    private void setFieldValues(Groupe group) {
+        labelField.setText(group.getLabel());
+    }
+
+
+    private void createNewGroup() {
+        final String label = labelField.getText();
+
+        boolean success = false;
+        ResultSet result;
+        try {
+            result = DatabaseManager.getInstance().createNewGroup(label);
+            success = (result != null) && result.next();
+
+            if (success) {
+                ServerUIPanel.groupTableModel.addRow(new Groupe(result.getLong(1), label));
+            }
+        } catch (SQLException | NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
+
+        if (success) {
+            JOptionPane.showMessageDialog(this, "Groupe ajouté avec succès !");
+            if (parent != null) {
+                parent.setMainPanel();
+            }
+
+        } else {
+            JOptionPane.showMessageDialog(this, "Impossible d'ajouter le groupe !");
+        }
+    }
+
+
+    private void updateExistingGroup() {
+        final String label = labelField.getText();
+
+        boolean success = false;
+        try {
+            success = DatabaseManager.getInstance().editExistingGroup(group.getID(), label);
+        } catch (SQLException | NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
+
+        if (success) {
+            group.setLabel(label);
+            JOptionPane.showMessageDialog(this, "Groupe édité avec succès !");
+        } else {
+            JOptionPane.showMessageDialog(this, "Impossible d'éditer cette entrée !");
+        }
+
+        if (parent != null) {
+            parent.setMainPanel();
+        }
     }
 
 }

@@ -9,7 +9,7 @@ import java.sql.SQLException;
 
 import static backend.database.Keys.*;
 
-public class Message implements Comparable<Message> {
+public class Message extends ProjectTable implements Comparable<Message> {
 
     private Long mID;
     private Long mUtilisateurID;

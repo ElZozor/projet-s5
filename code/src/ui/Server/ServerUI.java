@@ -1,8 +1,6 @@
 package ui.Server;
 
 import backend.data.Groupe;
-import backend.data.Message;
-import backend.data.Ticket;
 import backend.data.Utilisateur;
 import backend.modele.UserModel;
 
@@ -41,49 +39,7 @@ public class ServerUI extends JFrame {
         this.pack();
     }
 
-//    void search(final String string);
-//    void add(final String table_name);
-//    void editUserPanel();
-//    void addGroupPanel();
 
-    public void delete(Object arg) {
-        int input = JOptionPane.showConfirmDialog(
-                null,
-                "Voulez-vous vraiment supprimer cette entrée ?",
-                "Suppression",
-                JOptionPane.YES_NO_OPTION
-        );
-
-        if (input == 1) {
-            return;
-        }
-
-        if (arg instanceof Utilisateur) {
-            //delUser((Utilisateur) arg);
-        } else if (arg instanceof Groupe) {
-            //delGroup((Groupe) arg);
-        } else if (arg instanceof Ticket) {
-            //delTicket((Ticket) arg);
-        } else if (arg instanceof Message) {
-            //delMessage((Message) arg);
-        }
-    }
-
-    void delUser(Utilisateur user) {
-
-    }
-
-    void delGroup(Groupe group) {
-
-    }
-
-    void delTicket(Ticket ticket) {
-
-    }
-
-    void delMessage(Message message) {
-
-    }
 
     void edit(final String table_name, Object arg) {
         switch (table_name) {
@@ -103,7 +59,7 @@ public class ServerUI extends JFrame {
     void editUserPanel(Utilisateur arg) {
         mainPanel = this.getContentPane();
 
-        secondPanel = new EditUserPanel(this);
+        secondPanel = new EditUserPanel(this, arg);
         this.setContentPane(secondPanel);
 
         this.pack();
@@ -112,7 +68,7 @@ public class ServerUI extends JFrame {
     void editGroupPanel(Groupe arg) {
         mainPanel = this.getContentPane();
 
-        secondPanel = new EditGroupPanel(this);
+        secondPanel = new EditGroupPanel(this, arg);
         this.setContentPane(secondPanel);
 
         this.pack();

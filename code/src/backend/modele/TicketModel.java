@@ -4,14 +4,12 @@ import backend.data.Ticket;
 import com.mysql.jdbc.StringUtils;
 
 import javax.swing.event.TableModelListener;
-import javax.swing.table.TableModel;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.ListIterator;
 
-public class TicketModel extends SearchableModel {
+public class TicketModel extends SearchableModel<Ticket> {
     private static final String[] columnNames = {
             "ID",
             "TITRE",
@@ -20,7 +18,6 @@ public class TicketModel extends SearchableModel {
             "ID USER",
             "ID GROUPE"
     };
-    ArrayList<Ticket> tickets = new ArrayList<>();
 
 
     public TicketModel(ResultSet set) {
@@ -38,7 +35,7 @@ public class TicketModel extends SearchableModel {
     }
 
     public void addRow(Ticket newTicket) {
-        ListIterator<Ticket> iterator = tickets.listIterator();
+        ListIterator<Ticket> iterator = elements.listIterator();
 
         boolean inserted = false;
         for (; iterator.hasNext() && !inserted; ) {
@@ -51,12 +48,7 @@ public class TicketModel extends SearchableModel {
             }
         }
 
-        tickets.add(newTicket);
-    }
-
-    @Override
-    public int getRowCount() {
-        return tickets.size();
+        elements.add(newTicket);
     }
 
     @Override
@@ -90,7 +82,7 @@ public class TicketModel extends SearchableModel {
 
     @Override
     public Object getValueAt(int ligne, int colonne) {
-        Ticket t = tickets.get(ligne);
+        Ticket t = elements.get(ligne);
 
         /*
 
@@ -141,14 +133,14 @@ public class TicketModel extends SearchableModel {
     }
 
     @Override
-    public TableModel retrieveSearchModel(String searched) {
+    public SearchableModel<Ticket> retrieveSearchModel(String searched) {
         if (StringUtils.isEmptyOrWhitespaceOnly(searched)) {
             return this;
         }
 
         TicketModel ticketModel = new TicketModel();
 
-        Iterator<Ticket> ite = tickets.iterator();
+        Iterator<Ticket> ite = elements.iterator();
         for (; ite.hasNext(); ) {
             Ticket t = ite.next();
             final String titre = t.getTitre();

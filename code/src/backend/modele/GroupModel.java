@@ -4,25 +4,22 @@ import backend.data.Groupe;
 import com.mysql.jdbc.StringUtils;
 
 import javax.swing.event.TableModelListener;
-import javax.swing.table.TableModel;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Iterator;
 
-public class GroupModel extends SearchableModel {
+public class GroupModel extends SearchableModel<Groupe> {
 
     private static final String[] columnNames = {
             "ID",
             "LABEL"
     };
-    ArrayList<Groupe> groups = new ArrayList<>();
 
 
     public GroupModel(ResultSet set) {
         try {
             for (; set.next(); ) {
-                groups.add(new Groupe(set));
+                elements.add(new Groupe(set));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -34,12 +31,7 @@ public class GroupModel extends SearchableModel {
     }
 
     public void addRow(Groupe newUser) {
-        groups.add(newUser);
-    }
-
-    @Override
-    public int getRowCount() {
-        return groups.size();
+        elements.add(newUser);
     }
 
     @Override
@@ -73,7 +65,7 @@ public class GroupModel extends SearchableModel {
 
     @Override
     public Object getValueAt(int ligne, int colonne) {
-        Groupe u = groups.get(ligne);
+        Groupe u = elements.get(ligne);
 
         if (colonne == 0) {
             return u.getID();
@@ -84,7 +76,7 @@ public class GroupModel extends SearchableModel {
 
     @Override
     public void setValueAt(Object o, int ligne, int colonne) {
-        Groupe g = groups.get(ligne);
+        Groupe g = elements.get(ligne);
 
         if (colonne == 0) {
             g.setID((Long) o);
@@ -104,14 +96,14 @@ public class GroupModel extends SearchableModel {
     }
 
     @Override
-    public TableModel retrieveSearchModel(String searched) {
+    public SearchableModel<Groupe> retrieveSearchModel(String searched) {
         if (StringUtils.isEmptyOrWhitespaceOnly(searched)) {
             return this;
         }
 
         GroupModel groupModel = new GroupModel();
 
-        Iterator<Groupe> ite = groups.iterator();
+        Iterator<Groupe> ite = elements.iterator();
         for (; ite.hasNext(); ) {
             Groupe g = ite.next();
             final String label = g.getLabel();

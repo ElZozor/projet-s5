@@ -4,7 +4,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
 
-public class Utilisateur {
+public class Utilisateur extends ProjectTable {
 
     private static HashMap<Long, Utilisateur> instances;
 

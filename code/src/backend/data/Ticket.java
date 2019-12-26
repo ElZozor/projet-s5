@@ -12,7 +12,7 @@ import java.util.TreeSet;
 import static backend.database.Keys.TICKET_ID;
 import static backend.database.Keys.TICKET_TITRE;
 
-public class Ticket implements Comparable<Ticket> {
+public class Ticket extends ProjectTable implements Comparable<Ticket> {
 
     private static final String KEY_MESSAGES = "messages";
 
