@@ -113,8 +113,9 @@ public class DatabaseManager {
         Statement statement = databaseConnection.createStatement();
         String request = String.format(
                 "SELECT * FROM %s WHERE %s='%s' AND %s='%s'",
-                TABLE_NAME_UTILISATEUR, UTILISATEUR_INE, UTILISATEUR_MDP,
-                ine, hashPassword(password)
+                TABLE_NAME_UTILISATEUR,
+                UTILISATEUR_INE, ine,
+                UTILISATEUR_MDP, hashPassword(password)
         );
 
         ResultSet queryResult = statement.executeQuery(request);
@@ -155,6 +156,24 @@ public class DatabaseManager {
     }
 
 
+    private Boolean addUserGroupRelation(String ine, String group_label) throws SQLException {
+        String request = String.format(
+                "INSERT INTO %s (%s, %s) " +
+                        "SELECT DISTINCT %s.%s, %s.%s " +
+                        "FROM %s, %s " +
+                        "WHERE %s.%s = '%s' AND %s.%s = '%s'",
+
+                TABLE_NAME_APPARTENIR, APPARTENIR_UTILISATEUR_INE, APPARTENIR_GROUPE_ID,
+                TABLE_NAME_UTILISATEUR, UTILISATEUR_ID, TABLE_NAME_GROUPE, GROUPE_ID,
+                TABLE_NAME_UTILISATEUR, TABLE_NAME_GROUPE,
+                TABLE_NAME_UTILISATEUR, UTILISATEUR_INE, ine, TABLE_NAME_GROUPE, GROUPE_LABEL, group_label
+        );
+
+        PreparedStatement statement = databaseConnection.prepareStatement(request);
+
+        return statement.execute();
+    }
+
     /**
      * Register a new user in the user database
      *
@@ -166,8 +185,8 @@ public class DatabaseManager {
      * @return whether the request is successful
      * @throws SQLException Can throw an exception if the database can't be reached
      */
-    public ResultSet registerNewUser(String ine, String password, String name, String surname, String type) throws SQLException {
-        if (containsNullOrEmpty(ine, password, name, surname, type)) {
+    public ResultSet registerNewUser(String ine, String password, String name, String surname, String type, String groups) throws SQLException {
+        if (containsNullOrEmpty(ine, password, name, surname, type, groups)) {
             return null;
         }
 
@@ -182,11 +201,35 @@ public class DatabaseManager {
 
         Debugger.logMessage("DataBaseManager", "Executing following request: " + request);
 
-        if (statement.executeUpdate() == 1) {
-            return statement.getGeneratedKeys();
+        if (statement.executeUpdate() != 1) {
+            return null;
         }
 
-        return null;
+        ResultSet generatedKeys = statement.getGeneratedKeys();
+
+        System.out.println(groups);
+        for (String g : groups.split(";")) {
+            System.out.println("Relation : " + g);
+            try {
+                if (!addUserGroupRelation(ine, g)) {
+                    createNewGroup(g);
+                    addUserGroupRelation(ine, g);
+                }
+
+            } catch (SQLException e) {
+                e.printStackTrace();
+
+                try {
+                    createNewGroup(g);
+                    addUserGroupRelation(ine, g);
+                } catch (SQLException f) {
+                    f.printStackTrace();
+                }
+
+            }
+        }
+
+        return generatedKeys;
     }
 
 
@@ -211,37 +254,71 @@ public class DatabaseManager {
         }
 
         return null;
-
     }
 
 
-    public ResultSet insertNewMessage(String message) throws SQLException {
-        Statement statement = databaseConnection.createStatement();
-
-        // Message creation in the "message" table
-        final String messageRequest = String.format(
-                "INSERT INTO %s (%s) VALUES ('%s')",
-                TABLE_NAME_MESSAGE, MESSAGE_CONTENU,
-                message
+    private Boolean addMessageVuRelation(int message_id, String ticketID) throws SQLException {
+        String request = String.format(
+                "INSERT INTO %s(%s, %s) " +
+                        "SELECT %s, %s.%s " +
+                        "FROM %s, %s, %s " +
+                        "WHERE %s.%s = %s " +
+                        "AND %s.%s = %s.%s " +
+                        "AND %s.%s = %s.%s",
+                TABLE_NAME_VU, VU_MESSAGE_ID, VU_UTILISATEUR_ID,
+                message_id, TABLE_NAME_UTILISATEUR, UTILISATEUR_ID,
+                TABLE_NAME_UTILISATEUR, TABLE_NAME_APPARTENIR, TABLE_NAME_TICKET,
+                TABLE_NAME_TICKET, TICKET_ID, ticketID,
+                TABLE_NAME_TICKET, TICKET_GROUP_ID, TABLE_NAME_APPARTENIR, APPARTENIR_GROUPE_ID,
+                TABLE_NAME_UTILISATEUR, UTILISATEUR_ID, TABLE_NAME_APPARTENIR, APPARTENIR_UTILISATEUR_INE
         );
 
+        PreparedStatement statement = databaseConnection.prepareStatement(request);
+
+        return statement.executeUpdate() > 0;
+    }
+
+
+    public ResultSet insertNewMessage(String contenu, String ticketid, String ine) throws SQLException {
+        // Message creation in the "message" table
+        final String messageRequest = String.format(
+                "INSERT INTO %s (%s, %s, %s) VALUES ('%s', '%s', '%s')",
+                TABLE_NAME_MESSAGE, MESSAGE_CONTENU, MESSAGE_TICKET_ID, MESSAGE_UTILISATEUR_INE,
+                contenu, ticketid, ine
+        );
+
+        PreparedStatement statement = databaseConnection.prepareStatement(messageRequest, Statement.RETURN_GENERATED_KEYS);
+
         // We execute the request and then get the resulting keys
-        statement.executeUpdate(messageRequest);
+        statement.executeUpdate();
+
+        ResultSet result = statement.getGeneratedKeys();
+        result.next();
+        addMessageVuRelation(result.getInt(1), ticketid);
+
+        result.previous();
         return statement.getGeneratedKeys();
     }
 
-    private ResultSet insertNewTicket(String userID, String title, String groupID) throws SQLException {
-        Statement statement = databaseConnection.createStatement();
-
+    private ResultSet insertNewTicket(String userINE, String title, String group_label) throws SQLException {
         // Ticket creation in the "ticket" table
         final String ticketRequest = String.format(
-                "INSERT INTO %s (%s %s %s) VALUES ('%s', '%s', '%s')",
-                TABLE_NAME_TICKET, TICKET_UTILISATEUR_ID, TICKET_TITRE, TICKET_GROUP_ID,
-                userID, title, groupID
+                "INSERT INTO %s (%s, %s, %s) " +
+                        "SELECT DISTINCT '%s', %s.%s, %s.%s " +
+                        "FROM %s, %s " +
+                        "WHERE %s.%s = '%s' " +
+                        "AND %s.%s = '%s' ",
+                TABLE_NAME_TICKET, TICKET_TITRE, TICKET_UTILISATEUR_ID, TICKET_GROUP_ID,
+                title, TABLE_NAME_UTILISATEUR, UTILISATEUR_ID, TABLE_NAME_GROUPE, GROUPE_ID,
+                TABLE_NAME_UTILISATEUR, TABLE_NAME_GROUPE,
+                TABLE_NAME_UTILISATEUR, UTILISATEUR_INE, userINE,
+                TABLE_NAME_GROUPE, GROUPE_LABEL, group_label
         );
 
+        PreparedStatement statement = databaseConnection.prepareStatement(ticketRequest, Statement.RETURN_GENERATED_KEYS);
+
         // We execute the request and then get the resulting keys
-        statement.executeUpdate(ticketRequest);
+        statement.executeUpdate();
         return statement.getGeneratedKeys();
     }
 
@@ -261,7 +338,24 @@ public class DatabaseManager {
 
 
     private ResultSet insertTicketMessageUserRelation(String ticketID, String userID, String messageID) throws SQLException {
-        Statement statement = databaseConnection.createStatement();
+
+        final String query = String.format(
+                "INSERT INTO %s(%s, %s) " +
+                        "SELECT '%s', %s.%s " +
+                        "FROM %s, %s, %s " +
+                        "WHERE %s.%s = '%s' " +
+                        "AND %s.%s = %s.%s " +
+                        "AND %s.%s = %s.%s",
+                TABLE_NAME_VU, VU_MESSAGE_ID, VU_UTILISATEUR_ID,
+                messageID, TABLE_NAME_UTILISATEUR, UTILISATEUR_ID,
+                TABLE_NAME_UTILISATEUR, TABLE_NAME_APPARTENIR, TABLE_NAME_TICKET,
+                TABLE_NAME_TICKET, TICKET_ID, ticketID,
+                TABLE_NAME_TICKET, TICKET_GROUP_ID, TABLE_NAME_APPARTENIR, APPARTENIR_GROUPE_ID,
+                TABLE_NAME_UTILISATEUR, UTILISATEUR_ID, TABLE_NAME_APPARTENIR, UTILISATEUR_ID
+        );
+
+        PreparedStatement statement = databaseConnection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
+        statement.executeUpdate();
 
 
         return statement.getGeneratedKeys();
@@ -280,21 +374,18 @@ public class DatabaseManager {
      */
     public Boolean createNewTicket(String userINE, String title, String message, String groupID) throws SQLException {
 
-        if (title == null || message == null || groupID == null) {
-            return false;
-        }
-
-        if (title.isEmpty() || groupID.isEmpty()) {
+        if (containsNullOrEmpty(title, message, groupID)) {
             return false;
         }
 
         final ResultSet ticketBDD = insertNewTicket(userINE, title, groupID);
-        if (! ticketBDD.next()) {
+        if (!ticketBDD.next()) {
             return false;
         }
 
-        final ResultSet messageBDD = insertNewMessage(message);
-        if (! messageBDD.next()) {
+        int ticketID = ticketBDD.getInt(1);
+        final ResultSet messageBDD = insertNewMessage(message, Integer.toString(ticketBDD.getInt(1)), userINE);
+        if (!messageBDD.next()) {
             return false;
         }
 
@@ -449,7 +540,37 @@ public class DatabaseManager {
         return statement.executeUpdate(request) == 1;
     }
 
-    public Boolean editExistingUser(long id, String ine, String name, String surname, String type) throws SQLException {
+
+    private void updateExistingUserGroups(long id, String ine, String groups) {
+        try {
+            Statement statement = databaseConnection.createStatement();
+            String request = String.format(
+                    "DELETE FROM %s WHERE %s.%s = '%s'",
+                    TABLE_NAME_APPARTENIR, TABLE_NAME_APPARTENIR, APPARTENIR_UTILISATEUR_INE, id
+            );
+
+            Debugger.logMessage("updateExistingUserGroup", "Request: " + request);
+            statement.execute(request);
+
+
+            for (String g : groups.split(";")) {
+                try {
+                    Debugger.logMessage("updateExistingUserGroups", "Group: " + g);
+                    if (!addUserGroupRelation(ine, g)) {
+                        createNewGroup(g);
+
+                        addUserGroupRelation(ine, g);
+                    }
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public Boolean editExistingUser(long id, String ine, String name, String surname, String type, String groups) throws SQLException {
         Statement statement = databaseConnection.createStatement();
         String request = String.format(
                 "UPDATE %s "
@@ -467,7 +588,39 @@ public class DatabaseManager {
                 UTILISATEUR_ID, id
         );
 
-        return statement.executeUpdate(request) == 1;
+        Boolean result = statement.executeUpdate(request) == 1;
+        updateExistingUserGroups(id, ine, groups);
+
+        return result;
+    }
+
+    public String relatedUserGroup(String ine) throws SQLException {
+        Statement statement = databaseConnection.createStatement();
+        String request = String.format(
+                "SELECT %s.%s " +
+                        "FROM %s, %s, %s " +
+                        "WHERE %s.%s = '%s' " +
+                        "AND %s.%s = %s.%s " +
+                        "AND %s.%s = %s.%s ",
+                TABLE_NAME_GROUPE, GROUPE_LABEL,
+                TABLE_NAME_GROUPE, TABLE_NAME_APPARTENIR, TABLE_NAME_UTILISATEUR,
+                TABLE_NAME_UTILISATEUR, UTILISATEUR_INE, ine,
+                TABLE_NAME_APPARTENIR, APPARTENIR_UTILISATEUR_INE, TABLE_NAME_UTILISATEUR, UTILISATEUR_ID,
+                TABLE_NAME_GROUPE, GROUPE_ID, TABLE_NAME_APPARTENIR, APPARTENIR_GROUPE_ID
+        );
+
+        ResultSet result = statement.executeQuery(request);
+
+        StringBuilder groups = new StringBuilder();
+        while (result.next()) {
+            groups.append(result.getString(GROUPE_LABEL)).append(";");
+        }
+
+        if (groups.length() > 0) {
+            return groups.toString().substring(0, groups.length() - 1);
+        } else {
+            return "";
+        }
     }
 
 

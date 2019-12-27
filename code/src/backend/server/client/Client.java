@@ -2,39 +2,28 @@ package backend.server.client;
 
 
 import backend.server.Server;
+import backend.server.message.Message;
 import debug.Debugger;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
+import java.io.*;
 import java.net.Socket;
-import java.security.*;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.X509EncodedKeySpec;
+import java.security.KeyPair;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 
 public class Client implements Server {
 
     private final static String DBG_COLOR = Debugger.YELLOW;
-    private final static int SOCKET_TIMEOUT = 2500;
+    private final static int SOCKET_TIMEOUT = 5000;
 
     private final Socket mSocket;
-    private OutputStreamWriter mWriteStream;
-    private InputStreamReader mReadStream;
+    boolean isRunning = true;
+    private BufferedWriter mWriteStream;
 
     private KeyPair mRSAKey;
     private PublicKey mOtherPublicKey;
-
-
-    @Override
-    public String createConnectionMessage(PublicKey pk, String ine, String password) {
-        return null;
-    }
+    private BufferedReader mReadStream;
 
     /**
      * This class is used on the client side.
@@ -43,142 +32,60 @@ public class Client implements Server {
      * @param socket The connexion socket
      * @throws ServerInitializationFailedException When the server can't be init
      */
-    public Client(Socket socket)
-            throws ServerInitializationFailedException {
-
+    public Client(Socket socket) throws ServerInitializationFailedException {
         try {
             mSocket = socket;
             mSocket.setSoTimeout(SOCKET_TIMEOUT);
 
-            mWriteStream = new OutputStreamWriter(mSocket.getOutputStream());
-            mReadStream = new InputStreamReader(mSocket.getInputStream());
+            mWriteStream = new BufferedWriter(new OutputStreamWriter(mSocket.getOutputStream()));
+            mReadStream = new BufferedReader(new InputStreamReader(mSocket.getInputStream()));
 
-            mRSAKey = generateRSAKey();
+            exchangesKeys();
 
-            // Send the public key and wait for the returned key
-            String key = sendAndWaitForReturn(createKeyExchangeMessage(getPublicKey()));
-            if (key == null) {
-                throw new ServerInitializationFailedException();
-            }
-
-            Debugger.logColorMessage(DBG_COLOR, "Client", "received: " + key);
-
-            JSONObject keyMessage = null;
-            try {
-                keyMessage = new JSONObject(key);
-            } catch (JSONException e) {
-                try {
-                    String decryptedKey = decryptMessage(key, getPrivateKey());
-                    if (decryptedKey != null) {
-                        keyMessage = new JSONObject(decryptedKey);
-                    }
-                } catch (JSONException f) {
-                    e.printStackTrace();
-                }
-            }
-
-            if (keyMessage != null) {
-                handleKeyExchange(keyMessage.getJSONObject("data"));
-            } else {
-                throw new ServerInitializationFailedException("The received RSA key is not valid !");
-            }
-        } catch (NoSuchAlgorithmException | BadPaddingException | InvalidKeyException
-                | NoSuchPaddingException | IOException | IllegalBlockSizeException e) {
-
+            Debugger.logColorMessage(DBG_COLOR, "Client", "received: " + mOtherPublicKey);
+        } catch (IOException | NoSuchAlgorithmException e) {
             e.printStackTrace();
-            throw new ServerInitializationFailedException();
-
+            throw new ServerInitializationFailedException("Something went wrong while initializing connexion");
         }
     }
 
+    private void exchangesKeys() throws NoSuchAlgorithmException, IOException, ServerInitializationFailedException {
+        mRSAKey = generateRSAKey();
 
-    /**
-     * Function that handles a key exchange.
-     * Used when when the user is created.
-     *
-     * @param messageData   The key exchange message.
-     */
-    private void handleKeyExchange(JSONObject messageData) {
+        // Send the public key and wait for the returned key
+        mWriteStream.write(Message.createKeyXChangeMessage(getPublicKey()));
+        mWriteStream.flush();
 
-        try {
-
-            JSONArray key = messageData.getJSONArray("key");
-
-            byte[] result = new byte[key.length()];
-            for (int i = 0; i < key.length(); ++i) {
-                result[i] = (byte)(key.getInt(i) & 0xFF);
-            }
-
-            KeyFactory factory = KeyFactory.getInstance("RSA");
-            X509EncodedKeySpec encodedKeySpec = new X509EncodedKeySpec(result);
-            mOtherPublicKey =  factory.generatePublic(encodedKeySpec);
-            Debugger.logColorMessage(Debugger.GREEN, "Client", "Key is " + mOtherPublicKey);
-
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-            e.printStackTrace();
+        mOtherPublicKey = Message.getKeyXChangePublicKey(mReadStream.readLine());
+        if (mOtherPublicKey == null) {
+            throw new ServerInitializationFailedException();
         }
-
     }
 
 
     /**
      * A synchronized function that send a message and wait for the return value.
      *
-     * @param message       The message you want to send
-     * @return              The data send by the host
-     * @throws IOException  Can be thrown while writing/reading into the fd
+     * @param message The message you want to send
+     * @return The data send by the host
+     * @throws IOException Can be thrown while writing/reading into the fd
      */
-    public String sendAndWaitForReturn(String message) throws IOException {
-
+    public Message sendAndWaitForReturn(Message message) throws IOException {
         sendData(mWriteStream, message);
 
-        String data = "";
-
         try {
-            data = readData(mReadStream, "");
-        } catch (IOException e) {
+            return readData(mReadStream);
+        } catch (IOException | Message.InvalidMessageException e) {
             e.printStackTrace();
+
+            return null;
+        } catch (SocketDisconnectedException e) {
+            isRunning = false;
         }
 
-        return data;
-
+        return null;
     }
 
-
-    /**
-     * Function used to send a registration message to the host.
-     * This function is blocking and will block until the returned data
-     * is received or the timer end.
-     *
-     * @param password      The user password
-     * @param name          The user name
-     * @param surname       The user surname
-     * @param INE           The user INE (i.e student number)
-     * @return              The message returned by the host
-     */
-    public String sendRegistrationMessage(String password, String name, String surname, String INE) {
-
-        String returnedData = "";
-
-        try {
-
-            returnedData = sendAndWaitForReturn(
-                    createRegistrationMessage(
-                            getOtherPublicKey(),
-                            password,
-                            name,
-                            surname,
-                            INE
-                    )
-            );
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        return returnedData;
-
-    }
 
 
     /**
@@ -189,21 +96,14 @@ public class Client implements Server {
      * @param password      The user password
      * @return
      */
-    public String sendConnectionMessage(String INE, String password) {
+    public Message sendConnectionMessage(String INE, String password) {
 
-        String returnedData = "";
+        Message returnedData = null;
 
         try {
-
-            returnedData =
-                    sendAndWaitForReturn(
-                            createConnectionMessage(
-                                    getOtherPublicKey(),
-                                    INE,
-                                    password
-                            )
-                    );
-
+            returnedData = sendAndWaitForReturn(
+                    Message.createConnectionMessage(INE, password, getOtherPublicKey())
+            );
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -235,21 +135,16 @@ public class Client implements Server {
      * @param title                 The ticket title
      * @param messageContent        The message contents
      * @param group                 The concerned group
-     * @return                      The message received from the host
+     * @return The message received from the host
      */
-    public String createANewTicket(String title, String messageContent, String group) {
+    public Message createANewTicket(String title, String messageContent, String group) {
 
-        String returnedData = "";
+        Message returnedData = null;
 
         try {
 
             returnedData = sendAndWaitForReturn(
-                    createTicketMessage(
-                            getOtherPublicKey(),
-                            title,
-                            messageContent,
-                            group
-                    )
+                    Message.createTicketMessage(title, group, messageContent, getOtherPublicKey())
             );
 
         } catch (IOException e) {
@@ -267,19 +162,19 @@ public class Client implements Server {
      *
      * @param ticketid  The ticket id.
      * @param contents  The contents;
-     * @return          The data retrieved by the host.
+     * @return The data retrieved by the host.
      */
-    public String postAMessage(String ticketid, String contents) {
+    public Message postAMessage(String ticketid, String contents) {
 
-        String returnedData = "";
+        Message returnedData = null;
 
         try {
 
             returnedData = sendAndWaitForReturn(
-                    createClassicMessage(
-                            getOtherPublicKey(),
+                    Message.createMessageMessage(
                             ticketid,
-                            contents
+                            contents,
+                            getOtherPublicKey()
                     )
             );
 
@@ -333,9 +228,6 @@ public class Client implements Server {
         // TODO
 
     }
-
-
-
 
 
 

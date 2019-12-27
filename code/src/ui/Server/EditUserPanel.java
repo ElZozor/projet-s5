@@ -16,6 +16,7 @@ public class EditUserPanel extends JPanel {
     private JTextField ineField = new JTextField();
     private JTextField nomField = new JTextField();
     private JTextField prenomField = new JTextField();
+    private JTextField groupField = new JTextField();
     private JPasswordField mdpField = new JPasswordField();
     private JTextField typeField = new JTextField();
     private JButton enregistrerButton = new JButton();
@@ -43,6 +44,7 @@ public class EditUserPanel extends JPanel {
         createPrenomField();
         createMdpField();
         createTypeField();
+        createGroupField();
         createActionsSection();
 
 
@@ -50,7 +52,7 @@ public class EditUserPanel extends JPanel {
         final JPanel spacer1 = new JPanel();
         GridBagConstraints constraints = new GridBagConstraints();
         constraints.gridx = 1;
-        constraints.gridy = 6;
+        constraints.gridy = 7;
         constraints.weighty = 1.0;
         constraints.fill = GridBagConstraints.VERTICAL;
         this.add(spacer1, constraints);
@@ -138,6 +140,26 @@ public class EditUserPanel extends JPanel {
         this.add(mdpField, constraints);
     }
 
+    private void createGroupField() {
+        final JLabel label5 = new JLabel();
+        label5.setText("GROUPES");
+        GridBagConstraints constraints = new GridBagConstraints();
+        constraints.gridx = 0;
+        constraints.gridy = 6;
+        constraints.anchor = GridBagConstraints.EAST;
+        constraints.insets = default_insets;
+        this.add(label5, constraints);
+
+        constraints = new GridBagConstraints();
+        constraints.gridx = 1;
+        constraints.gridy = 6;
+        constraints.weightx = 1.0;
+        constraints.anchor = GridBagConstraints.WEST;
+        constraints.fill = GridBagConstraints.HORIZONTAL;
+        constraints.insets = default_insets;
+        this.add(groupField, constraints);
+    }
+
     private void createTypeField() {
         final JLabel label4 = new JLabel();
         label4.setText("TYPE");
@@ -209,6 +231,11 @@ public class EditUserPanel extends JPanel {
         prenomField.setText(user.getPrenom());
         nomField.setText(user.getNom());
         typeField.setText(user.getType());
+        try {
+            groupField.setText(DatabaseManager.getInstance().relatedUserGroup(user.getINE()));
+        } catch (NoSuchAlgorithmException | SQLException e) {
+            e.printStackTrace();
+        }
     }
 
 
@@ -218,11 +245,12 @@ public class EditUserPanel extends JPanel {
         final String prenom = prenomField.getText();
         final String type = typeField.getText();
         final String mdp = new String(mdpField.getPassword());
+        final String groups = groupField.getText();
 
         boolean success = false;
         ResultSet result;
         try {
-            result = DatabaseManager.getInstance().registerNewUser(INE, mdp, nom, prenom, type);
+            result = DatabaseManager.getInstance().registerNewUser(INE, mdp, nom, prenom, type, groups);
             success = (result != null) && result.next();
 
             if (success) {
@@ -248,10 +276,11 @@ public class EditUserPanel extends JPanel {
         final String nom = nomField.getText();
         final String prenom = prenomField.getText();
         final String type = typeField.getText();
+        final String groups = groupField.getText();
 
         boolean success = false;
         try {
-            success = DatabaseManager.getInstance().editExistingUser(user.getID(), INE, nom, prenom, type);
+            success = DatabaseManager.getInstance().editExistingUser(user.getID(), INE, nom, prenom, type, groups);
         } catch (NoSuchAlgorithmException | SQLException e) {
             e.printStackTrace();
         }

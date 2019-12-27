@@ -2,7 +2,7 @@ package ui.Server;
 
 import backend.data.Groupe;
 import backend.data.Utilisateur;
-import backend.modele.UserModel;
+import debug.Debugger;
 
 import javax.swing.*;
 import java.awt.*;
@@ -10,10 +10,8 @@ import java.awt.*;
 public class ServerUI extends JFrame {
     private static String SERVER_FRAME_TITLE = "Administration";
 
-    Container mainPanel;
-    Container secondPanel = null;
-
-    UserModel userModel;
+    private Container mainPanel;
+    private Container secondPanel = null;
 
     public ServerUI() {
         super(SERVER_FRAME_TITLE);
@@ -29,8 +27,10 @@ public class ServerUI extends JFrame {
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(ui.Server.ServerUI::new);
+        Debugger.isDebugging = true;
+        SwingUtilities.invokeLater(ServerUI::new);
     }
+
 
     public void setMainPanel() {
         this.setContentPane(mainPanel);
@@ -38,7 +38,6 @@ public class ServerUI extends JFrame {
 
         this.pack();
     }
-
 
 
     void edit(final String table_name, Object arg) {
@@ -56,6 +55,7 @@ public class ServerUI extends JFrame {
         }
     }
 
+
     void editUserPanel(Utilisateur arg) {
         mainPanel = this.getContentPane();
 
@@ -64,6 +64,7 @@ public class ServerUI extends JFrame {
 
         this.pack();
     }
+
 
     void editGroupPanel(Groupe arg) {
         mainPanel = this.getContentPane();

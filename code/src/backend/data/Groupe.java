@@ -39,6 +39,10 @@ public class Groupe extends ProjectTable implements Comparable<Groupe> {
         mLabel = label;
     }
 
+    public TreeSet<Ticket> getTickets() {
+        return mTickets;
+    }
+
     @Override
     public int compareTo(@NotNull Groupe groupe) {
         return this.getLabel().compareTo(groupe.getLabel());
