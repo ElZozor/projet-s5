@@ -46,8 +46,6 @@ CREATE TABLE TICKET (
     
     id_ticket       INT                 NOT NULL AUTO_INCREMENT,
     titre           VARCHAR(50)         NOT NULL,
-    premier_message INT                 NOT NULL,
-    dernier_message INT                 NOT NULL,
     id_util         INT                 NOT NULL,
     id_groupe       INT                 NOT NULL,
     
@@ -57,12 +55,8 @@ CREATE TABLE TICKET (
     
     CONSTRAINT CK_id_ticket             CHECK (id_ticket <> ''),
     CONSTRAINT CK_titre                 CHECK (titre <> ''),
-    CONSTRAINT CK_premier_message       CHECK (premier_message <> ''),
-    CONSTRAINT CK_dernier_message       CHECK (dernier_message <> ''),
     CONSTRAINT CK_id_util               CHECK (id_util <> ''),
-    CONSTRAINT CK_id_groupe             CHECK (id_groupe <> ''),
-    CONSTRAINT UK_premier_message       UNIQUE (premier_message),
-    CONSTRAINT UK_dernier_message       UNIQUE (dernier_message)
+    CONSTRAINT CK_id_groupe             CHECK (id_groupe <> '')
     
 );
     
