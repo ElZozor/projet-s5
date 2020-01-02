@@ -57,11 +57,22 @@ public class DatabaseManager {
         databaseConnection = DriverManager.getConnection(DB_URL, "projet", "");
     }
 
-
+    /**
+     * Used to hash a password
+     * @param       password The password to hash
+     * @return      The hashed password converted into base64
+     */
     public String hashPassword(@NotNull String password) {
         return Base64.getEncoder().encodeToString(digest.digest(password.getBytes(StandardCharsets.UTF_8)));
     }
 
+    /**
+     * Variadic function that test if an given
+     * bunch of String contains an empty or null String
+     *
+     * @param args  The bunch of string
+     * @return      true if there is an empty string false otherwise
+     */
     private Boolean containsNullOrEmpty(String... args) {
         for (String s : args) {
             if (StringUtils.isNullOrEmpty(s)) {
@@ -121,38 +132,6 @@ public class DatabaseManager {
         ResultSet queryResult = statement.executeQuery(request);
 
         return queryResult.next();
-    }
-
-
-    /**
-     * Retrieve all the groups that the concerned user is affialiated with.
-     *
-     * @param userINE The user INE
-     * @return All the groups as a Collection<String>
-     * @throws SQLException Can be thrown while accessing the database
-     */
-    public Collection<String> retrieveAffiliatedGroups(String userINE) throws SQLException {
-        if (userINE == null) {
-            return null;
-        }
-
-        Statement statement = databaseConnection.createStatement();
-        String request = String.format(
-                "SELECT DISTINCT %s.%s FROM %s, %s, %s "
-                        + " WHERE %s.%s = %s.%s AND %s.%s = %s.%s",
-                TABLE_NAME_GROUPE, GROUPE_LABEL, TABLE_NAME_GROUPE, TABLE_NAME_APPARTENIR, TABLE_NAME_UTILISATEUR,
-                TABLE_NAME_GROUPE, GROUPE_ID, TABLE_NAME_APPARTENIR, APPARTENIR_GROUPE_ID, TABLE_NAME_UTILISATEUR,
-                UTILISATEUR_INE, TABLE_NAME_APPARTENIR, APPARTENIR_UTILISATEUR_INE
-        );
-
-        ResultSet queryResult = statement.executeQuery(request);
-
-        List<String> groups = new LinkedList<>();
-        while (queryResult.next()) {
-            groups.add(queryResult.getString(GROUPE_LABEL));
-        }
-
-        return groups;
     }
 
 

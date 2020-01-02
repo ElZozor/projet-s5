@@ -12,13 +12,6 @@ import java.security.*;
 
 public interface Server {
 
-    // Theses are all the variables that will be used by both client
-    // and server to create and receive messages
-
-
-    int BUFFER_SIZE = 256;
-
-
     PrivateKey getPrivateKey();
 
     PublicKey getPublicKey();

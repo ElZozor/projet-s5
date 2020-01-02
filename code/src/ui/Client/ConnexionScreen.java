@@ -8,14 +8,14 @@ import java.awt.*;
 import java.io.IOException;
 
 public class ConnexionScreen extends JFrame {
-    JPanel mainPanel = new JPanel(new GridBagLayout());
-    JButton connexionButton = new JButton("Se connecter");
-    JButton closeButton = new JButton("Fermer");
-    JLabel connexionLabel = new JLabel("CONNEXION");
-    JLabel ineLabel = new JLabel("INE");
-    JLabel passwordLabel = new JLabel("Mot de passe");
-    JTextField ineField = new JTextField();
-    JPasswordField passwordField = new JPasswordField();
+    private JPanel mainPanel = new JPanel(new GridBagLayout());
+    private JButton connexionButton = new JButton("Se connecter");
+    private JButton closeButton = new JButton("Fermer");
+    private JLabel connexionLabel = new JLabel("CONNEXION");
+    private JLabel ineLabel = new JLabel("INE");
+    private JLabel passwordLabel = new JLabel("Mot de passe");
+    private JTextField ineField = new JTextField();
+    private JPasswordField passwordField = new JPasswordField();
 
     public ConnexionScreen() {
         setUndecorated(true);
