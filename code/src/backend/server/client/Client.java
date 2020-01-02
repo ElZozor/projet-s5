@@ -2,22 +2,25 @@ package backend.server.client;
 
 
 import backend.server.Server;
-import backend.server.message.Message;
+import backend.server.communication.CommunicationMessage;
 import debug.Debugger;
 
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 import java.io.*;
 import java.net.Socket;
 import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.util.Date;
 
 public class Client implements Server {
 
     private final static String DBG_COLOR = Debugger.YELLOW;
     private final static int SOCKET_TIMEOUT = 5000;
 
-    private final Socket mSocket;
+    private final SSLSocket mSocket;
     boolean isRunning = true;
     private BufferedWriter mWriteStream;
 
@@ -34,7 +37,9 @@ public class Client implements Server {
      */
     public Client(Socket socket) throws ServerInitializationFailedException {
         try {
-            mSocket = socket;
+            SSLSocketFactory factory = (SSLSocketFactory) SSLSocketFactory.getDefault();
+            mSocket = (SSLSocket) factory.createSocket(socket, null, socket.getPort(), false);
+
             mSocket.setSoTimeout(SOCKET_TIMEOUT);
 
             mWriteStream = new BufferedWriter(new OutputStreamWriter(mSocket.getOutputStream()));
@@ -50,13 +55,13 @@ public class Client implements Server {
     }
 
     private void exchangesKeys() throws NoSuchAlgorithmException, IOException, ServerInitializationFailedException {
-        mRSAKey = generateRSAKey();
+        mRSAKey = generateAESKeys();
 
         // Send the public key and wait for the returned key
-        mWriteStream.write(Message.createKeyXChangeMessage(getPublicKey()));
+        mWriteStream.write(CommunicationMessage.createKeyXChange(getPublicKey()));
         mWriteStream.flush();
 
-        mOtherPublicKey = Message.getKeyXChangePublicKey(mReadStream.readLine());
+        mOtherPublicKey = CommunicationMessage.getKeyXChangePublicKey(mReadStream.readLine());
         if (mOtherPublicKey == null) {
             throw new ServerInitializationFailedException();
         }
@@ -66,16 +71,16 @@ public class Client implements Server {
     /**
      * A synchronized function that send a message and wait for the return value.
      *
-     * @param message The message you want to send
+     * @param communicationMessage The message you want to send
      * @return The data send by the host
      * @throws IOException Can be thrown while writing/reading into the fd
      */
-    public Message sendAndWaitForReturn(Message message) throws IOException {
-        sendData(mWriteStream, message);
+    public CommunicationMessage sendAndWaitForReturn(CommunicationMessage communicationMessage) throws IOException {
+        sendData(mWriteStream, communicationMessage);
 
         try {
             return readData(mReadStream);
-        } catch (IOException | Message.InvalidMessageException e) {
+        } catch (IOException | CommunicationMessage.InvalidMessageException e) {
             e.printStackTrace();
 
             return null;
@@ -87,22 +92,21 @@ public class Client implements Server {
     }
 
 
-
     /**
      * Function used to send a connection message to the host.
      * Will return the message received from the host.
      *
-     * @param INE           The user INE
-     * @param password      The user password
+     * @param INE      The user INE
+     * @param password The user password
      * @return
      */
-    public Message sendConnectionMessage(String INE, String password) {
+    public CommunicationMessage sendConnectionMessage(String INE, String password) {
 
-        Message returnedData = null;
+        CommunicationMessage returnedData = null;
 
         try {
             returnedData = sendAndWaitForReturn(
-                    Message.createConnectionMessage(INE, password, getOtherPublicKey())
+                    CommunicationMessage.createConnection(INE, password, getOtherPublicKey())
             );
         } catch (IOException e) {
             e.printStackTrace();
@@ -137,14 +141,14 @@ public class Client implements Server {
      * @param group                 The concerned group
      * @return The message received from the host
      */
-    public Message createANewTicket(String title, String messageContent, String group) {
+    public CommunicationMessage createANewTicket(String title, String messageContent, String group) {
 
-        Message returnedData = null;
+        CommunicationMessage returnedData = null;
 
         try {
 
             returnedData = sendAndWaitForReturn(
-                    Message.createTicketMessage(title, group, messageContent, getOtherPublicKey())
+                    CommunicationMessage.createTicket(title, group, messageContent, getOtherPublicKey())
             );
 
         } catch (IOException e) {
@@ -164,14 +168,14 @@ public class Client implements Server {
      * @param contents  The contents;
      * @return The data retrieved by the host.
      */
-    public Message postAMessage(String ticketid, String contents) {
+    public CommunicationMessage postAMessage(String ticketid, String contents) {
 
-        Message returnedData = null;
+        CommunicationMessage returnedData = null;
 
         try {
 
             returnedData = sendAndWaitForReturn(
-                    Message.createMessageMessage(
+                    CommunicationMessage.createMessage(
                             ticketid,
                             contents,
                             getOtherPublicKey()
@@ -197,11 +201,22 @@ public class Client implements Server {
      *
      * @return The data retrieved by the server.
      */
-    public String updateLocalDatabase() {
+    public CommunicationMessage updateLocalDatabase() {
 
-        // TODO
+        CommunicationMessage returnedData = null;
 
-        return null;
+        try {
+
+            returnedData = sendAndWaitForReturn(
+                    CommunicationMessage.createLocalUpdate(new Date(0), getOtherPublicKey())
+            );
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return returnedData;
+
     }
 
 

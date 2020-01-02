@@ -1,6 +1,6 @@
 package backend.server;
 
-import backend.server.message.Message;
+import backend.server.communication.CommunicationMessage;
 import debug.Debugger;
 
 import java.io.BufferedReader;
@@ -24,7 +24,7 @@ public interface Server {
      *
      * @return The random token
      */
-    default KeyPair generateRSAKey() throws NoSuchAlgorithmException {
+    default KeyPair generateAESKeys() throws NoSuchAlgorithmException {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
         generator.initialize(2048, new SecureRandom());
 
@@ -35,14 +35,14 @@ public interface Server {
     /**
      * Used to send data through a socket.
      *
-     * @param socketWriter The socket output stream
-     * @param message      The message to send
+     * @param socketWriter         The socket output stream
+     * @param communicationMessage The message to send
      * @throws IOException Exception if write has failed
      */
-    default void sendData(BufferedWriter socketWriter, Message message) throws IOException {
-        Debugger.logMessage("Server sendData", "Sending following data: " + message.toString());
-        System.out.println(message.encode());
-        socketWriter.write(message.encode());
+    default void sendData(BufferedWriter socketWriter, CommunicationMessage communicationMessage) throws IOException {
+        Debugger.logMessage("Server sendData", "Sending following data: " + communicationMessage.toString());
+        System.out.println(communicationMessage.encode());
+        socketWriter.write(communicationMessage.encode());
         socketWriter.flush();
     }
 
@@ -54,8 +54,8 @@ public interface Server {
      * @return The data
      * @throws IOException Exception if read has failed
      */
-    default Message readData(BufferedReader socketReader)
-            throws IOException, Message.InvalidMessageException, SocketDisconnectedException {
+    default CommunicationMessage readData(BufferedReader socketReader)
+            throws IOException, CommunicationMessage.InvalidMessageException, SocketDisconnectedException {
         String line;
 
         try {
@@ -64,7 +64,7 @@ public interface Server {
                 throw new SocketDisconnectedException();
             }
 
-            return new Message(line, getOtherPublicKey(), getPrivateKey());
+            return new CommunicationMessage(line, getOtherPublicKey(), getPrivateKey());
         } catch (SocketTimeoutException e) {
             System.out.println("Socket read timeout !");
         }

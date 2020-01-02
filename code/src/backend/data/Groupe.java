@@ -1,26 +1,49 @@
 package backend.data;
 
 import org.jetbrains.annotations.NotNull;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.TreeSet;
+
+import static backend.database.Keys.GROUPE_ID;
+import static backend.database.Keys.GROUPE_LABEL;
 
 public class Groupe extends ProjectTable implements Comparable<Groupe> {
 
     private Long mID;
     private String mLabel;
 
-    private TreeSet<Ticket> mTickets;
+    private TreeSet<Ticket> mTickets = new TreeSet<>();
 
     public Groupe(final Long id, final String label) {
         mID = id;
         mLabel = label;
     }
 
+    public Groupe(final Long id, final String label, final TreeSet<Ticket> tickets) {
+        mID = id;
+        mLabel = label;
+        mTickets = tickets;
+    }
+
     public Groupe(ResultSet set) throws SQLException {
         mID = set.getLong(1);
         mLabel = set.getString(2);
+    }
+
+    public Groupe(JSONObject jsonObject) {
+        mID = jsonObject.getLong(GROUPE_ID);
+        mLabel = jsonObject.getString(GROUPE_LABEL);
+
+        JSONArray array = jsonObject.getJSONArray("tickets");
+        for (int i = 0; i < array.length(); ++i) {
+            JSONObject o = array.getJSONObject(i);
+
+            mTickets.add(new Ticket(o));
+        }
     }
 
     public Long getID() {
@@ -39,8 +62,28 @@ public class Groupe extends ProjectTable implements Comparable<Groupe> {
         mLabel = label;
     }
 
+    public void addTicket(Ticket ticket) {
+        mTickets.add(ticket);
+    }
+
     public TreeSet<Ticket> getTickets() {
         return mTickets;
+    }
+
+    public JSONObject toJSON() {
+        JSONObject jsonObject = new JSONObject();
+
+        jsonObject.put(GROUPE_ID, mID);
+        jsonObject.put(GROUPE_LABEL, mLabel);
+
+        JSONArray array = new JSONArray();
+        for (Ticket ticket : mTickets) {
+            array.put(ticket.toJSON());
+        }
+
+        jsonObject.put("tickets", array);
+
+        return jsonObject;
     }
 
     @Override

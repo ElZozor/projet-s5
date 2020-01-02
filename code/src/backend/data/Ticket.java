@@ -16,34 +16,31 @@ public class Ticket extends ProjectTable implements Comparable<Ticket> {
 
     private static final String KEY_MESSAGES = "messages";
 
-    private SortedSet<Message> mMessages;
+    private SortedSet<Message> mMessages = new TreeSet<>();
 
     private Long mID;
     private final String mTitre;
 
-    public static Ticket fromJSON(JSONObject ticket) {
-        Long id = ticket.getLong(TICKET_ID);
-        String titre = ticket.getString(TICKET_TITRE);
+    public Ticket(JSONObject ticket) {
+        mID = ticket.getLong(TICKET_ID);
+        mTitre = ticket.getString(TICKET_TITRE);
 
         JSONArray array = ticket.getJSONArray(KEY_MESSAGES);
-        SortedSet<Message> messages = new TreeSet<>();
 
         for (int i = 0; i < array.length(); ++i) {
-            messages.add(Message.fromJSON(array.getJSONObject(i)));
+            mMessages.add(new Message(array.getJSONObject(i)));
         }
-
-        return new Ticket(id, titre, messages);
     }
 
-    public static JSONObject toJSON(Ticket ticket) {
+    public JSONObject toJSON() {
         JSONObject ticketAsJSON = new JSONObject();
 
-        ticketAsJSON.put(TICKET_ID, ticket.getID());
-        ticketAsJSON.put(TICKET_TITRE, ticket.getID());
+        ticketAsJSON.put(TICKET_ID, getID());
+        ticketAsJSON.put(TICKET_TITRE, getTitre());
 
         JSONArray messages = new JSONArray();
-        for (Message m : ticket.getMessages()) {
-            messages.put(Message.toJSON(m));
+        for (Message m : getMessages()) {
+            messages.put(m.toJSON());
         }
 
         ticketAsJSON.put(KEY_MESSAGES, messages);

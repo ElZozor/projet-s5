@@ -3,6 +3,7 @@ package ui.Client;
 import backend.data.Groupe;
 
 import javax.swing.*;
+import java.awt.*;
 import java.util.TreeSet;
 
 public class ClientMainScreen extends JFrame {
@@ -11,24 +12,35 @@ public class ClientMainScreen extends JFrame {
     GroupePanel groupePanel;
     MessageEditor messageEditor;
 
-    TreeSet<Groupe> groupes = new TreeSet<>();
+    TreeSet<Groupe> groupes;
 
-    public ClientMainScreen() {
+    public ClientMainScreen(TreeSet<Groupe> groups) {
         super();
 
+        groupes = groups;
+
         initPanel();
+
+        setSize(new Dimension(800, 600));
+        setLocationRelativeTo(null);
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+
+        setVisible(true);
     }
 
     private void initPanel() {
         setContentPane(mainPanel);
-        mainPanel.setOrientation(JSplitPane.VERTICAL_SPLIT);
+        mainPanel.setOrientation(JSplitPane.HORIZONTAL_SPLIT);
+
+        initLeftSidePanel();
+        initRightSidePanel();
 
         mainPanel.setLeftComponent(groupePanel);
         mainPanel.setRightComponent(messageEditor);
     }
 
     private void initLeftSidePanel() {
-        groupePanel = new GroupePanel(new TreeSet<>());
+        groupePanel = new GroupePanel(groupes);
     }
 
     private void initRightSidePanel() {

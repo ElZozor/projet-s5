@@ -1,5 +1,6 @@
-package backend.server.message;
+package backend.server.communication;
 
+import backend.data.Groupe;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -13,8 +14,10 @@ import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
+import java.util.Date;
+import java.util.TreeSet;
 
-public class Message extends JSONObject {
+public class CommunicationMessage extends JSONObject {
 
     public static final String TYPE_KEY_XCHANGE = "keyxchange";
     public static final String TYPE_CONNECTION = "connection";
@@ -22,6 +25,8 @@ public class Message extends JSONObject {
     public static final String TYPE_MESSAGE = "message";
     public static final String TYPE_RESPONSE = "response";
     public static final String TYPE_UPDATE = "update";
+    public static final String TYPE_LOCAL_UPDATE = "localupdate";
+    public static final String TYPE_LOCAL_UPDATE_RESPONSE = "localupdateresponse";
 
 
     public static final String CONNECTION_INE = "ine";
@@ -41,25 +46,28 @@ public class Message extends JSONObject {
 
     public static final String UPDATE_CONTENTS = "contents";
 
+    public static final String LOCAL_UPDATE_DATE = "contents";
+    public static final String LOCAL_UPDATE_RESPONSE = "groups";
+
     public static final String TYPE = "type";
     public static final String DATA = "data";
 
 
-    private final MESSAGE_TYPE message_type;
+    private final COMMUNICATION_TYPE communication_type;
     private final String type;
     PublicKey encodeKey;
     PrivateKey decodeKey;
     private JSONObject data = new JSONObject();
 
-    private Message(MESSAGE_TYPE msg_type, final String type, PublicKey encodeKey) {
-        this.message_type = msg_type;
+    private CommunicationMessage(COMMUNICATION_TYPE msg_type, final String type, PublicKey encodeKey) {
+        this.communication_type = msg_type;
         this.type = type;
         this.encodeKey = encodeKey;
 
         put(TYPE, type);
     }
 
-    public Message(String data, PublicKey encodeKey, PrivateKey decodeKey) throws InvalidMessageException {
+    public CommunicationMessage(String data, PublicKey encodeKey, PrivateKey decodeKey) throws InvalidMessageException {
         this.encodeKey = encodeKey;
         this.decodeKey = decodeKey;
 
@@ -78,11 +86,11 @@ public class Message extends JSONObject {
         this.type = decoded.getString(TYPE);
         this.data = decoded.getJSONObject(DATA);
 
-        message_type = guessType();
+        communication_type = guessType();
     }
 
-    public static Message createNackMessage(final String reason, PublicKey encodeKey) {
-        Message result = new Message(MESSAGE_TYPE.RESPONSE, TYPE_RESPONSE, encodeKey);
+    public static CommunicationMessage createNack(final String reason, PublicKey encodeKey) {
+        CommunicationMessage result = new CommunicationMessage(COMMUNICATION_TYPE.RESPONSE, TYPE_RESPONSE, encodeKey);
 
         result.addData(RESPONSE_VALUE, RESPONSE_ERROR);
         result.addData(RESPONSE_REASON, reason);
@@ -90,15 +98,15 @@ public class Message extends JSONObject {
         return result;
     }
 
-    public static Message createAckMessage(PublicKey encodeKey) {
-        Message result = new Message(MESSAGE_TYPE.RESPONSE, TYPE_RESPONSE, encodeKey);
+    public static CommunicationMessage createAck(PublicKey encodeKey) {
+        CommunicationMessage result = new CommunicationMessage(COMMUNICATION_TYPE.RESPONSE, TYPE_RESPONSE, encodeKey);
 
         result.addData(RESPONSE_VALUE, RESPONSE_SUCCESS);
 
         return result;
     }
 
-    public static String createKeyXChangeMessage(PublicKey encodeKey) {
+    public static String createKeyXChange(PublicKey encodeKey) {
         return new String(Base64.getEncoder().encode(encodeKey.getEncoded())) + "\n";
     }
 
@@ -121,42 +129,63 @@ public class Message extends JSONObject {
         return otherPublicKey;
     }
 
-    public static Message createConnectionMessage(final String ine, final String password, PublicKey encodeKey) {
-        Message message = new Message(MESSAGE_TYPE.CONNECTION, TYPE_CONNECTION, encodeKey);
+    public static CommunicationMessage createConnection(final String ine, final String password, PublicKey encodeKey) {
+        CommunicationMessage communicationMessage = new CommunicationMessage(COMMUNICATION_TYPE.CONNECTION, TYPE_CONNECTION, encodeKey);
 
-        message.addData(CONNECTION_INE, ine);
-        message.addData(CONNECTION_PASSWORD, password);
+        communicationMessage.addData(CONNECTION_INE, ine);
+        communicationMessage.addData(CONNECTION_PASSWORD, password);
 
-        return message;
+        return communicationMessage;
     }
 
-    public static Message createTicketMessage(final String ticketTitle, final String ticketGroup,
-                                              final String contents, PublicKey encodeKey) {
+    public static CommunicationMessage createTicket(final String ticketTitle, final String ticketGroup,
+                                                    final String contents, PublicKey encodeKey) {
 
-        Message message = new Message(MESSAGE_TYPE.TICKET, TYPE_TICKET, encodeKey);
+        CommunicationMessage communicationMessage = new CommunicationMessage(COMMUNICATION_TYPE.TICKET, TYPE_TICKET, encodeKey);
 
-        message.addData(TICKET_TITLE, ticketTitle);
-        message.addData(TICKET_GROUP, ticketGroup);
-        message.addData(TICKET_MESSAGE, contents);
+        communicationMessage.addData(TICKET_TITLE, ticketTitle);
+        communicationMessage.addData(TICKET_GROUP, ticketGroup);
+        communicationMessage.addData(TICKET_MESSAGE, contents);
 
-        return message;
+        return communicationMessage;
     }
 
-    public static Message createMessageMessage(final String ticketID, final String contents, PublicKey encodeKey) {
-        Message message = new Message(MESSAGE_TYPE.MESSAGE, TYPE_MESSAGE, encodeKey);
+    public static CommunicationMessage createMessage(final String ticketID, final String contents, PublicKey encodeKey) {
+        CommunicationMessage communicationMessage = new CommunicationMessage(COMMUNICATION_TYPE.MESSAGE, TYPE_MESSAGE, encodeKey);
 
-        message.addData(MESSAGE_TICKET_ID, ticketID);
-        message.addData(MESSAGE_CONTENTS, contents);
+        communicationMessage.addData(MESSAGE_TICKET_ID, ticketID);
+        communicationMessage.addData(MESSAGE_CONTENTS, contents);
 
-        return message;
+        return communicationMessage;
     }
 
-    public static Message createUpdateMessage(final String contents, PublicKey encodeKey) {
-        Message message = new Message(MESSAGE_TYPE.MESSAGE, TYPE_MESSAGE, encodeKey);
+    public static CommunicationMessage createUpdate(final String contents, PublicKey encodeKey) {
+        CommunicationMessage communicationMessage = new CommunicationMessage(COMMUNICATION_TYPE.UPDATE, TYPE_UPDATE, encodeKey);
 
-        message.addData(UPDATE_CONTENTS, contents);
+        communicationMessage.addData(UPDATE_CONTENTS, contents);
 
-        return message;
+        return communicationMessage;
+    }
+
+    public static CommunicationMessage createLocalUpdate(final Date from, PublicKey encodeKey) {
+        CommunicationMessage communicationMessage = new CommunicationMessage(COMMUNICATION_TYPE.LOCAL_UPDATE, TYPE_LOCAL_UPDATE, encodeKey);
+
+        communicationMessage.addData(LOCAL_UPDATE_DATE, Long.toString(from.getTime()));
+
+        return communicationMessage;
+    }
+
+    public static CommunicationMessage createLocalUpdateResponse(TreeSet<Groupe> groups, PublicKey encodeKey) {
+        CommunicationMessage communicationMessage = new CommunicationMessage(COMMUNICATION_TYPE.LOCAL_UPDATE_RESPONSE, TYPE_LOCAL_UPDATE_RESPONSE, encodeKey);
+
+        JSONArray array = new JSONArray();
+        for (Groupe group : groups) {
+            array.put(group.toJSON());
+        }
+
+        communicationMessage.addData(LOCAL_UPDATE_RESPONSE, array.toString());
+
+        return communicationMessage;
     }
 
     private Boolean isValidJSON(String data) {
@@ -226,26 +255,38 @@ public class Message extends JSONObject {
         return data.has(TYPE) && data.has(DATA);
     }
 
-    private MESSAGE_TYPE guessType() throws InvalidMessageException {
+    private COMMUNICATION_TYPE guessType() throws InvalidMessageException {
         switch (this.type) {
             case TYPE_KEY_XCHANGE:
-                return MESSAGE_TYPE.KEYXCHANGE;
+                return COMMUNICATION_TYPE.KEYXCHANGE;
 
             case TYPE_CONNECTION:
                 checkForConnectionValidity();
-                return MESSAGE_TYPE.CONNECTION;
+                return COMMUNICATION_TYPE.CONNECTION;
 
             case TYPE_MESSAGE:
-                return MESSAGE_TYPE.MESSAGE;
+                checkForMessageValidity();
+                return COMMUNICATION_TYPE.MESSAGE;
 
             case TYPE_RESPONSE:
-                return MESSAGE_TYPE.RESPONSE;
+                checkForResponseValidity();
+                return COMMUNICATION_TYPE.RESPONSE;
 
             case TYPE_TICKET:
-                return MESSAGE_TYPE.TICKET;
+                checkForTicketValidity();
+                return COMMUNICATION_TYPE.TICKET;
 
             case TYPE_UPDATE:
-                return MESSAGE_TYPE.UPDATE;
+                checkForUpdateValidity();
+                return COMMUNICATION_TYPE.UPDATE;
+
+            case TYPE_LOCAL_UPDATE:
+                checkForUpdateValidity();
+                return COMMUNICATION_TYPE.LOCAL_UPDATE;
+
+            case TYPE_LOCAL_UPDATE_RESPONSE:
+                checkForLocalUpdateResponseValidity();
+                return COMMUNICATION_TYPE.LOCAL_UPDATE_RESPONSE;
 
             default:
                 throw new InvalidMessageException("Message with invalid type: " + this.type);
@@ -286,38 +327,66 @@ public class Message extends JSONObject {
         }
     }
 
+    private void checkForLocalUpdateValidity() throws InvalidMessageException {
+        if (!data.has(LOCAL_UPDATE_DATE)) {
+            throw new InvalidMessageException("Missing field in update message");
+        }
+    }
+
+    private void checkForLocalUpdateResponseValidity() throws InvalidMessageException {
+        if (!data.has(LOCAL_UPDATE_RESPONSE)) {
+            throw new InvalidMessageException("Missing field in update message");
+        }
+    }
+
     public Boolean isAck() {
-        return message_type.equals(MESSAGE_TYPE.RESPONSE) && data.getString(RESPONSE_VALUE).equals(RESPONSE_SUCCESS);
+        return communication_type.equals(COMMUNICATION_TYPE.RESPONSE) && data.getString(RESPONSE_VALUE).equals(RESPONSE_SUCCESS);
     }
 
     public Boolean isNack() {
-        return message_type.equals(MESSAGE_TYPE.RESPONSE) && data.getString(RESPONSE_VALUE).equals(RESPONSE_ERROR);
+        return communication_type.equals(COMMUNICATION_TYPE.RESPONSE) && data.getString(RESPONSE_VALUE).equals(RESPONSE_ERROR);
     }
 
     public Boolean isUpdate() {
-        return message_type.equals(MESSAGE_TYPE.UPDATE);
+        return communication_type.equals(COMMUNICATION_TYPE.UPDATE);
     }
 
     public Boolean isKeyXChange() {
-        return message_type.equals(MESSAGE_TYPE.KEYXCHANGE);
+        return communication_type.equals(COMMUNICATION_TYPE.KEYXCHANGE);
     }
 
     public Boolean isConnection() {
-        return message_type.equals(MESSAGE_TYPE.CONNECTION);
+        return communication_type.equals(COMMUNICATION_TYPE.CONNECTION);
     }
 
     public Boolean isTicket() {
-        return message_type.equals(MESSAGE_TYPE.TICKET);
+        return communication_type.equals(COMMUNICATION_TYPE.TICKET);
     }
 
     public Boolean isMessage() {
-        return message_type.equals(MESSAGE_TYPE.MESSAGE);
+        return communication_type.equals(COMMUNICATION_TYPE.MESSAGE);
     }
 
-    public MESSAGE_TYPE getType() {
-        return message_type;
+    public Boolean isLocalUpdate() {
+        return communication_type.equals(COMMUNICATION_TYPE.LOCAL_UPDATE);
     }
 
+    public Boolean isLocalUpdateResponse() {
+        return communication_type.equals(COMMUNICATION_TYPE.LOCAL_UPDATE_RESPONSE);
+    }
+
+    public COMMUNICATION_TYPE getType() {
+        return communication_type;
+    }
+
+
+    public JSONObject getAckData() throws WrongMessageTypeException {
+        if (!isAck()) {
+            throw new WrongMessageTypeException("Requiring ack data on a non-ack message");
+        }
+
+        return new JSONObject(data);
+    }
 
     public String getNackReason() throws WrongMessageTypeException {
         if (!isNack()) {
@@ -358,6 +427,14 @@ public class Message extends JSONObject {
 
     public String getUpdateContents() {
         return data.getString(UPDATE_CONTENTS);
+    }
+
+    public Date getLocalUpdateDate() {
+        return new Date(data.getLong(LOCAL_UPDATE_DATE));
+    }
+
+    public JSONArray getLocalUpdateResponseGroups() {
+        return data.getJSONArray(LOCAL_UPDATE_RESPONSE);
     }
 
 

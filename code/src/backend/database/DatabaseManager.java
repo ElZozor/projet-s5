@@ -1,5 +1,8 @@
 package backend.database;
 
+import backend.data.Groupe;
+import backend.data.Message;
+import backend.data.Ticket;
 import backend.modele.GroupModel;
 import backend.modele.MessageModel;
 import backend.modele.TicketModel;
@@ -13,9 +16,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.*;
 import java.util.Base64;
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.TreeSet;
 
 import static backend.database.Keys.*;
 
@@ -600,6 +601,76 @@ public class DatabaseManager {
         } else {
             return "";
         }
+    }
+
+
+    public TreeSet<Message> getAllMessageForGivenTicket(long ticketid) throws SQLException {
+
+        final String messageRequest = String.format(
+                "SELECT * FROM %s WHERE %s = '%s'",
+                TABLE_NAME_MESSAGE, MESSAGE_TICKET_ID, ticketid
+        );
+
+        Statement statement = databaseConnection.createStatement();
+        ResultSet result = statement.executeQuery(messageRequest);
+
+        TreeSet<Message> messages = new TreeSet<>();
+
+        while (result.next()) {
+            messages.add(new Message(result));
+        }
+
+        return messages;
+    }
+
+
+    public TreeSet<Ticket> getAllTicketForGivenGroup(long groupid) throws SQLException {
+
+        final String ticketRequest = String.format(
+                "SELECT * FROM %s WHERE %s = '%s'",
+                TABLE_NAME_TICKET, TICKET_GROUP_ID, groupid
+        );
+
+        Statement statement = databaseConnection.createStatement();
+        ResultSet result = statement.executeQuery(ticketRequest);
+
+        TreeSet<Ticket> tickets = new TreeSet<>();
+
+        while (result.next()) {
+
+            final long id = result.getLong(TICKET_ID);
+            final String title = result.getString(TICKET_TITRE);
+
+            tickets.add(new Ticket(id, title, getAllMessageForGivenTicket(id)));
+        }
+
+        return tickets;
+    }
+
+    public TreeSet<Groupe> getAllGroups() throws SQLException {
+
+        final String groupRequest = String.format(
+                "SELECT * FROM %s", TABLE_NAME_GROUPE
+        );
+
+        Statement statement = databaseConnection.createStatement();
+        ResultSet result = statement.executeQuery(groupRequest);
+
+        TreeSet<Groupe> groups = new TreeSet<>();
+
+        while (result.next()) {
+            final long id = result.getLong(GROUPE_ID);
+            final String label = result.getString(GROUPE_LABEL);
+
+            groups.add(new Groupe(id, label, getAllTicketForGivenGroup(id)));
+        }
+
+        return groups;
+
+    }
+
+    public TreeSet<Groupe> treatLocalUpdateMessage() throws SQLException {
+        return getAllGroups();
     }
 
 

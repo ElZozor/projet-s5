@@ -1,11 +1,13 @@
 package ui.Client;
 
-import backend.server.message.Message;
+import backend.data.Groupe;
+import backend.server.communication.CommunicationMessage;
 import launch.ClientLaunch;
+import org.json.JSONArray;
 
 import javax.swing.*;
 import java.awt.*;
-import java.io.IOException;
+import java.util.TreeSet;
 
 public class ConnexionScreen extends JFrame {
     private JPanel mainPanel = new JPanel(new GridBagLayout());
@@ -117,23 +119,36 @@ public class ConnexionScreen extends JFrame {
         });
 
         connexionButton.addActionListener(action -> {
-            Message result = ClientLaunch.client.sendConnectionMessage(ineField.getText(), new String(passwordField.getPassword()));
+            CommunicationMessage result = ClientLaunch.client.sendConnectionMessage(ineField.getText(), new String(passwordField.getPassword()));
 
             if (result == null) {
                 JOptionPane.showMessageDialog(this, "Une erreur est survenue..", "Erreur de connexion", JOptionPane.ERROR_MESSAGE);
             } else if (result.isNack()) {
                 try {
                     JOptionPane.showMessageDialog(this, result.getNackReason(), "Erreur de connexion", JOptionPane.ERROR_MESSAGE);
-                } catch (Message.WrongMessageTypeException e) {
+                } catch (CommunicationMessage.WrongMessageTypeException e) {
                     e.printStackTrace();
                 }
             } else {
-                try {
-                    ClientLaunch.client.disconnect();
-                } catch (IOException e) {
-                    e.printStackTrace();
+                CommunicationMessage groupUpdate = ClientLaunch.client.updateLocalDatabase();
+
+                if (groupUpdate.isLocalUpdateResponse()) {
+                    TreeSet<Groupe> groups = new TreeSet<>();
+
+                    JSONArray array = groupUpdate.getLocalUpdateResponseGroups();
+                    for (int i = 0; i < array.length(); ++i) {
+                        groups.add(new Groupe(array.getJSONObject(i)));
+                    }
+
+                    new ClientMainScreen(groups);
+                } else {
+                    try {
+                        JOptionPane.showMessageDialog(this, "Une erreur est survenue..", groupUpdate.getNackReason(), JOptionPane.ERROR_MESSAGE);
+                        dispose();
+                    } catch (CommunicationMessage.WrongMessageTypeException e) {
+                        e.printStackTrace();
+                    }
                 }
-                dispose();
             }
         });
     }
