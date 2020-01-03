@@ -7,29 +7,9 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
-import java.security.*;
 
 
 public interface Server {
-
-    PrivateKey getPrivateKey();
-
-    PublicKey getPublicKey();
-
-    PublicKey getOtherPublicKey();
-
-
-    /**
-     * Generate a random token which has a length of TOKEN_SIZE
-     *
-     * @return The random token
-     */
-    default KeyPair generateAESKeys() throws NoSuchAlgorithmException {
-        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
-        generator.initialize(2048, new SecureRandom());
-
-        return generator.generateKeyPair();
-    }
 
 
     /**
@@ -40,9 +20,8 @@ public interface Server {
      * @throws IOException Exception if write has failed
      */
     default void sendData(BufferedWriter socketWriter, CommunicationMessage communicationMessage) throws IOException {
-        Debugger.logMessage("Server sendData", "Sending following data: " + communicationMessage.toString());
-        System.out.println(communicationMessage.encode());
-        socketWriter.write(communicationMessage.encode());
+        Debugger.logMessage("Server sendData", "Sending following data: " + communicationMessage.toFormattedString());
+        socketWriter.write(communicationMessage.toString());
         socketWriter.flush();
     }
 
@@ -64,7 +43,7 @@ public interface Server {
                 throw new SocketDisconnectedException();
             }
 
-            return new CommunicationMessage(line, getOtherPublicKey(), getPrivateKey());
+            return new CommunicationMessage(line);
         } catch (SocketTimeoutException e) {
             System.out.println("Socket read timeout !");
         }

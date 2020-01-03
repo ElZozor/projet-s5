@@ -17,7 +17,11 @@ public class ClientMainScreen extends JFrame {
     public ClientMainScreen(TreeSet<Groupe> groups) {
         super();
 
-        groupes = groups;
+        if (groups == null) {
+            groupes = new TreeSet<>();
+        } else {
+            groupes = groups;
+        }
 
         initPanel();
 

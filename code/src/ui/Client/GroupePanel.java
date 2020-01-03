@@ -10,6 +10,7 @@ import java.util.TreeSet;
 
 public class GroupePanel extends JPanel {
 
+    JScrollPane scrollPane;
     JTree ticketTree;
     DefaultMutableTreeNode groupeModel;
 
@@ -23,7 +24,10 @@ public class GroupePanel extends JPanel {
         groupeModel = new GroupeTreeModel(groupes);
         ticketTree = new JTree(groupeModel);
 
-        add(ticketTree);
+        scrollPane = new JScrollPane();
+        scrollPane.setViewportView(ticketTree);
+
+        add(scrollPane);
     }
 
 }

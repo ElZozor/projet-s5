@@ -5,15 +5,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import java.nio.charset.StandardCharsets;
-import java.security.*;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.X509EncodedKeySpec;
-import java.util.Base64;
 import java.util.Date;
 import java.util.TreeSet;
 
@@ -55,42 +46,35 @@ public class CommunicationMessage extends JSONObject {
 
     private final COMMUNICATION_TYPE communication_type;
     private final String type;
-    PublicKey encodeKey;
-    PrivateKey decodeKey;
     private JSONObject data = new JSONObject();
 
-    private CommunicationMessage(COMMUNICATION_TYPE msg_type, final String type, PublicKey encodeKey) {
+    private CommunicationMessage(COMMUNICATION_TYPE msg_type, final String type) {
         this.communication_type = msg_type;
         this.type = type;
-        this.encodeKey = encodeKey;
 
         put(TYPE, type);
     }
 
-    public CommunicationMessage(String data, PublicKey encodeKey, PrivateKey decodeKey) throws InvalidMessageException {
-        this.encodeKey = encodeKey;
-        this.decodeKey = decodeKey;
-
-        data = decode(data);
+    public CommunicationMessage(String data) throws InvalidMessageException {
 
         if (data == null || !isValidJSON(data)) {
             throw new InvalidMessageException("Data cannot be decoded or JSON is invalid");
         }
 
-        JSONObject decoded = new JSONObject(data);
+        JSONObject jsonData = new JSONObject(data);
 
-        if (!isValid(decoded)) {
+        if (!isValid(jsonData)) {
             throw new InvalidMessageException("Trying to create a Message Object with invalid data");
         }
 
-        this.type = decoded.getString(TYPE);
-        this.data = decoded.getJSONObject(DATA);
+        this.type = jsonData.getString(TYPE);
+        this.data = jsonData.getJSONObject(DATA);
 
         communication_type = guessType();
     }
 
-    public static CommunicationMessage createNack(final String reason, PublicKey encodeKey) {
-        CommunicationMessage result = new CommunicationMessage(COMMUNICATION_TYPE.RESPONSE, TYPE_RESPONSE, encodeKey);
+    public static CommunicationMessage createNack(final String reason) {
+        CommunicationMessage result = new CommunicationMessage(COMMUNICATION_TYPE.RESPONSE, TYPE_RESPONSE);
 
         result.addData(RESPONSE_VALUE, RESPONSE_ERROR);
         result.addData(RESPONSE_REASON, reason);
@@ -98,39 +82,16 @@ public class CommunicationMessage extends JSONObject {
         return result;
     }
 
-    public static CommunicationMessage createAck(PublicKey encodeKey) {
-        CommunicationMessage result = new CommunicationMessage(COMMUNICATION_TYPE.RESPONSE, TYPE_RESPONSE, encodeKey);
+    public static CommunicationMessage createAck() {
+        CommunicationMessage result = new CommunicationMessage(COMMUNICATION_TYPE.RESPONSE, TYPE_RESPONSE);
 
         result.addData(RESPONSE_VALUE, RESPONSE_SUCCESS);
 
         return result;
     }
 
-    public static String createKeyXChange(PublicKey encodeKey) {
-        return new String(Base64.getEncoder().encode(encodeKey.getEncoded())) + "\n";
-    }
-
-    public static PublicKey getKeyXChangePublicKey(String message) {
-        PublicKey otherPublicKey = null;
-
-        try {
-
-            byte[] result = Base64.getDecoder().decode(message);
-
-            KeyFactory factory = KeyFactory.getInstance("RSA");
-            X509EncodedKeySpec encodedKeySpec = new X509EncodedKeySpec(result);
-            otherPublicKey = factory.generatePublic(encodedKeySpec);
-
-
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-            e.printStackTrace();
-        }
-
-        return otherPublicKey;
-    }
-
-    public static CommunicationMessage createConnection(final String ine, final String password, PublicKey encodeKey) {
-        CommunicationMessage communicationMessage = new CommunicationMessage(COMMUNICATION_TYPE.CONNECTION, TYPE_CONNECTION, encodeKey);
+    public static CommunicationMessage createConnection(final String ine, final String password) {
+        CommunicationMessage communicationMessage = new CommunicationMessage(COMMUNICATION_TYPE.CONNECTION, TYPE_CONNECTION);
 
         communicationMessage.addData(CONNECTION_INE, ine);
         communicationMessage.addData(CONNECTION_PASSWORD, password);
@@ -139,9 +100,9 @@ public class CommunicationMessage extends JSONObject {
     }
 
     public static CommunicationMessage createTicket(final String ticketTitle, final String ticketGroup,
-                                                    final String contents, PublicKey encodeKey) {
+                                                    final String contents) {
 
-        CommunicationMessage communicationMessage = new CommunicationMessage(COMMUNICATION_TYPE.TICKET, TYPE_TICKET, encodeKey);
+        CommunicationMessage communicationMessage = new CommunicationMessage(COMMUNICATION_TYPE.TICKET, TYPE_TICKET);
 
         communicationMessage.addData(TICKET_TITLE, ticketTitle);
         communicationMessage.addData(TICKET_GROUP, ticketGroup);
@@ -150,8 +111,8 @@ public class CommunicationMessage extends JSONObject {
         return communicationMessage;
     }
 
-    public static CommunicationMessage createMessage(final String ticketID, final String contents, PublicKey encodeKey) {
-        CommunicationMessage communicationMessage = new CommunicationMessage(COMMUNICATION_TYPE.MESSAGE, TYPE_MESSAGE, encodeKey);
+    public static CommunicationMessage createMessage(final String ticketID, final String contents) {
+        CommunicationMessage communicationMessage = new CommunicationMessage(COMMUNICATION_TYPE.MESSAGE, TYPE_MESSAGE);
 
         communicationMessage.addData(MESSAGE_TICKET_ID, ticketID);
         communicationMessage.addData(MESSAGE_CONTENTS, contents);
@@ -159,31 +120,31 @@ public class CommunicationMessage extends JSONObject {
         return communicationMessage;
     }
 
-    public static CommunicationMessage createUpdate(final String contents, PublicKey encodeKey) {
-        CommunicationMessage communicationMessage = new CommunicationMessage(COMMUNICATION_TYPE.UPDATE, TYPE_UPDATE, encodeKey);
+    public static CommunicationMessage createUpdate(final String contents) {
+        CommunicationMessage communicationMessage = new CommunicationMessage(COMMUNICATION_TYPE.UPDATE, TYPE_UPDATE);
 
         communicationMessage.addData(UPDATE_CONTENTS, contents);
 
         return communicationMessage;
     }
 
-    public static CommunicationMessage createLocalUpdate(final Date from, PublicKey encodeKey) {
-        CommunicationMessage communicationMessage = new CommunicationMessage(COMMUNICATION_TYPE.LOCAL_UPDATE, TYPE_LOCAL_UPDATE, encodeKey);
+    public static CommunicationMessage createLocalUpdate(final Date from) {
+        CommunicationMessage communicationMessage = new CommunicationMessage(COMMUNICATION_TYPE.LOCAL_UPDATE, TYPE_LOCAL_UPDATE);
 
         communicationMessage.addData(LOCAL_UPDATE_DATE, Long.toString(from.getTime()));
 
         return communicationMessage;
     }
 
-    public static CommunicationMessage createLocalUpdateResponse(TreeSet<Groupe> groups, PublicKey encodeKey) {
-        CommunicationMessage communicationMessage = new CommunicationMessage(COMMUNICATION_TYPE.LOCAL_UPDATE_RESPONSE, TYPE_LOCAL_UPDATE_RESPONSE, encodeKey);
+    public static CommunicationMessage createLocalUpdateResponse(TreeSet<Groupe> groups) {
+        CommunicationMessage communicationMessage = new CommunicationMessage(COMMUNICATION_TYPE.LOCAL_UPDATE_RESPONSE, TYPE_LOCAL_UPDATE_RESPONSE);
 
         JSONArray array = new JSONArray();
         for (Groupe group : groups) {
             array.put(group.toJSON());
         }
 
-        communicationMessage.addData(LOCAL_UPDATE_RESPONSE, array.toString());
+        communicationMessage.addData(LOCAL_UPDATE_RESPONSE, array);
 
         return communicationMessage;
     }
@@ -203,51 +164,15 @@ public class CommunicationMessage extends JSONObject {
         return true;
     }
 
-    private String decode(String data) {
-        if (data == null || data.isEmpty()) {
-            return null;
-        }
-
-        try {
-            byte[] bytes = Base64.getDecoder().decode(data);
-
-            System.out.println(bytes);
-
-            Cipher decryptCypher = Cipher.getInstance("RSA");
-            decryptCypher.init(Cipher.DECRYPT_MODE, decodeKey);
-
-            return new String(decryptCypher.doFinal(bytes), StandardCharsets.UTF_8);
-        } catch (NoSuchAlgorithmException | NoSuchPaddingException
-                | BadPaddingException | IllegalBlockSizeException | InvalidKeyException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
-
-    public String encode() {
-
-        try {
-
-            Cipher encryptCypher = Cipher.getInstance("RSA");
-            encryptCypher.init(Cipher.ENCRYPT_MODE, encodeKey);
-
-            byte[] cipher = encryptCypher.doFinal(toString().getBytes(StandardCharsets.UTF_8));
-
-            return Base64.getEncoder().encodeToString(cipher) + '\n';
-
-        } catch (NoSuchPaddingException | NoSuchAlgorithmException
-                | InvalidKeyException | BadPaddingException
-                | IllegalBlockSizeException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
-
     private void addData(String key, String data) {
         this.data.put(key, data);
     }
 
     private void addData(String key, byte[] data) {
+        this.data.put(key, data);
+    }
+
+    private void addData(String key, JSONArray data) {
         this.data.put(key, data);
     }
 
@@ -443,7 +368,82 @@ public class CommunicationMessage extends JSONObject {
         result.put(TYPE, type);
         result.put(DATA, data);
 
-        return result.toString();
+        return result.toString() + "\n";
+    }
+
+    public String toFormattedString() {
+        JSONObject result = new JSONObject();
+        result.put(TYPE, type);
+        result.put(DATA, data);
+
+        return format("", result, 0);
+    }
+
+
+    private String format(final String key, JSONObject object, int padding) {
+        final String pad = new String(new char[padding]).replace("\0", "\t");
+
+        StringBuilder builder = new StringBuilder();
+
+        if (key.isEmpty()) {
+            builder.append(pad).append("{").append('\n');
+        } else {
+            builder.append(pad).append(key).append(": ").append("{").append('\n');
+        }
+
+        int position = 0;
+        for (String s : object.keySet()) {
+            final Object o = object.get(s);
+            if (o instanceof JSONObject) {
+                builder.append(format(s, (JSONObject) o, padding + 1));
+            } else if (o instanceof JSONArray) {
+                builder.append(format(s, (JSONArray) o, padding + 1));
+            } else {
+                builder.append(pad).append("\t").append(s).append(": ").append(o);
+            }
+
+            if ((++position) != object.keySet().size()) {
+                builder.append(",");
+            }
+
+            builder.append("\n");
+        }
+
+        builder.append(pad).append("}");
+
+        return builder.toString();
+    }
+
+    private String format(final String key, JSONArray array, int padding) {
+        final String pad = new String(new char[padding]).replace("\0", "\t");
+
+        StringBuilder builder = new StringBuilder();
+
+        if (key.isEmpty()) {
+            builder.append(pad).append("{").append('\n');
+        } else {
+            builder.append(pad).append(key).append(": ").append("[").append('\n');
+        }
+
+        for (int i = 0; i < array.length(); ++i) {
+            final Object o = array.get(i);
+            if (o instanceof JSONObject) {
+                builder.append(format("", (JSONObject) o, padding + 1));
+            } else if (o instanceof JSONArray) {
+                builder.append(format("", (JSONArray) o, padding + 1));
+            } else {
+                builder.append(pad).append("\t").append(o);
+            }
+
+            if (i + 1 < array.length()) {
+                builder.append(",");
+            }
+
+            builder.append("\n");
+        }
+        builder.append(pad).append("]");
+
+        return builder.toString();
     }
 
 

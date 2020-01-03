@@ -6,13 +6,7 @@ import backend.server.communication.CommunicationMessage;
 import debug.Debugger;
 
 import javax.net.ssl.SSLSocket;
-import javax.net.ssl.SSLSocketFactory;
 import java.io.*;
-import java.net.Socket;
-import java.security.KeyPair;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.util.Date;
 
 public class Client implements Server {
@@ -24,8 +18,6 @@ public class Client implements Server {
     boolean isRunning = true;
     private BufferedWriter mWriteStream;
 
-    private KeyPair mRSAKey;
-    private PublicKey mOtherPublicKey;
     private BufferedReader mReadStream;
 
     /**
@@ -35,35 +27,19 @@ public class Client implements Server {
      * @param socket The connexion socket
      * @throws ServerInitializationFailedException When the server can't be init
      */
-    public Client(Socket socket) throws ServerInitializationFailedException {
+    public Client(SSLSocket socket) throws ServerInitializationFailedException {
         try {
-            SSLSocketFactory factory = (SSLSocketFactory) SSLSocketFactory.getDefault();
-            mSocket = (SSLSocket) factory.createSocket(socket, null, socket.getPort(), false);
+            mSocket = socket;
 
             mSocket.setSoTimeout(SOCKET_TIMEOUT);
 
             mWriteStream = new BufferedWriter(new OutputStreamWriter(mSocket.getOutputStream()));
             mReadStream = new BufferedReader(new InputStreamReader(mSocket.getInputStream()));
 
-            exchangesKeys();
 
-            Debugger.logColorMessage(DBG_COLOR, "Client", "received: " + mOtherPublicKey);
-        } catch (IOException | NoSuchAlgorithmException e) {
+        } catch (IOException e) {
             e.printStackTrace();
             throw new ServerInitializationFailedException("Something went wrong while initializing connexion");
-        }
-    }
-
-    private void exchangesKeys() throws NoSuchAlgorithmException, IOException, ServerInitializationFailedException {
-        mRSAKey = generateAESKeys();
-
-        // Send the public key and wait for the returned key
-        mWriteStream.write(CommunicationMessage.createKeyXChange(getPublicKey()));
-        mWriteStream.flush();
-
-        mOtherPublicKey = CommunicationMessage.getKeyXChangePublicKey(mReadStream.readLine());
-        if (mOtherPublicKey == null) {
-            throw new ServerInitializationFailedException();
         }
     }
 
@@ -106,7 +82,7 @@ public class Client implements Server {
 
         try {
             returnedData = sendAndWaitForReturn(
-                    CommunicationMessage.createConnection(INE, password, getOtherPublicKey())
+                    CommunicationMessage.createConnection(INE, password)
             );
         } catch (IOException e) {
             e.printStackTrace();
@@ -148,7 +124,7 @@ public class Client implements Server {
         try {
 
             returnedData = sendAndWaitForReturn(
-                    CommunicationMessage.createTicket(title, group, messageContent, getOtherPublicKey())
+                    CommunicationMessage.createTicket(title, group, messageContent)
             );
 
         } catch (IOException e) {
@@ -177,8 +153,7 @@ public class Client implements Server {
             returnedData = sendAndWaitForReturn(
                     CommunicationMessage.createMessage(
                             ticketid,
-                            contents,
-                            getOtherPublicKey()
+                            contents
                     )
             );
 
@@ -208,7 +183,7 @@ public class Client implements Server {
         try {
 
             returnedData = sendAndWaitForReturn(
-                    CommunicationMessage.createLocalUpdate(new Date(0), getOtherPublicKey())
+                    CommunicationMessage.createLocalUpdate(new Date(0))
             );
 
         } catch (IOException e) {
@@ -247,19 +222,4 @@ public class Client implements Server {
 
 
 
-
-    @Override
-    public PrivateKey getPrivateKey() {
-        return mRSAKey.getPrivate();
-    }
-
-    @Override
-    public PublicKey getPublicKey() {
-        return mRSAKey.getPublic();
-    }
-
-    @Override
-    public PublicKey getOtherPublicKey() {
-        return mOtherPublicKey;
-    }
 }

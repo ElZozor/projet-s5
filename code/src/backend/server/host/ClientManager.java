@@ -7,11 +7,9 @@ import backend.server.communication.CommunicationMessage;
 import debug.Debugger;
 import org.json.JSONArray;
 
+import javax.net.ssl.SSLSocket;
 import java.io.*;
-import java.net.Socket;
-import java.security.KeyPair;
 import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -28,51 +26,31 @@ public class ClientManager extends Thread implements Server {
 
     private final static String DBG_COLOR = Debugger.YELLOW;
 
-    private final Socket mSocket;
+    private final SSLSocket mSocket;
     private BufferedWriter mWriteStream;
     private BufferedReader mReadStream;
 
-    private KeyPair mRSAKey;
     private PublicKey mOtherPublicKey;
 
     private String userINE;
 
 
-    public ClientManager(final Socket socket) throws ServerInitializationFailedException {
+    public ClientManager(final SSLSocket socket) throws ServerInitializationFailedException {
 
         try {
+
             mSocket = socket;
             mWriteStream = new BufferedWriter(new OutputStreamWriter(mSocket.getOutputStream()));
             mReadStream = new BufferedReader(new InputStreamReader(mSocket.getInputStream()));
 
-            exchangeKeys();
-
             Debugger.logColorMessage(DBG_COLOR, "ClientManager", "New client manager created");
-        } catch (IOException | NoSuchAlgorithmException e) {
+        } catch (IOException e) {
             e.printStackTrace();
 
             throw new ServerInitializationFailedException("Cannot initialize client connection");
         }
 
 
-    }
-
-    private void exchangeKeys() throws NoSuchAlgorithmException, IOException, ServerInitializationFailedException {
-        mRSAKey = generateAESKeys();
-
-        String key = mReadStream.readLine();
-        if (key == null) {
-            throw new ServerInitializationFailedException("Error while getting rsa key");
-        }
-
-        mOtherPublicKey = CommunicationMessage.getKeyXChangePublicKey(key);
-
-        if (mOtherPublicKey == null) {
-            throw new ServerInitializationFailedException("Error while getting rsa key");
-        }
-
-        mWriteStream.write(CommunicationMessage.createKeyXChange(getPublicKey()));
-        mWriteStream.flush();
     }
 
     /**
@@ -91,12 +69,13 @@ public class ClientManager extends Thread implements Server {
 
         boolean running = true;
         while (Host.isRunning && running) {
-
+            System.out.println("trying to read");
             try {
                 CommunicationMessage communicationMessage = readData(mReadStream);
                 if (communicationMessage == null) {
                     continue;
                 }
+                System.out.println("Received: " + communicationMessage.toString());
 
 
                 handleMessage(communicationMessage);
@@ -158,7 +137,7 @@ public class ClientManager extends Thread implements Server {
 
             default:
                 try {
-                    sendData(mWriteStream, CommunicationMessage.createNack(ERROR_MESSAGE_HANDLE_DEMAND, getOtherPublicKey()));
+                    sendData(mWriteStream, CommunicationMessage.createNack(ERROR_MESSAGE_HANDLE_DEMAND));
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -178,12 +157,8 @@ public class ClientManager extends Thread implements Server {
     private void handleConnection(CommunicationMessage communicationMessage) {
 
         boolean queryResult = false;
-        PublicKey pk = getOtherPublicKey();
         String fail_reason = "";
 
-        if (pk == null) {
-            return;
-        }
 
         try {
 
@@ -219,9 +194,9 @@ public class ClientManager extends Thread implements Server {
 
         try {
             if (queryResult) {
-                sendData(mWriteStream, CommunicationMessage.createAck(getOtherPublicKey()));
+                sendData(mWriteStream, CommunicationMessage.createAck());
             } else {
-                sendData(mWriteStream, CommunicationMessage.createNack(fail_reason, getOtherPublicKey()));
+                sendData(mWriteStream, CommunicationMessage.createNack(fail_reason));
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -239,12 +214,7 @@ public class ClientManager extends Thread implements Server {
     private void handleTicketCreation(CommunicationMessage communicationMessage) {
 
         Boolean queryResult = false;
-        PublicKey pk = getOtherPublicKey();
         String fail_reason = "";
-
-        if (pk == null) {
-            return;
-        }
 
 
         try {
@@ -275,9 +245,9 @@ public class ClientManager extends Thread implements Server {
 
         try {
             if (queryResult) {
-                sendData(mWriteStream, CommunicationMessage.createAck(getOtherPublicKey()));
+                sendData(mWriteStream, CommunicationMessage.createAck());
             } else {
-                sendData(mWriteStream, CommunicationMessage.createNack(fail_reason, getOtherPublicKey()));
+                sendData(mWriteStream, CommunicationMessage.createNack(fail_reason));
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -294,12 +264,8 @@ public class ClientManager extends Thread implements Server {
     private void handleClassicMessage(CommunicationMessage communicationMessage) {
         Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Classic message: \n" + communicationMessage.toString());
         Boolean queryResult = false;
-        PublicKey pk = getOtherPublicKey();
         String fail_reason = "";
 
-        if (pk == null) {
-            return;
-        }
 
 
         try {
@@ -329,9 +295,9 @@ public class ClientManager extends Thread implements Server {
 
         try {
             if (queryResult) {
-                sendData(mWriteStream, CommunicationMessage.createAck(getOtherPublicKey()));
+                sendData(mWriteStream, CommunicationMessage.createAck());
             } else {
-                sendData(mWriteStream, CommunicationMessage.createNack(fail_reason, getOtherPublicKey()));
+                sendData(mWriteStream, CommunicationMessage.createNack(fail_reason));
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -357,7 +323,7 @@ public class ClientManager extends Thread implements Server {
                 array.put(group.toJSON());
             }
 
-            result = CommunicationMessage.createLocalUpdateResponse(groups, getOtherPublicKey());
+            result = CommunicationMessage.createLocalUpdateResponse(groups);
 
             queryResult = true;
 
@@ -374,7 +340,7 @@ public class ClientManager extends Thread implements Server {
             if (queryResult) {
                 sendData(mWriteStream, result);
             } else {
-                sendData(mWriteStream, CommunicationMessage.createNack(fail_reason, getOtherPublicKey()));
+                sendData(mWriteStream, CommunicationMessage.createNack(fail_reason));
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -382,19 +348,4 @@ public class ClientManager extends Thread implements Server {
 
     }
 
-
-    @Override
-    public PrivateKey getPrivateKey() {
-        return mRSAKey.getPrivate();
-    }
-
-    @Override
-    public PublicKey getPublicKey() {
-        return mRSAKey.getPublic();
-    }
-
-    @Override
-    public PublicKey getOtherPublicKey() {
-        return mOtherPublicKey;
-    }
 }

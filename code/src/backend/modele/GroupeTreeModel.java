@@ -13,7 +13,7 @@ public class GroupeTreeModel extends DefaultMutableTreeNode {
     private TreeSet<Groupe> groups = new TreeSet<>();
 
     public GroupeTreeModel(TreeSet<Groupe> groupes) {
-
+        setContents(groupes);
     }
 
 

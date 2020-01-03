@@ -119,37 +119,62 @@ public class ConnexionScreen extends JFrame {
         });
 
         connexionButton.addActionListener(action -> {
-            CommunicationMessage result = ClientLaunch.client.sendConnectionMessage(ineField.getText(), new String(passwordField.getPassword()));
-
-            if (result == null) {
-                JOptionPane.showMessageDialog(this, "Une erreur est survenue..", "Erreur de connexion", JOptionPane.ERROR_MESSAGE);
-            } else if (result.isNack()) {
-                try {
-                    JOptionPane.showMessageDialog(this, result.getNackReason(), "Erreur de connexion", JOptionPane.ERROR_MESSAGE);
-                } catch (CommunicationMessage.WrongMessageTypeException e) {
-                    e.printStackTrace();
-                }
-            } else {
-                CommunicationMessage groupUpdate = ClientLaunch.client.updateLocalDatabase();
-
-                if (groupUpdate.isLocalUpdateResponse()) {
-                    TreeSet<Groupe> groups = new TreeSet<>();
-
-                    JSONArray array = groupUpdate.getLocalUpdateResponseGroups();
-                    for (int i = 0; i < array.length(); ++i) {
-                        groups.add(new Groupe(array.getJSONObject(i)));
-                    }
-
-                    new ClientMainScreen(groups);
-                } else {
-                    try {
-                        JOptionPane.showMessageDialog(this, "Une erreur est survenue..", groupUpdate.getNackReason(), JOptionPane.ERROR_MESSAGE);
-                        dispose();
-                    } catch (CommunicationMessage.WrongMessageTypeException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
+            connect();
         });
+    }
+
+
+    private void connect() {
+        CommunicationMessage result = ClientLaunch.client.sendConnectionMessage(ineField.getText(), new String(passwordField.getPassword()));
+
+        if (result != null && result.isAck()) {
+            TreeSet<Groupe> groups = sendUpdateMessage();
+
+            if (groups == null) {
+                showConnectionErrorDialog("Impossible de mettre à jour les données locales..");
+            }
+
+            new ClientMainScreen(groups);
+            dispose();
+        } else {
+            showConnectionErrorDialog(result);
+        }
+    }
+
+    private void showConnectionErrorDialog() {
+        showConnectionErrorDialog("Une erreur est survenue..");
+    }
+
+    private void showConnectionErrorDialog(String reason) {
+        JOptionPane.showMessageDialog(this, reason, "Erreur de connexion", JOptionPane.ERROR_MESSAGE);
+    }
+
+    private void showConnectionErrorDialog(CommunicationMessage message) {
+        if (message == null) {
+            showConnectionErrorDialog();
+        } else {
+            try {
+                showConnectionErrorDialog(message.getNackReason());
+            } catch (CommunicationMessage.WrongMessageTypeException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private TreeSet<Groupe> sendUpdateMessage() {
+        CommunicationMessage groupUpdate = ClientLaunch.client.updateLocalDatabase();
+
+        if (groupUpdate.isLocalUpdateResponse()) {
+            TreeSet<Groupe> groups = new TreeSet<>();
+
+            JSONArray array = groupUpdate.getLocalUpdateResponseGroups();
+            for (int i = 0; i < array.length(); ++i) {
+                groups.add(new Groupe(array.getJSONObject(i)));
+            }
+
+            return groups;
+        }
+
+        return null;
     }
 }

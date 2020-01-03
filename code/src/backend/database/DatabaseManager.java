@@ -23,6 +23,8 @@ import static backend.database.Keys.*;
 public class DatabaseManager {
 
     private static final String DB_URL = "jdbc:mysql://localhost/projets5";
+    private static final String username = "projet";
+    private static final String password = "";
 
 
     private static DatabaseManager mDatabase;
@@ -32,7 +34,7 @@ public class DatabaseManager {
      * As this class is a Singleton, this function returns
      * the unique instance of this class.
      *
-     * @return                  An instance of DataBaseManager
+     * @return An instance of DataBaseManager
      * @throws SQLException     Can throw an exception if the database can't be reached
      */
     public static DatabaseManager getInstance() throws SQLException, NoSuchAlgorithmException {
@@ -55,7 +57,7 @@ public class DatabaseManager {
             e.printStackTrace();
         }
 
-        databaseConnection = DriverManager.getConnection(DB_URL, "projet", "");
+        databaseConnection = DriverManager.getConnection(DB_URL, username, password);
     }
 
     /**
