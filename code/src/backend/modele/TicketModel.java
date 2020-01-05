@@ -7,6 +7,7 @@ import javax.swing.event.TableModelListener;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Iterator;
+import java.util.List;
 import java.util.ListIterator;
 
 public class TicketModel extends SearchableModel<Ticket> {
@@ -32,6 +33,10 @@ public class TicketModel extends SearchableModel<Ticket> {
 
     private TicketModel() {
 
+    }
+
+    public TicketModel(List<Ticket> tickets) {
+        elements.addAll(tickets);
     }
 
     public void addRow(Ticket newTicket) {

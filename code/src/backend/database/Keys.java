@@ -15,14 +15,12 @@ public class Keys {
     public static final String TICKET_UTILISATEUR_ID = "id_util";
     public static final String TICKET_GROUP_ID = "id_groupe";
     public static final String TICKET_TITRE = "titre";
-    public static final String TICKET_PREMIER_MESSAGE = "premier_message";
-    public static final String TICKET_DERNIER_MESSAGE = "dernier_message";
 
     public static final String TABLE_NAME_MESSAGE = "MESSAGE";
     public static final String MESSAGE_ID = "id_message";
     public static final String MESSAGE_CONTENU = "contenu";
     public static final String MESSAGE_HEURE_ENVOIE = "heure_envoi";
-    public static final String MESSAGE_UTILISATEUR_INE = "id_util";
+    public static final String MESSAGE_UTILISATEUR_ID = "id_util";
     public static final String MESSAGE_TICKET_ID = "id_ticket";
 
 
@@ -37,7 +35,6 @@ public class Keys {
 
     public static final String TABLE_NAME_APPARTENIR = "APPARTENIR";
     public static final String APPARTENIR_GROUPE_ID = "id_groupe";
-    public static final String APPARTENIR_UTILISATEUR_INE = "id_util";
-
+    public static final String APPARTENIR_UTILISATEUR_ID = "id_util";
 
 }

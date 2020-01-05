@@ -7,6 +7,7 @@ import javax.swing.event.TableModelListener;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Iterator;
+import java.util.List;
 import java.util.ListIterator;
 
 public class UserModel extends SearchableModel<Utilisateur> {
@@ -28,6 +29,10 @@ public class UserModel extends SearchableModel<Utilisateur> {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    public UserModel(List<Utilisateur> users) {
+        elements.addAll(users);
     }
 
     private UserModel() {
@@ -152,7 +157,7 @@ public class UserModel extends SearchableModel<Utilisateur> {
         Iterator<Utilisateur> ite = elements.iterator();
         for (; ite.hasNext(); ) {
             Utilisateur u = ite.next();
-            final String strs[] = {u.getPrenom(), u.getNom(), u.getINE(), u.getType()};
+            final String[] strs = {u.getPrenom(), u.getNom(), u.getINE(), u.getType()};
 
             for (String s : strs) {
                 int i = 0, j = 0;

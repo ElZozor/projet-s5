@@ -1,0 +1,20 @@
+package backend.server.communication.classic;
+
+public enum CLASSIC_MESSAGE_TYPE {
+    KEYXCHANGE,
+    CONNECTION,
+    TICKET,
+    MESSAGE,
+    RESPONSE,
+    LOCAL_UPDATE,
+    TICKET_CLICKED,
+    LOCAL_UPDATE_RESPONSE,
+    ENTRY_ADDED,
+    ENTRY_DELETED,
+    ENTRY_UPDATED,
+    DELETE,
+    UPDATE,
+    ADD,
+    TABLE_MODEL,
+    TABLE_MODEL_REQUEST
+}

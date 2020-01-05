@@ -1,6 +1,7 @@
 package backend.server.host;
 
 import backend.server.Server;
+import backend.server.communication.classic.ClassicMessage;
 import debug.Debugger;
 
 import javax.net.SocketFactory;
@@ -20,14 +21,53 @@ public class Host extends Thread {
 
     public static final int PORT = 6666;
     public static Boolean isRunning = false;
-
+    private static HashMap<String, HashSet<Server>> clientsByGroups = new HashMap<>();
+    private static HashMap<Long, Server> clientsByID;
     private SSLServerSocket mServerSocket;
-
-    private static HashMap<String, HashSet<ClientManager>> clientsByGroups = new HashMap<>();
 
     public Host() throws IOException {
         SSLServerSocketFactory factory = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
         mServerSocket = (SSLServerSocket) factory.createServerSocket(PORT);
+    }
+
+    public static void addClient(Collection<String> groups, Long clientID, ClientManager client) {
+        for (String group : groups) {
+            HashSet<Server> clientSet = clientsByGroups.computeIfAbsent(group, k -> new HashSet<>());
+
+            clientSet.add(client);
+        }
+
+        clientsByID.put(clientID, client);
+    }
+
+    public static void removeClient(Collection<String> groups, Long clientID, Server client) {
+        for (String group : groups) {
+            clientsByGroups.get(group).remove(client);
+        }
+
+        clientsByID.remove(clientID);
+    }
+
+    public static void broadcast(final ClassicMessage message, final String group) {
+        HashSet<Server> clients = clientsByGroups.get(group);
+
+        if (clients != null) {
+            for (Server cm : clients) {
+                try {
+                    cm.sendData(message);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    public static void changeGroupName(String relatedGroup, String label) {
+        HashSet<Server> servers = clientsByGroups.get(relatedGroup);
+        if (servers != null) {
+            clientsByGroups.remove(relatedGroup);
+            clientsByGroups.put(label, servers);
+        }
     }
 
     @Override
@@ -57,20 +97,6 @@ public class Host extends Thread {
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
             System.exit(1);
-        }
-    }
-
-    public static void addClient(Collection<String> groups, ClientManager client) {
-        for (String group : groups) {
-            HashSet<ClientManager> clientSet = clientsByGroups.computeIfAbsent(group, k -> new HashSet<>());
-
-            clientSet.add(client);
-        }
-    }
-
-    public static void removeClient(Collection<String> groups, ClientManager client) {
-        for (String group : groups) {
-            clientsByGroups.get(group).remove(client);
         }
     }
 }

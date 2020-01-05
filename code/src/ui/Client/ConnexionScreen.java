@@ -1,13 +1,12 @@
 package ui.Client;
 
-import backend.data.Groupe;
-import backend.server.communication.CommunicationMessage;
-import launch.ClientLaunch;
-import org.json.JSONArray;
+import backend.server.client.Client;
+import backend.server.communication.classic.ClassicMessage;
+import ui.Client.mainscreen.ClientMainScreen;
+import ui.Server.ServerUI;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.TreeSet;
 
 public class ConnexionScreen extends JFrame {
     private JPanel mainPanel = new JPanel(new GridBagLayout());
@@ -19,7 +18,10 @@ public class ConnexionScreen extends JFrame {
     private JTextField ineField = new JTextField();
     private JPasswordField passwordField = new JPasswordField();
 
-    public ConnexionScreen() {
+    private Client client;
+    private boolean servermode;
+
+    public ConnexionScreen(Client client, boolean servermode) {
         setUndecorated(true);
 
         initPanel();
@@ -30,6 +32,8 @@ public class ConnexionScreen extends JFrame {
         setLocationRelativeTo(null);
 
         setVisible(true);
+        this.client = client;
+        this.servermode = servermode;
     }
 
     private void initPanel() {
@@ -125,16 +129,15 @@ public class ConnexionScreen extends JFrame {
 
 
     private void connect() {
-        CommunicationMessage result = ClientLaunch.client.sendConnectionMessage(ineField.getText(), new String(passwordField.getPassword()));
+        ClassicMessage result = client.sendConnectionMessage(ineField.getText(), new String(passwordField.getPassword()));
 
         if (result != null && result.isAck()) {
-            TreeSet<Groupe> groups = sendUpdateMessage();
-
-            if (groups == null) {
-                showConnectionErrorDialog("Impossible de mettre à jour les données locales..");
+            if (servermode) {
+                new ServerUI(client);
+            } else {
+                sendUpdateMessage();
+                new ClientMainScreen(client, null);
             }
-
-            new ClientMainScreen(groups);
             dispose();
         } else {
             showConnectionErrorDialog(result);
@@ -149,32 +152,19 @@ public class ConnexionScreen extends JFrame {
         JOptionPane.showMessageDialog(this, reason, "Erreur de connexion", JOptionPane.ERROR_MESSAGE);
     }
 
-    private void showConnectionErrorDialog(CommunicationMessage message) {
+    private void showConnectionErrorDialog(ClassicMessage message) {
         if (message == null) {
             showConnectionErrorDialog();
         } else {
             try {
                 showConnectionErrorDialog(message.getNackReason());
-            } catch (CommunicationMessage.WrongMessageTypeException e) {
+            } catch (ClassicMessage.WrongMessageTypeException e) {
                 e.printStackTrace();
             }
         }
     }
 
-    private TreeSet<Groupe> sendUpdateMessage() {
-        CommunicationMessage groupUpdate = ClientLaunch.client.updateLocalDatabase();
-
-        if (groupUpdate.isLocalUpdateResponse()) {
-            TreeSet<Groupe> groups = new TreeSet<>();
-
-            JSONArray array = groupUpdate.getLocalUpdateResponseGroups();
-            for (int i = 0; i < array.length(); ++i) {
-                groups.add(new Groupe(array.getJSONObject(i)));
-            }
-
-            return groups;
-        }
-
-        return null;
+    private void sendUpdateMessage() {
+        client.updateLocalDatabase();
     }
 }

@@ -46,16 +46,22 @@ public class Groupe extends ProjectTable implements Comparable<Groupe> {
         }
     }
 
+    public Groupe(String label) {
+        super();
+
+        setLabel(label);
+    }
+
     public Long getID() {
         return mID;
     }
 
-    public String getLabel() {
-        return mLabel;
-    }
-
     public void setID(Long id) {
         mID = id;
+    }
+
+    public String getLabel() {
+        return mLabel;
     }
 
     public void setLabel(String label) {
@@ -89,5 +95,19 @@ public class Groupe extends ProjectTable implements Comparable<Groupe> {
     @Override
     public int compareTo(@NotNull Groupe groupe) {
         return this.getLabel().compareTo(groupe.getLabel());
+    }
+
+    @Override
+    public String toString() {
+        return getLabel();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof Groupe) {
+            return getID().equals(((Groupe) obj).getID());
+        }
+
+        return false;
     }
 }

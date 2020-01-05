@@ -1,24 +1,35 @@
 package backend.server.client;
 
 
+import backend.data.Groupe;
+import backend.data.Ticket;
 import backend.server.Server;
-import backend.server.communication.CommunicationMessage;
+import backend.server.communication.classic.ClassicMessage;
 import debug.Debugger;
+import ui.InteractiveUI;
+import ui.Server.ServerUI;
 
 import javax.net.ssl.SSLSocket;
 import java.io.*;
+import java.net.SocketException;
 import java.util.Date;
+import java.util.TreeSet;
 
-public class Client implements Server {
+import static backend.database.Keys.*;
+
+public class Client extends Thread implements Server {
 
     private final static String DBG_COLOR = Debugger.YELLOW;
     private final static int SOCKET_TIMEOUT = 5000;
 
     private final SSLSocket mSocket;
     boolean isRunning = true;
-    private BufferedWriter mWriteStream;
 
+    private BufferedWriter mWriteStream;
     private BufferedReader mReadStream;
+
+    private InteractiveUI ui;
+    private Boolean running = false;
 
     /**
      * This class is used on the client side.
@@ -43,20 +54,24 @@ public class Client implements Server {
         }
     }
 
+    public void setUI(InteractiveUI ui) {
+        this.ui = ui;
+    }
+
 
     /**
      * A synchronized function that send a message and wait for the return value.
      *
-     * @param communicationMessage The message you want to send
+     * @param classicMessage The message you want to send
      * @return The data send by the host
      * @throws IOException Can be thrown while writing/reading into the fd
      */
-    public CommunicationMessage sendAndWaitForReturn(CommunicationMessage communicationMessage) throws IOException {
-        sendData(mWriteStream, communicationMessage);
+    public ClassicMessage sendAndWaitForReturn(ClassicMessage classicMessage) throws IOException {
+        sendData(classicMessage);
 
         try {
-            return readData(mReadStream);
-        } catch (IOException | CommunicationMessage.InvalidMessageException e) {
+            return readData();
+        } catch (IOException | ClassicMessage.InvalidMessageException e) {
             e.printStackTrace();
 
             return null;
@@ -76,13 +91,13 @@ public class Client implements Server {
      * @param password The user password
      * @return
      */
-    public CommunicationMessage sendConnectionMessage(String INE, String password) {
+    public ClassicMessage sendConnectionMessage(String INE, String password) {
 
-        CommunicationMessage returnedData = null;
+        ClassicMessage returnedData = null;
 
         try {
             returnedData = sendAndWaitForReturn(
-                    CommunicationMessage.createConnection(INE, password)
+                    ClassicMessage.createConnection(INE, password)
             );
         } catch (IOException e) {
             e.printStackTrace();
@@ -97,14 +112,160 @@ public class Client implements Server {
      * This function is used when the user want end the communication.
      * Will return the message received from the host.
      *
-     * @throws IOException  Can be thrown while closing the socket.
+     * @throws IOException Can be thrown while closing the socket.
      */
     public void disconnect() throws IOException {
 
         mWriteStream.close();
         mReadStream.close();
         mSocket.close();
+        running = false;
 
+    }
+
+    @Override
+    public void run() {
+
+        try {
+            mSocket.setSoTimeout(0);
+        } catch (SocketException e) {
+            e.printStackTrace();
+        }
+
+        running = true;
+
+        while (running) {
+
+            try {
+                ClassicMessage message = readData();
+                if (message == null || ui == null) {
+                    continue;
+                }
+
+                handleMessage(message);
+
+            } catch (SocketDisconnectedException e) {
+                running = false;
+            } catch (IOException | ClassicMessage.InvalidMessageException e) {
+                e.printStackTrace();
+            }
+
+        }
+
+    }
+
+
+    private void handleMessage(ClassicMessage message) {
+
+        switch (message.getType()) {
+            case LOCAL_UPDATE_RESPONSE:
+                handleLocalUpdate(message);
+                break;
+
+            case ENTRY_ADDED:
+                handleEntryAdded(message);
+                break;
+
+            case ENTRY_DELETED:
+                handleEntryDeleted(message);
+                break;
+
+            case ENTRY_UPDATED:
+                handleEntryUpdated(message);
+                break;
+
+            case TABLE_MODEL:
+                handleTableModelMessage(message);
+                break;
+        }
+
+    }
+
+    private void handleTableModelMessage(ClassicMessage message) {
+
+        if (ui instanceof ServerUI) {
+            Debugger.logMessage("Client", "Table model received, sending to the ui");
+            ServerUI serverUI = (ServerUI) ui;
+            serverUI.setAllModels(
+                    message.getTableModelUserModel(),
+                    message.getTableModelGroupModel(),
+                    message.getTableModelTicketModel(),
+                    message.getTableModelMessageModel()
+            );
+        }
+
+    }
+
+
+    private void handleLocalUpdate(ClassicMessage message) {
+        TreeSet<Groupe> relatedGroups = message.getLocalUpdateResponseRelatedGroups();
+        TreeSet<String> allGroups = message.getLocalUpdateResponseAllGroups();
+
+        ui.updateRelatedGroups(relatedGroups);
+        ui.updateGroupsList(allGroups);
+    }
+
+
+    private void handleEntryAdded(ClassicMessage message) {
+        switch (message.getTable()) {
+            case TABLE_NAME_UTILISATEUR:
+//                ui.updateUtilisateur(message.getEntryAsUtilisateur());
+                break;
+
+            case TABLE_NAME_GROUPE:
+                ui.addGroupe(message.getEntryAsGroupe());
+                break;
+
+            case TABLE_NAME_TICKET:
+                ui.addTicket(message.getEntryRelatedGroup(), message.getEntryAsTicket());
+                break;
+
+            case TABLE_NAME_MESSAGE:
+                ui.addMessage(message.getEntryRelatedGroup(), message.getEntryRelatedTicket(), message.getEntryAsMessage());
+                break;
+        }
+    }
+
+
+    private void handleEntryDeleted(ClassicMessage message) {
+        switch (message.getTable()) {
+            case TABLE_NAME_UTILISATEUR:
+//                ui.deleteUtilisateur(message.getEntryAsUtilisateur());
+                break;
+
+            case TABLE_NAME_GROUPE:
+                ui.deleteGroupe(message.getEntryAsGroupe());
+                break;
+
+            case TABLE_NAME_TICKET:
+                ui.deleteTicket(message.getEntryRelatedGroup(), message.getEntryAsTicket());
+                break;
+
+            case TABLE_NAME_MESSAGE:
+                ui.deleteMessage(message.getEntryRelatedGroup(), message.getEntryRelatedTicket(), message.getEntryAsMessage());
+                break;
+        }
+    }
+
+
+    private void handleEntryUpdated(ClassicMessage message) {
+        switch (message.getTable()) {
+            case TABLE_NAME_UTILISATEUR:
+//                ui.updateUtilisateur(message.getEntryAsUtilisateur());
+                break;
+
+            case TABLE_NAME_GROUPE:
+                ui.updateGroupe(message.getEntryAsGroupe());
+                break;
+
+            case TABLE_NAME_TICKET:
+                ui.updateTicket(message.getEntryRelatedGroup(), message.getEntryAsTicket());
+                break;
+
+            case TABLE_NAME_MESSAGE:
+                ui.updateMessage(message.getEntryRelatedGroup(), message.getEntryRelatedTicket(), message.getEntryAsMessage());
+                break;
+        }
     }
 
 
@@ -112,26 +273,21 @@ public class Client implements Server {
      * This function is used to create a new ticket.
      * Will return the message received from the host.
      *
-     * @param title                 The ticket title
-     * @param messageContent        The message contents
-     * @param group                 The concerned group
+     * @param title          The ticket title
+     * @param messageContent The message contents
+     * @param group          The concerned group
      * @return The message received from the host
      */
-    public CommunicationMessage createANewTicket(String title, String messageContent, String group) {
+    public Boolean createANewTicket(String title, String messageContent, String group) {
 
-        CommunicationMessage returnedData = null;
 
         try {
-
-            returnedData = sendAndWaitForReturn(
-                    CommunicationMessage.createTicket(title, group, messageContent)
-            );
-
+            sendData(ClassicMessage.createTicket(title, group, messageContent));
+            return true;
         } catch (IOException e) {
             e.printStackTrace();
+            return false;
         }
-
-        return returnedData;
 
     }
 
@@ -140,28 +296,19 @@ public class Client implements Server {
      * Used to post a message into a ticket.
      * Will return the data retrieved by the host.
      *
-     * @param ticketid  The ticket id.
-     * @param contents  The contents;
+     * @param ticketid The ticket id.
+     * @param contents The contents;
      * @return The data retrieved by the host.
      */
-    public CommunicationMessage postAMessage(String ticketid, String contents) {
-
-        CommunicationMessage returnedData = null;
+    public Boolean postAMessage(Long ticketid, String contents) {
 
         try {
-
-            returnedData = sendAndWaitForReturn(
-                    CommunicationMessage.createMessage(
-                            ticketid,
-                            contents
-                    )
-            );
-
+            sendData(ClassicMessage.createMessage(ticketid, contents));
+            return true;
         } catch (IOException e) {
             e.printStackTrace();
+            return false;
         }
-
-        return returnedData;
 
     }
 
@@ -176,50 +323,49 @@ public class Client implements Server {
      *
      * @return The data retrieved by the server.
      */
-    public CommunicationMessage updateLocalDatabase() {
-
-        CommunicationMessage returnedData = null;
+    public Boolean updateLocalDatabase() {
 
         try {
-
-            returnedData = sendAndWaitForReturn(
-                    CommunicationMessage.createLocalUpdate(new Date(0))
-            );
-
+            sendData(ClassicMessage.createLocalUpdate(new Date(0)));
+            return true;
         } catch (IOException e) {
             e.printStackTrace();
+            return false;
         }
 
-        return returnedData;
+    }
+
+    public Boolean sendNotificationTicketClicked(Ticket ticket) {
+
+        try {
+            sendData(ClassicMessage.createTicketClicked(ticket));
+            return true;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
 
     }
 
 
-    /**
-     * This function is used to register a new message
-     * into the local database and to add it into the UI.
-     *
-     * @param message   The data received from the host
-     */
-    public void receiveNewMessage(String message) {
+    public Boolean retrieveAllModels() {
 
-        // TODO
-
+        try {
+            sendData(ClassicMessage.createTableModelRequest());
+            return true;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
-    /**
-     * This function is used to update a message both
-     * in the ui and in the local database.
-     *
-     * @param message   The data received from the host
-     */
-    public void updateMessageData(String message) {
-
-        // TODO
-
+    @Override
+    public BufferedWriter getSocketWriter() {
+        return mWriteStream;
     }
 
-
-
-
+    @Override
+    public BufferedReader getSocketReader() {
+        return mReadStream;
+    }
 }

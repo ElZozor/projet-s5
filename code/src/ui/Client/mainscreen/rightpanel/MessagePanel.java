@@ -1,4 +1,4 @@
-package ui.Client;
+package ui.Client.mainscreen.rightpanel;
 
 import backend.data.Message;
 
@@ -14,6 +14,9 @@ public class MessagePanel extends JPanel {
 
     public MessagePanel(Message message) {
         initPanel(message);
+        setBackground(Color.BLUE);
+        infos.setBackground(Color.BLUE);
+        text.setBackground(Color.BLUE);
     }
 
     private void initPanel(Message message) {
@@ -23,13 +26,14 @@ public class MessagePanel extends JPanel {
         add(infos, BorderLayout.NORTH);
 
         author = new JLabel();
-        author.setText(message.getUtilisateurINE().toString());
+        author.setText(message.getUtilisateurID().toString());
         infos.add(author);
 
         date.setText(message.getHeureEnvoie().toString());
         infos.add(date);
 
         text.setText(message.getContenu());
+        text.setEditable(false);
         this.add(text, BorderLayout.CENTER);
     }
 

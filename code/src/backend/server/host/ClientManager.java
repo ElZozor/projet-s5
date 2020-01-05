@@ -1,28 +1,25 @@
 package backend.server.host;
 
-import backend.data.Groupe;
+import backend.data.*;
 import backend.database.DatabaseManager;
 import backend.server.Server;
-import backend.server.communication.CommunicationMessage;
+import backend.server.communication.classic.ClassicMessage;
 import debug.Debugger;
-import org.json.JSONArray;
 
 import javax.net.ssl.SSLSocket;
 import java.io.*;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.TreeSet;
 
+import static backend.database.Keys.*;
+
 public class ClientManager extends Thread implements Server {
-
-
-    private final static String ERROR_MESSAGE_HANDLE_DEMAND = "Le serveur ne peut pas traiter cette demande.";
-    private final static String ERROR_MESSAGE_DATABASE_ERROR = "La base de donnée a rencontré une erreur.";
-    private final static String ERROR_MESSAGE_SERVER_ERROR = "Le serveur a recontré une erreur.";
-    private final static String ERROR_MESSAGE_EMPTY_FIELD = "Tous les champs doivent être correctement remplis !";
 
     private final static String DBG_COLOR = Debugger.YELLOW;
 
@@ -32,7 +29,7 @@ public class ClientManager extends Thread implements Server {
 
     private PublicKey mOtherPublicKey;
 
-    private String userINE;
+    private Utilisateur user;
 
 
     public ClientManager(final SSLSocket socket) throws ServerInitializationFailedException {
@@ -71,16 +68,16 @@ public class ClientManager extends Thread implements Server {
         while (Host.isRunning && running) {
             System.out.println("trying to read");
             try {
-                CommunicationMessage communicationMessage = readData(mReadStream);
-                if (communicationMessage == null) {
+                ClassicMessage classicMessage = readData();
+                if (classicMessage == null) {
                     continue;
                 }
-                System.out.println("Received: " + communicationMessage.toString());
+                System.out.println("Received: " + classicMessage.toString());
 
 
-                handleMessage(communicationMessage);
+                handleMessage(classicMessage);
 
-            } catch (IOException | CommunicationMessage.InvalidMessageException e) {
+            } catch (IOException | ClassicMessage.InvalidMessageException e) {
                 e.printStackTrace();
             } catch (SocketDisconnectedException e) {
                 running = false;
@@ -90,11 +87,11 @@ public class ClientManager extends Thread implements Server {
 
         Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Client is now disconnected, cleaning things..");
 
-        if (userINE != null) {
+        if (user != null) {
             final String groups;
             try {
-                groups = DatabaseManager.getInstance().relatedUserGroup(userINE);
-                Host.removeClient(new ArrayList<>(Arrays.asList(groups.split(";"))), this);
+                groups = DatabaseManager.getInstance().relatedUserGroup(user.getINE());
+                Host.removeClient(new ArrayList<>(Arrays.asList(groups.split(";"))), user.getID(), this);
             } catch (SQLException | NoSuchAlgorithmException e) {
                 e.printStackTrace();
             }
@@ -113,35 +110,46 @@ public class ClientManager extends Thread implements Server {
      * It will check the message "type" value and redirect it
      * to the proper function that must handle the action.
      *
-     * @param communicationMessage The message to handle
+     * @param classicMessage The message to handle
      */
-    private void handleMessage(CommunicationMessage communicationMessage) {
+    private void handleMessage(ClassicMessage classicMessage) {
 
-        switch (communicationMessage.getType()) {
+        switch (classicMessage.getType()) {
 
             case CONNECTION:
-                handleConnection(communicationMessage);
+                handleConnection(classicMessage);
                 break;
 
             case TICKET:
-                handleTicketCreation(communicationMessage);
+                handleTicketCreation(classicMessage);
                 break;
 
             case MESSAGE:
-                handleClassicMessage(communicationMessage);
+                handleClassicMessage(classicMessage);
                 break;
 
             case LOCAL_UPDATE:
-                handleLocalUpdateMessage(communicationMessage);
+                handleLocalUpdateMessage(classicMessage);
                 break;
 
-            default:
-                try {
-                    sendData(mWriteStream, CommunicationMessage.createNack(ERROR_MESSAGE_HANDLE_DEMAND));
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+            case TICKET_CLICKED:
+                handleTicketClickedMessage(classicMessage);
+                break;
 
+            case DELETE:
+                handleDeleteMessage(classicMessage);
+                break;
+
+            case UPDATE:
+                handleUpdateMessage(classicMessage);
+                break;
+
+            case ADD:
+                handleAddMessage(classicMessage);
+                break;
+
+            case TABLE_MODEL_REQUEST:
+                handleTableModelRequestMessage();
                 break;
         }
 
@@ -152,9 +160,9 @@ public class ClientManager extends Thread implements Server {
      * Function that handles a client connection when a client send his
      * credential ( not when the socket connection begins ).
      *
-     * @param communicationMessage The connection message
+     * @param classicMessage The connection message
      */
-    private void handleConnection(CommunicationMessage communicationMessage) {
+    private void handleConnection(ClassicMessage classicMessage) {
 
         boolean queryResult = false;
         String fail_reason = "";
@@ -162,17 +170,17 @@ public class ClientManager extends Thread implements Server {
 
         try {
 
-            if (communicationMessage.isConnection()) {
+            if (classicMessage.isConnection()) {
                 DatabaseManager database = DatabaseManager.getInstance();
-                queryResult = database.credentialsAreValid(communicationMessage.getConnectionINE(), communicationMessage.getConnectionPassword());
-
+                ResultSet set = database.credentialsAreValid(classicMessage.getConnectionINE(), classicMessage.getConnectionPassword());
+                queryResult = set.next();
 
                 if (queryResult) {
+                    user = new Utilisateur(set);
 
-                    userINE = communicationMessage.getConnectionINE();
-                    String groups = database.relatedUserGroup(userINE);
-                    Debugger.logColorMessage(DBG_COLOR, "Client Manager", "Affiliated groupe for " + userINE + ": " + groups);
-                    Host.addClient(new ArrayList<>(Arrays.asList(groups.split(";"))), this);
+                    String groups = database.relatedUserGroup(user.getINE());
+                    Debugger.logColorMessage(DBG_COLOR, "Client Manager", "Affiliated groupe for " + user.getINE() + ": " + groups);
+                    Host.addClient(new ArrayList<>(Arrays.asList(groups.split(";"))), user.getID(), this);
 
                 } else {
                     fail_reason = "Erreur nom utilisateur / mot de passe";
@@ -194,9 +202,9 @@ public class ClientManager extends Thread implements Server {
 
         try {
             if (queryResult) {
-                sendData(mWriteStream, CommunicationMessage.createAck());
+                sendData(ClassicMessage.createAck());
             } else {
-                sendData(mWriteStream, CommunicationMessage.createNack(fail_reason));
+                sendData(ClassicMessage.createNack(fail_reason));
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -209,47 +217,43 @@ public class ClientManager extends Thread implements Server {
      * Function that handles a ticket message.
      * Used to create a new ticket.
      *
-     * @param communicationMessage The message that contains the ticket informations
+     * @param classicMessage The message that contains the ticket informations
      */
-    private void handleTicketCreation(CommunicationMessage communicationMessage) {
-
-        Boolean queryResult = false;
-        String fail_reason = "";
-
+    private void handleTicketCreation(ClassicMessage classicMessage) {
 
         try {
 
-            if (communicationMessage.isTicket()) {
+            if (classicMessage.isTicket()) {
 
-                final String title = communicationMessage.getTicketTitle();
-                final String contents = communicationMessage.getTicketMessage();
-                final String group = communicationMessage.getTicketGroup();
+                final String title = classicMessage.getTicketTitle();
+                final String contents = classicMessage.getTicketMessage();
+                final String group = classicMessage.getTicketGroup();
 
                 DatabaseManager databaseManager = DatabaseManager.getInstance();
-                queryResult = databaseManager.createNewTicket(userINE, title, contents, group);
+                Ticket inserted = databaseManager.createNewTicket(user.getID(), title, contents, group);
 
-            } else {
+                Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Inserted is " + (inserted == null ? "null" : "not null"));
+                if (inserted != null) {
+                    Groupe relatedGroup = databaseManager.relatedTicketGroup(inserted.getID());
+                    Debugger.logColorMessage(DBG_COLOR, "ClientManager",
+                            "Host must send : \n" + inserted.toJSON() + "\nto : " + relatedGroup.getLabel());
 
-                fail_reason = ERROR_MESSAGE_EMPTY_FIELD;
+                    ClassicMessage message = ClassicMessage.createTicketAddedMessage(
+                            TABLE_NAME_TICKET,
+                            inserted,
+                            relatedGroup.getID()
+                    );
 
+                    Host.broadcast(
+                            message,
+                            relatedGroup.getLabel()
+                    );
+
+                    sendData(message);
+                }
             }
 
-        } catch (SQLException e) {
-            e.printStackTrace();
-            fail_reason = ERROR_MESSAGE_DATABASE_ERROR;
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-            fail_reason = ERROR_MESSAGE_SERVER_ERROR;
-        }
-
-
-        try {
-            if (queryResult) {
-                sendData(mWriteStream, CommunicationMessage.createAck());
-            } else {
-                sendData(mWriteStream, CommunicationMessage.createNack(fail_reason));
-            }
-        } catch (IOException e) {
+        } catch (SQLException | NoSuchAlgorithmException | IOException e) {
             e.printStackTrace();
         }
 
@@ -259,93 +263,291 @@ public class ClientManager extends Thread implements Server {
     /**
      * Used to handle a classic message.
      *
-     * @param communicationMessage The message data.
+     * @param classicMessage The message data.
      */
-    private void handleClassicMessage(CommunicationMessage communicationMessage) {
-        Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Classic message: \n" + communicationMessage.toString());
-        Boolean queryResult = false;
-        String fail_reason = "";
-
-
+    private void handleClassicMessage(ClassicMessage classicMessage) {
+        Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Classic message: \n" + classicMessage.toString());
 
         try {
 
-            if (communicationMessage.isMessage()) {
+            if (classicMessage.isMessage()) {
 
-                String ticketid = communicationMessage.getMessageTicketID().toString();
-                String contents = communicationMessage.getMessageContents();
+                Long ticketid = classicMessage.getMessageTicketID();
+                String contents = classicMessage.getMessageContents();
 
                 DatabaseManager database = DatabaseManager.getInstance();
-                queryResult = database.addNewMessage(userINE, ticketid, contents);
+                Message insertedMessage = database.insertNewMessage(contents, ticketid, user.getID());
 
-            } else {
+                Debugger.logColorMessage(DBG_COLOR, "ClientManager",
+                        "InsertedMessage is " + (insertedMessage == null ? "null" : "not null"));
 
-                fail_reason = ERROR_MESSAGE_EMPTY_FIELD;
+                if (insertedMessage != null) {
+                    Debugger.logColorMessage(DBG_COLOR, "ClientManager", insertedMessage.toJSON().toString());
+
+                    Groupe group = database.relatedTicketGroup(insertedMessage.getTicketID());
+                    if (group != null) {
+                        Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Broadcasting to group : " + group);
+                        Host.broadcast(
+                                ClassicMessage.createMessageAddedMessage(
+                                        TABLE_NAME_MESSAGE,
+                                        insertedMessage,
+                                        group.getID(),
+                                        insertedMessage.getTicketID()
+                                ),
+                                group.getLabel());
+                    }
+                }
 
             }
 
-        } catch (SQLException e) {
-            e.printStackTrace();
-            fail_reason = ERROR_MESSAGE_DATABASE_ERROR;
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-            fail_reason = ERROR_MESSAGE_SERVER_ERROR;
-        }
-
-
-        try {
-            if (queryResult) {
-                sendData(mWriteStream, CommunicationMessage.createAck());
-            } else {
-                sendData(mWriteStream, CommunicationMessage.createNack(fail_reason));
-            }
-        } catch (IOException e) {
+        } catch (SQLException | NoSuchAlgorithmException e) {
             e.printStackTrace();
         }
 
     }
 
 
-    private void handleLocalUpdateMessage(CommunicationMessage communicationMessage) {
+    private void handleLocalUpdateMessage(ClassicMessage classicMessage) {
 
         Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Handling a local update message");
 
-        String fail_reason = "";
-        Boolean queryResult = false;
-
-        CommunicationMessage result = null;
-
         try {
-            TreeSet<Groupe> groups = DatabaseManager.getInstance().treatLocalUpdateMessage();
-            JSONArray array = new JSONArray();
+            TreeSet<Groupe> relatedGroups = DatabaseManager.getInstance().treatLocalUpdateMessage(user);
+            TreeSet<String> allGroups = DatabaseManager.getInstance().getAllGroups();
 
-            for (Groupe group : groups) {
-                array.put(group.toJSON());
-            }
-
-            result = CommunicationMessage.createLocalUpdateResponse(groups);
-
-            queryResult = true;
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-            fail_reason = ERROR_MESSAGE_DATABASE_ERROR;
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-            fail_reason = ERROR_MESSAGE_SERVER_ERROR;
-        }
-
-
-        try {
-            if (queryResult) {
-                sendData(mWriteStream, result);
-            } else {
-                sendData(mWriteStream, CommunicationMessage.createNack(fail_reason));
-            }
-        } catch (IOException e) {
+            sendData(ClassicMessage.createLocalUpdateResponse(relatedGroups, allGroups));
+        } catch (SQLException | NoSuchAlgorithmException | IOException e) {
             e.printStackTrace();
         }
 
     }
 
+    private void handleTicketClickedMessage(ClassicMessage classicMessage) {
+
+        try {
+            Ticket ticket = DatabaseManager.getInstance().getTicket(classicMessage.getTicketClickedID());
+            Groupe groupe = DatabaseManager.getInstance().relatedTicketGroup(ticket.getID());
+            sendData(ClassicMessage.createTicketUpdatedMessage(TABLE_NAME_TICKET, ticket, groupe.getID()));
+
+        } catch (SQLException | NoSuchAlgorithmException | IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+
+    private void handleDeleteMessage(ClassicMessage classicMessage) {
+
+        if ((!user.getType().equals("staff") && !user.getType().equals("admin"))) {
+            return;
+        }
+
+        ProjectTable entry = classicMessage.getEntry();
+        boolean success = true;
+        boolean shouldBroadcast = false;
+        Groupe relatedGroup = null;
+
+        try {
+            switch (classicMessage.getTable()) {
+                case TABLE_NAME_UTILISATEUR:
+                    DatabaseManager.getInstance().deleteUser(entry.getID());
+                    break;
+
+
+                case TABLE_NAME_GROUPE:
+                    DatabaseManager.getInstance().deleteGroup(entry.getID());
+                    relatedGroup = ((Groupe) entry);
+                    shouldBroadcast = true;
+                    break;
+
+
+                case TABLE_NAME_TICKET:
+                    DatabaseManager.getInstance().deleteTicket(entry.getID());
+                    relatedGroup = DatabaseManager.getInstance().relatedTicketGroup(entry.getID());
+                    shouldBroadcast = true;
+                    break;
+
+
+                case TABLE_NAME_MESSAGE:
+                    DatabaseManager.getInstance().deleteMessage(entry.getID());
+                    relatedGroup = DatabaseManager.getInstance().relatedTicketGroup(((Message) entry).getTicketID());
+                    shouldBroadcast = true;
+                    break;
+            }
+        } catch (NoSuchAlgorithmException | SQLException e) {
+            e.printStackTrace();
+            success = false;
+        }
+
+
+        if (success) {
+            if (shouldBroadcast && relatedGroup != null) {
+                Host.broadcast(
+                        ClassicMessage.createEntryDeletedMessage(
+                                classicMessage.getTable(),
+                                classicMessage.getEntry()
+                        ),
+                        relatedGroup.getLabel()
+                );
+            }
+        }
+    }
+
+    private void handleUpdateMessage(ClassicMessage classicMessage) {
+
+        if ((!user.getType().equals("staff") && !user.getType().equals("admin"))) {
+            return;
+        }
+
+        ProjectTable entry = classicMessage.getEntry();
+        boolean success = true;
+        String relatedGroup = null;
+
+        try {
+            switch (classicMessage.getTable()) {
+                case TABLE_NAME_UTILISATEUR: {
+                    Utilisateur user = (Utilisateur) entry;
+                    final String INE = user.getINE();
+                    final String nom = user.getNom();
+                    final String prenom = user.getPrenom();
+                    final String type = user.getType();
+                    final String[] groups = user.getGroups();
+
+                    success = DatabaseManager.getInstance().editExistingUser(
+                            entry.getID(),
+                            INE,
+                            nom,
+                            prenom,
+                            type,
+                            String.join(";", groups)
+                    );
+
+                    break;
+                }
+
+
+                case TABLE_NAME_GROUPE:
+                    Groupe groupe = (Groupe) entry;
+                    relatedGroup = DatabaseManager.getInstance().retrieveGroupForGivenID(entry.getID()).getLabel();
+                    success = DatabaseManager.getInstance().editExistingGroup(
+                            groupe.getID(),
+                            groupe.getLabel()
+                    );
+
+                    if (success) {
+                        Host.changeGroupName(relatedGroup, groupe.getLabel());
+                    }
+
+                    relatedGroup = groupe.getLabel();
+
+                    break;
+            }
+        } catch (NoSuchAlgorithmException | SQLException e) {
+            e.printStackTrace();
+            success = false;
+        }
+
+
+        if (success && relatedGroup != null) {
+            Host.broadcast(ClassicMessage.createEntryUpdatedMessage(classicMessage.getTable(), entry), relatedGroup);
+        }
+
+    }
+
+    private void handleAddMessage(ClassicMessage classicMessage) {
+
+        if (!user.getType().equals("staff") && !user.getType().equals("admin")) {
+            return;
+        }
+
+        ProjectTable entry = classicMessage.getEntry();
+        boolean success = true;
+        String relatedGroup = null;
+
+        try {
+            switch (classicMessage.getTable()) {
+                case TABLE_NAME_UTILISATEUR: {
+                    Utilisateur user = (Utilisateur) entry;
+                    final String INE = user.getINE();
+                    final String nom = user.getNom();
+                    final String prenom = user.getPrenom();
+                    final String type = user.getType();
+                    final String password = user.getPassword();
+                    final String[] groups = user.getGroups();
+
+                    success = DatabaseManager.getInstance().registerNewUser(
+                            INE,
+                            password,
+                            nom,
+                            prenom,
+                            type,
+                            String.join(";", groups)
+                    ).next();
+
+                    relatedGroup = DatabaseManager.getInstance().relatedUserGroup(INE);
+
+                    break;
+                }
+
+
+                case TABLE_NAME_GROUPE:
+                    Groupe groupe = (Groupe) entry;
+                    success = DatabaseManager.getInstance().createNewGroup(
+                            groupe.getLabel()
+                    ).next();
+
+                    relatedGroup = ((Groupe) entry).getLabel();
+
+                    break;
+            }
+        } catch (NoSuchAlgorithmException | SQLException e) {
+            e.printStackTrace();
+            success = false;
+        }
+
+
+        if (success) {
+            Host.broadcast(ClassicMessage.createEntryAddedMessage(classicMessage.getTable(), entry), relatedGroup);
+        }
+
+
+    }
+
+    private void handleTableModelRequestMessage() {
+
+        Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Table request received");
+        if (!user.getType().equals("staff") && !user.getType().equals("admin")) {
+            Debugger.logColorMessage(DBG_COLOR, "ClientManager", "But user isn't an admin");
+            return;
+        }
+
+        try {
+            DatabaseManager databaseManager = DatabaseManager.getInstance();
+            List<Utilisateur> users = databaseManager.retrieveAllUsers();
+            List<Groupe> groups = databaseManager.retrieveAllGroups();
+            List<Ticket> tickets = databaseManager.retrieveAllTickets();
+            List<Message> messages = databaseManager.retrieveAllMessages();
+
+            sendData(ClassicMessage.createTableModel(
+                    users,
+                    groups,
+                    tickets,
+                    messages
+            ));
+
+        } catch (NoSuchAlgorithmException | SQLException | IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    @Override
+    public BufferedWriter getSocketWriter() {
+        return mWriteStream;
+    }
+
+    @Override
+    public BufferedReader getSocketReader() {
+        return mReadStream;
+    }
 }

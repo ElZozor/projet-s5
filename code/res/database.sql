@@ -1,16 +1,16 @@
-DROP TABLE APPARTENIR;
-DROP TABLE VU;
-DROP TABLE MESSAGE;
-DROP TABLE TICKET;
-DROP TABLE UTILISATEUR;
-DROP TABLE GROUPE;
+drop table APPARTENIR;
+drop table VU;
+drop table MESSAGE;
+drop table TICKET;
+drop table UTILISATEUR;
+drop table GROUPE;
 
 
 
-CREATE TABLE GROUPE (
+create TABLE GROUPE (
 
     id_groupe   INT                     NOT NULL AUTO_INCREMENT,
-    label_grp   VARCHAR(50)             NOT NULL,
+    label_grp   VARCHAR(50)             NOT NULL UNIQUE,
 
     PRIMARY KEY(id_groupe),
 
@@ -20,7 +20,7 @@ CREATE TABLE GROUPE (
 );
 
 
-CREATE TABLE UTILISATEUR (
+create TABLE UTILISATEUR (
 
     id_util         INT                 NOT NULL AUTO_INCREMENT,
     mot_de_passe    VARCHAR(50)         NOT NULL,
@@ -42,7 +42,7 @@ CREATE TABLE UTILISATEUR (
 );
 
 
-CREATE TABLE TICKET (
+create TABLE TICKET (
 
     id_ticket       INT                 NOT NULL AUTO_INCREMENT,
     titre           VARCHAR(50)         NOT NULL,
@@ -50,8 +50,8 @@ CREATE TABLE TICKET (
     id_groupe       INT                 NOT NULL,
 
     PRIMARY KEY(id_ticket),
-    FOREIGN KEY(id_util)                REFERENCES UTILISATEUR(id_util) ON DELETE CASCADE, -- si l'utilisateur qui a créé le ticket est supprimé alors on supprime le ticket
-    FOREIGN KEY(id_groupe)              REFERENCES GROUPE(id_groupe)    ON DELETE CASCADE, -- pareil avec le groupe sur lequel se trouve le ticket
+    FOREIGN KEY(id_util)                REFERENCES UTILISATEUR(id_util) ON delete CASCADE, -- si l'utilisateur qui a créé le ticket est supprimé alors on supprime le ticket
+    FOREIGN KEY(id_groupe)              REFERENCES GROUPE(id_groupe)    ON delete CASCADE, -- pareil avec le groupe sur lequel se trouve le ticket
 
     CONSTRAINT CK_id_ticket             CHECK (id_ticket <> ''),
     CONSTRAINT CK_titre                 CHECK (titre <> ''),
@@ -60,7 +60,7 @@ CREATE TABLE TICKET (
 
 );
 
-CREATE TABLE MESSAGE (
+create TABLE MESSAGE (
 
     id_message      INT                 NOT NULL AUTO_INCREMENT,
     contenu         LONGTEXT            NOT NULL,
@@ -69,8 +69,8 @@ CREATE TABLE MESSAGE (
     id_util         INT                 NOT NULL,
 
     PRIMARY KEY(id_message),
-    FOREIGN KEY(id_ticket)              REFERENCES TICKET(id_ticket)    ON DELETE CASCADE,
-    FOREIGN KEY(id_util)                REFERENCES UTILISATEUR(id_util) ON DELETE CASCADE,
+    FOREIGN KEY(id_ticket)              REFERENCES TICKET(id_ticket)    ON delete CASCADE,
+    FOREIGN KEY(id_util)                REFERENCES UTILISATEUR(id_util) ON delete CASCADE,
 
 
     CONSTRAINT CK_id_message            CHECK  (id_message <> ''),
@@ -81,24 +81,22 @@ CREATE TABLE MESSAGE (
 );
 
 
-CREATE TABLE VU (
+create TABLE VU (
 
     id_message      INT                 NOT NULL,
     id_util         INT                 NOT NULL,
 
-    PRIMARY KEY(id_message,id_util),
-    FOREIGN KEY(id_message)             REFERENCES MESSAGE(id_message)  ON DELETE CASCADE,
-    FOREIGN KEY(id_util)                REFERENCES UTILISATEUR(id_util) ON DELETE CASCADE
+    FOREIGN KEY(id_message)             REFERENCES MESSAGE(id_message)  ON delete CASCADE,
+    FOREIGN KEY(id_util)                REFERENCES UTILISATEUR(id_util) ON delete CASCADE
 
 );
 
 
-CREATE TABLE APPARTENIR (
+create TABLE APPARTENIR (
     id_groupe       INT                 NOT NULL,
     id_util         INT                 NOT NULL,
 
-    PRIMARY KEY(id_groupe,id_util),
-    FOREIGN KEY(id_groupe)              REFERENCES GROUPE(id_groupe)    ON DELETE CASCADE,
-    FOREIGN KEY(id_util)                REFERENCES UTILISATEUR(id_util) ON DELETE CASCADE
+    FOREIGN KEY(id_groupe)              REFERENCES GROUPE(id_groupe)    ON delete CASCADE,
+    FOREIGN KEY(id_util)                REFERENCES UTILISATEUR(id_util) ON delete CASCADE
 
 );

@@ -1,13 +1,14 @@
 package ui.Server;
 
 import backend.data.Groupe;
-import backend.database.DatabaseManager;
+import backend.server.communication.classic.ClassicMessage;
 
 import javax.swing.*;
 import java.awt.*;
-import java.security.NoSuchAlgorithmException;
+import java.io.IOException;
 import java.sql.ResultSet;
-import java.sql.SQLException;
+
+import static backend.database.Keys.TABLE_NAME_GROUPE;
 
 public class EditGroupPanel extends JPanel {
 
@@ -123,48 +124,31 @@ public class EditGroupPanel extends JPanel {
         boolean success = false;
         ResultSet result;
         try {
-            result = DatabaseManager.getInstance().createNewGroup(label);
-            success = (result != null) && result.next();
-
-            if (success) {
-                ServerUIPanel.groupTableModel.addRow(new Groupe(result.getLong(1), label));
-            }
-        } catch (SQLException | NoSuchAlgorithmException e) {
+            parent.client.sendData(ClassicMessage.createAddMessage(
+                    TABLE_NAME_GROUPE, new Groupe(0L, label)
+            ));
+        } catch (IOException e) {
             e.printStackTrace();
         }
 
-        if (success) {
-            JOptionPane.showMessageDialog(this, "Groupe ajouté avec succès !");
-            if (parent != null) {
-                parent.setMainPanel();
-            }
-
-        } else {
-            JOptionPane.showMessageDialog(this, "Impossible d'ajouter le groupe !");
-        }
+        parent.setMainPanel();
     }
 
 
     private void updateExistingGroup() {
         final String label = labelField.getText();
 
-        boolean success = false;
         try {
-            success = DatabaseManager.getInstance().editExistingGroup(group.getID(), label);
-        } catch (SQLException | NoSuchAlgorithmException e) {
+            parent.client.sendData(
+                    ClassicMessage.createUpdateMessage(
+                            TABLE_NAME_GROUPE, new Groupe(group.getID(), label)
+                    )
+            );
+        } catch (IOException e) {
             e.printStackTrace();
         }
 
-        if (success) {
-            group.setLabel(label);
-            JOptionPane.showMessageDialog(this, "Groupe édité avec succès !");
-        } else {
-            JOptionPane.showMessageDialog(this, "Impossible d'éditer cette entrée !");
-        }
-
-        if (parent != null) {
-            parent.setMainPanel();
-        }
+        parent.setMainPanel();
     }
 
 }

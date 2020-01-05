@@ -7,6 +7,7 @@ import javax.swing.event.TableModelListener;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Iterator;
+import java.util.List;
 
 public class GroupModel extends SearchableModel<Groupe> {
 
@@ -28,6 +29,10 @@ public class GroupModel extends SearchableModel<Groupe> {
 
     private GroupModel() {
 
+    }
+
+    public GroupModel(List<Groupe> groups) {
+        elements.addAll(groups);
     }
 
     public void addRow(Groupe newUser) {

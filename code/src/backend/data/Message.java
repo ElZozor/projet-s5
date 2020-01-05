@@ -16,6 +16,7 @@ public class Message extends ProjectTable implements Comparable<Message> {
     private Long mTicketID;
     private Date mHeureEnvoie;
     private String mContenu;
+    private String mUtilisateur;
 
 
     public Message(Long id, Long utilisateurID, Long ticketID, Date date, String contenu) {
@@ -31,13 +32,13 @@ public class Message extends ProjectTable implements Comparable<Message> {
         mID = set.getLong(1);
         mUtilisateurID = set.getLong(5);
         mTicketID = set.getLong(4);
-        mHeureEnvoie = set.getDate(3);
+        mHeureEnvoie = set.getTimestamp(3);
         mContenu = set.getString(2);
     }
 
-    Message(JSONObject json) {
+    public Message(JSONObject json) {
         mID = json.getLong(MESSAGE_ID);
-        mUtilisateurID = json.getLong(MESSAGE_UTILISATEUR_INE);
+        mUtilisateurID = json.getLong(MESSAGE_UTILISATEUR_ID);
         mTicketID = json.getLong(MESSAGE_TICKET_ID);
         mHeureEnvoie = new Date(json.getLong(MESSAGE_HEURE_ENVOIE));
         mContenu = json.getString(MESSAGE_CONTENU);
@@ -47,7 +48,7 @@ public class Message extends ProjectTable implements Comparable<Message> {
         JSONObject json = new JSONObject();
 
         json.put(MESSAGE_ID, getID());
-        json.put(MESSAGE_UTILISATEUR_INE, getUtilisateurINE());
+        json.put(MESSAGE_UTILISATEUR_ID, getUtilisateurID());
         json.put(MESSAGE_HEURE_ENVOIE, getHeureEnvoie().getTime());
         json.put(MESSAGE_CONTENU, getContenu());
         json.put(MESSAGE_TICKET_ID, getTicketID());
@@ -59,7 +60,7 @@ public class Message extends ProjectTable implements Comparable<Message> {
         return mID;
     }
 
-    public Long getUtilisateurINE() {
+    public Long getUtilisateurID() {
         return mUtilisateurID;
     }
 
@@ -77,6 +78,20 @@ public class Message extends ProjectTable implements Comparable<Message> {
 
     @Override
     public int compareTo(@NotNull Message message) {
-        return this.getHeureEnvoie().compareTo(message.getHeureEnvoie());
+        int comparison = this.getHeureEnvoie().compareTo(message.getHeureEnvoie());
+        if (comparison == 0) {
+            return this.getID().compareTo(message.getID());
+        }
+
+        return comparison;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof Message) {
+            return getID().equals(((Message) obj).getID());
+        }
+
+        return false;
     }
 }

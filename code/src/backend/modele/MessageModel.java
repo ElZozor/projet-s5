@@ -7,6 +7,7 @@ import javax.swing.event.TableModelListener;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Iterator;
+import java.util.List;
 import java.util.ListIterator;
 
 public class MessageModel extends SearchableModel<Message> {
@@ -31,6 +32,10 @@ public class MessageModel extends SearchableModel<Message> {
 
     private MessageModel() {
 
+    }
+
+    public MessageModel(List<Message> messages) {
+        elements.addAll(messages);
     }
 
     public void addRow(Message newMessage) {
@@ -101,7 +106,7 @@ public class MessageModel extends SearchableModel<Message> {
                 return m.getTicketID();
 
             case 4:
-                return m.getUtilisateurINE();
+                return m.getUtilisateurID();
 
             default:
                 return "ohohoh";
@@ -134,7 +139,7 @@ public class MessageModel extends SearchableModel<Message> {
         Iterator<Message> ite = elements.iterator();
         for (; ite.hasNext(); ) {
             Message m = ite.next();
-            final String strs[] = {m.getUtilisateurINE().toString(), m.getTicketID().toString(), m.getHeureEnvoie().toString(), m.getContenu()};
+            final String[] strs = {m.getUtilisateurID().toString(), m.getTicketID().toString(), m.getHeureEnvoie().toString(), m.getContenu()};
 
             for (String s : strs) {
                 int i = 0, j = 0;

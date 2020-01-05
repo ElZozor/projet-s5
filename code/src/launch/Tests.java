@@ -3,7 +3,6 @@ package launch;
 import backend.data.Groupe;
 import backend.data.Message;
 import backend.data.Ticket;
-import backend.server.communication.CommunicationMessage;
 
 import java.util.Date;
 import java.util.TreeSet;
@@ -41,9 +40,6 @@ public class Tests {
         System.out.println(json1bis);
 
         System.out.println(json1.equals(json1bis));
-
-        CommunicationMessage message = CommunicationMessage.createMessage("lol", "ohohoh");
-        System.out.println(message.toFormattedString());
     }
 
 }

@@ -27,7 +27,7 @@ public class ClientLaunch {
 
         try {
             client = new Client((SSLSocket) SSLContext.getDefault().getSocketFactory().createSocket("localhost", 6666));
-            SwingUtilities.invokeLater(ConnexionScreen::new);
+            SwingUtilities.invokeLater(() -> new ConnexionScreen(client, false));
         } catch (IOException | Server.ServerInitializationFailedException | NoSuchAlgorithmException e) {
             // Do something on client connection refused
             JOptionPane.showMessageDialog(null, "Connexion au serveur impossible !", "Erreur", JOptionPane.ERROR_MESSAGE);

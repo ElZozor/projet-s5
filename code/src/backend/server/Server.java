@@ -1,6 +1,7 @@
 package backend.server;
 
 import backend.server.communication.CommunicationMessage;
+import backend.server.communication.classic.ClassicMessage;
 import debug.Debugger;
 
 import java.io.BufferedReader;
@@ -11,17 +12,29 @@ import java.net.SocketTimeoutException;
 
 public interface Server {
 
+    String ERROR_MESSAGE_HANDLE_DEMAND = "Le serveur ne peut pas traiter cette demande.";
+    String ERROR_MESSAGE_DATABASE_ERROR = "La base de donnée a rencontré une erreur.";
+    String ERROR_MESSAGE_SERVER_ERROR = "Le serveur a recontré une erreur.";
+    String ERROR_MESSAGE_EMPTY_FIELD = "Tous les champs doivent être correctement remplis !";
+
+    BufferedWriter getSocketWriter();
+
+    BufferedReader getSocketReader();
 
     /**
      * Used to send data through a socket.
      *
-     * @param socketWriter         The socket output stream
-     * @param communicationMessage The message to send
+     * @param classicMessage The message to send
      * @throws IOException Exception if write has failed
      */
-    default void sendData(BufferedWriter socketWriter, CommunicationMessage communicationMessage) throws IOException {
-        Debugger.logMessage("Server sendData", "Sending following data: " + communicationMessage.toFormattedString());
-        socketWriter.write(communicationMessage.toString());
+    default void sendData(CommunicationMessage classicMessage) throws IOException {
+        BufferedWriter socketWriter = getSocketWriter();
+        if (socketWriter == null) {
+            throw new IOException();
+        }
+
+        Debugger.logMessage("Server sendData", "Sending following data: " + classicMessage.toFormattedString());
+        socketWriter.write(classicMessage.toString());
         socketWriter.flush();
     }
 
@@ -29,13 +42,18 @@ public interface Server {
     /**
      * Used to receive data from a socket.
      *
-     * @param socketReader The socket input reader
      * @return The data
      * @throws IOException Exception if read has failed
      */
-    default CommunicationMessage readData(BufferedReader socketReader)
-            throws IOException, CommunicationMessage.InvalidMessageException, SocketDisconnectedException {
+    default ClassicMessage readData()
+            throws IOException, ClassicMessage.InvalidMessageException, SocketDisconnectedException {
+
         String line;
+        BufferedReader socketReader = getSocketReader();
+
+        if (socketReader == null) {
+            return null;
+        }
 
         try {
             line = socketReader.readLine();
@@ -43,7 +61,7 @@ public interface Server {
                 throw new SocketDisconnectedException();
             }
 
-            return new CommunicationMessage(line);
+            return new ClassicMessage(line);
         } catch (SocketTimeoutException e) {
             System.out.println("Socket read timeout !");
         }

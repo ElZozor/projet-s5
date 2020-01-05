@@ -2,8 +2,7 @@ package backend.modele;
 
 import backend.data.Groupe;
 import backend.data.Ticket;
-import backend.server.communication.CommunicationMessage;
-import org.json.JSONArray;
+import backend.server.communication.classic.ClassicMessage;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 import java.util.TreeSet;
@@ -17,17 +16,12 @@ public class GroupeTreeModel extends DefaultMutableTreeNode {
     }
 
 
-    public GroupeTreeModel(CommunicationMessage groupes) {
+    public GroupeTreeModel(ClassicMessage groupes) {
         if (!groupes.isLocalUpdateResponse()) {
             return;
         }
 
-        TreeSet<Groupe> groupsSet = new TreeSet<>();
-
-        JSONArray array = groupes.getLocalUpdateResponseGroups();
-        for (int i = 0; i < array.length(); ++i) {
-            groupsSet.add(new Groupe(array.getJSONObject(i)));
-        }
+        TreeSet<Groupe> groupsSet = groupes.getLocalUpdateResponseRelatedGroups();
 
         setContents(groupsSet);
 
@@ -36,10 +30,10 @@ public class GroupeTreeModel extends DefaultMutableTreeNode {
 
     private void setContents(TreeSet<Groupe> groupes) {
         for (Groupe groupe : groupes) {
-            DefaultMutableTreeNode groupe_node = new DefaultMutableTreeNode(groupe.getLabel());
+            DefaultMutableTreeNode groupe_node = new DefaultMutableTreeNode(groupe);
 
             for (Ticket ticket : groupe.getTickets()) {
-                DefaultMutableTreeNode ticket_node = new DefaultMutableTreeNode(ticket.getTitre());
+                DefaultMutableTreeNode ticket_node = new DefaultMutableTreeNode(ticket);
 
                 groupe_node.add(ticket_node);
             }

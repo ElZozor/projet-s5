@@ -3,10 +3,10 @@ package backend.database;
 import backend.data.Groupe;
 import backend.data.Message;
 import backend.data.Ticket;
+import backend.data.Utilisateur;
 import backend.modele.GroupModel;
 import backend.modele.MessageModel;
 import backend.modele.TicketModel;
-import backend.modele.UserModel;
 import com.mysql.jdbc.StringUtils;
 import debug.Debugger;
 import org.jetbrains.annotations.NotNull;
@@ -15,7 +15,9 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.*;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Date;
 import java.util.TreeSet;
 
 import static backend.database.Keys.*;
@@ -28,27 +30,8 @@ public class DatabaseManager {
 
 
     private static DatabaseManager mDatabase;
-
-
-    /**
-     * As this class is a Singleton, this function returns
-     * the unique instance of this class.
-     *
-     * @return An instance of DataBaseManager
-     * @throws SQLException     Can throw an exception if the database can't be reached
-     */
-    public static DatabaseManager getInstance() throws SQLException, NoSuchAlgorithmException {
-        if (mDatabase == null) {
-            mDatabase = new DatabaseManager();
-        }
-
-        return mDatabase;
-    }
-
-
     private Connection databaseConnection;
     private MessageDigest digest = MessageDigest.getInstance("SHA-256");
-
     private DatabaseManager() throws SQLException, NoSuchAlgorithmException {
         try {
             Class.forName("com.mysql.jdbc.Driver");
@@ -61,9 +44,25 @@ public class DatabaseManager {
     }
 
     /**
+     * As this class is a Singleton, this function returns
+     * the unique instance of this class.
+     *
+     * @return An instance of DataBaseManager
+     * @throws SQLException Can throw an exception if the database can't be reached
+     */
+    public static DatabaseManager getInstance() throws SQLException, NoSuchAlgorithmException {
+        if (mDatabase == null) {
+            mDatabase = new DatabaseManager();
+        }
+
+        return mDatabase;
+    }
+
+    /**
      * Used to hash a password
-     * @param       password The password to hash
-     * @return      The hashed password converted into base64
+     *
+     * @param password The password to hash
+     * @return The hashed password converted into base64
      */
     public String hashPassword(@NotNull String password) {
         return Base64.getEncoder().encodeToString(digest.digest(password.getBytes(StandardCharsets.UTF_8)));
@@ -73,8 +72,8 @@ public class DatabaseManager {
      * Variadic function that test if an given
      * bunch of String contains an empty or null String
      *
-     * @param args  The bunch of string
-     * @return      true if there is an empty string false otherwise
+     * @param args The bunch of string
+     * @return true if there is an empty string false otherwise
      */
     private Boolean containsNullOrEmpty(String... args) {
         for (String s : args) {
@@ -91,11 +90,11 @@ public class DatabaseManager {
      * Check whether an user is present into the database
      *
      * @param ine the user ine
-     * @return true if present otherwise false
+     * @return true if present false otherwise
      * @throws SQLException Can throw an exception if the database can't be reached
      */
     public Boolean userExists(String ine) throws SQLException {
-        if (ine == null) {
+        if (containsNullOrEmpty(ine)) {
             return false;
         }
 
@@ -119,7 +118,7 @@ public class DatabaseManager {
      * @return A boolean
      * @throws SQLException Can be thrown during request
      */
-    public Boolean credentialsAreValid(String ine, String password) throws SQLException {
+    public ResultSet credentialsAreValid(String ine, String password) throws SQLException {
         if (ine == null || password == null) {
             return null;
         }
@@ -134,7 +133,7 @@ public class DatabaseManager {
 
         ResultSet queryResult = statement.executeQuery(request);
 
-        return queryResult.next();
+        return queryResult;
     }
 
 
@@ -145,7 +144,7 @@ public class DatabaseManager {
                         "FROM %s, %s " +
                         "WHERE %s.%s = '%s' AND %s.%s = '%s'",
 
-                TABLE_NAME_APPARTENIR, APPARTENIR_UTILISATEUR_INE, APPARTENIR_GROUPE_ID,
+                TABLE_NAME_APPARTENIR, APPARTENIR_UTILISATEUR_ID, APPARTENIR_GROUPE_ID,
                 TABLE_NAME_UTILISATEUR, UTILISATEUR_ID, TABLE_NAME_GROUPE, GROUPE_ID,
                 TABLE_NAME_UTILISATEUR, TABLE_NAME_GROUPE,
                 TABLE_NAME_UTILISATEUR, UTILISATEUR_INE, ine, TABLE_NAME_GROUPE, GROUPE_LABEL, group_label
@@ -239,7 +238,7 @@ public class DatabaseManager {
     }
 
 
-    private Boolean addMessageVuRelation(int message_id, String ticketID) throws SQLException {
+    private Boolean addMessageVuRelation(long message_id, long ticketID) throws SQLException {
         String request = String.format(
                 "INSERT INTO %s(%s, %s) " +
                         "SELECT %s, %s.%s " +
@@ -252,7 +251,7 @@ public class DatabaseManager {
                 TABLE_NAME_UTILISATEUR, TABLE_NAME_APPARTENIR, TABLE_NAME_TICKET,
                 TABLE_NAME_TICKET, TICKET_ID, ticketID,
                 TABLE_NAME_TICKET, TICKET_GROUP_ID, TABLE_NAME_APPARTENIR, APPARTENIR_GROUPE_ID,
-                TABLE_NAME_UTILISATEUR, UTILISATEUR_ID, TABLE_NAME_APPARTENIR, APPARTENIR_UTILISATEUR_INE
+                TABLE_NAME_UTILISATEUR, UTILISATEUR_ID, TABLE_NAME_APPARTENIR, APPARTENIR_UTILISATEUR_ID
         );
 
         PreparedStatement statement = databaseConnection.prepareStatement(request);
@@ -261,39 +260,53 @@ public class DatabaseManager {
     }
 
 
-    public ResultSet insertNewMessage(String contenu, String ticketid, String ine) throws SQLException {
+    public Message insertNewMessage(final String contenu, final long ticketid, final long userID) throws SQLException {
         // Message creation in the "message" table
         final String messageRequest = String.format(
                 "INSERT INTO %s (%s, %s, %s) VALUES ('%s', '%s', '%s')",
-                TABLE_NAME_MESSAGE, MESSAGE_CONTENU, MESSAGE_TICKET_ID, MESSAGE_UTILISATEUR_INE,
-                contenu, ticketid, ine
+                TABLE_NAME_MESSAGE, MESSAGE_CONTENU, MESSAGE_TICKET_ID, MESSAGE_UTILISATEUR_ID,
+                contenu, ticketid, userID
         );
 
-        PreparedStatement statement = databaseConnection.prepareStatement(messageRequest, Statement.RETURN_GENERATED_KEYS);
+        Debugger.logMessage("DatabaseManager", "Request: " + messageRequest);
 
-        // We execute the request and then get the resulting keys
-        statement.executeUpdate();
+        PreparedStatement statement = databaseConnection.prepareStatement(messageRequest, Statement.RETURN_GENERATED_KEYS);
+        Debugger.logMessage("DatabaseManager", "Affected rows: " + statement.executeUpdate());
 
         ResultSet result = statement.getGeneratedKeys();
-        result.next();
-        addMessageVuRelation(result.getInt(1), ticketid);
+        if (!result.next()) {
+            Debugger.logMessage("DatabaseManager", "No key inserted after query ");
+            return null;
+        }
 
-        result.previous();
-        return statement.getGeneratedKeys();
+        final long id = result.getInt(1);
+        String query = String.format(
+                "SELECT * FROM %s WHERE %s.%s = '%s'",
+                TABLE_NAME_MESSAGE, TABLE_NAME_MESSAGE, MESSAGE_ID, id
+        );
+
+        result = statement.executeQuery(query);
+        addMessageVuRelation(id, ticketid);
+
+        result.next();
+        final Date postDate = result.getTimestamp(MESSAGE_HEURE_ENVOIE);
+
+        Message resultingMessage = new Message(id, userID, ticketid, postDate, contenu);
+        Debugger.logMessage("DatabaseManager", "Resulting message: " + resultingMessage.toJSON());
+
+        return resultingMessage;
     }
 
-    private ResultSet insertNewTicket(String userINE, String title, String group_label) throws SQLException {
+    private ResultSet insertNewTicket(long userID, String title, String group_label) throws SQLException {
         // Ticket creation in the "ticket" table
         final String ticketRequest = String.format(
                 "INSERT INTO %s (%s, %s, %s) " +
-                        "SELECT DISTINCT '%s', %s.%s, %s.%s " +
-                        "FROM %s, %s " +
-                        "WHERE %s.%s = '%s' " +
-                        "AND %s.%s = '%s' ",
+                        "SELECT DISTINCT '%s', '%s', %s.%s " +
+                        "FROM %s " +
+                        "WHERE %s.%s = '%s' ",
                 TABLE_NAME_TICKET, TICKET_TITRE, TICKET_UTILISATEUR_ID, TICKET_GROUP_ID,
-                title, TABLE_NAME_UTILISATEUR, UTILISATEUR_ID, TABLE_NAME_GROUPE, GROUPE_ID,
-                TABLE_NAME_UTILISATEUR, TABLE_NAME_GROUPE,
-                TABLE_NAME_UTILISATEUR, UTILISATEUR_INE, userINE,
+                title, userID, TABLE_NAME_GROUPE, GROUPE_ID,
+                TABLE_NAME_GROUPE,
                 TABLE_NAME_GROUPE, GROUPE_LABEL, group_label
         );
 
@@ -304,7 +317,7 @@ public class DatabaseManager {
         return statement.getGeneratedKeys();
     }
 
-    private ResultSet createUserMessageLink(String userID, String messageID) throws SQLException {
+    private ResultSet createUserMessageLink(final String userID, final String messageID) throws SQLException {
         Statement statement = databaseConnection.createStatement();
 
         final String linkRequest = String.format(
@@ -319,22 +332,21 @@ public class DatabaseManager {
     }
 
 
-    private ResultSet insertTicketMessageUserRelation(String ticketID, String userID, String messageID) throws SQLException {
+    private ResultSet insertTicketMessageUserRelation(long ticketID, long groupID, long messageID) throws SQLException {
 
         final String query = String.format(
-                "INSERT INTO %s(%s, %s) " +
+                "INSERT INTO %s (%s, %s) " +
                         "SELECT '%s', %s.%s " +
-                        "FROM %s, %s, %s " +
-                        "WHERE %s.%s = '%s' " +
-                        "AND %s.%s = %s.%s " +
+                        "from %s, %s " +
+                        "WHERE %s.%s = %s " +
                         "AND %s.%s = %s.%s",
                 TABLE_NAME_VU, VU_MESSAGE_ID, VU_UTILISATEUR_ID,
                 messageID, TABLE_NAME_UTILISATEUR, UTILISATEUR_ID,
-                TABLE_NAME_UTILISATEUR, TABLE_NAME_APPARTENIR, TABLE_NAME_TICKET,
-                TABLE_NAME_TICKET, TICKET_ID, ticketID,
-                TABLE_NAME_TICKET, TICKET_GROUP_ID, TABLE_NAME_APPARTENIR, APPARTENIR_GROUPE_ID,
-                TABLE_NAME_UTILISATEUR, UTILISATEUR_ID, TABLE_NAME_APPARTENIR, UTILISATEUR_ID
+                TABLE_NAME_UTILISATEUR, TABLE_NAME_APPARTENIR,
+                TABLE_NAME_APPARTENIR, APPARTENIR_GROUPE_ID, groupID,
+                TABLE_NAME_UTILISATEUR, UTILISATEUR_ID, TABLE_NAME_APPARTENIR, APPARTENIR_UTILISATEUR_ID
         );
+        System.out.println(query);
 
         PreparedStatement statement = databaseConnection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
         statement.executeUpdate();
@@ -347,55 +359,52 @@ public class DatabaseManager {
     /**
      * Create a new ticket into the database
      *
-     * @param userINE           The user who creates the ticket
-     * @param title             The ticket title
-     * @param message           The main message of the ticket
-     * @param groupID           The concerned groups
-     * @return                  Whether the creation is successful
-     * @throws SQLException     Can throw an exception if the database can't be reached
+     * @param userID     The user who creates the ticket
+     * @param title      The ticket title
+     * @param message    The main message of the ticket
+     * @param groupLabel The concerned groups
+     * @return Whether the creation is successful
+     * @throws SQLException Can throw an exception if the database can't be reached
      */
-    public Boolean createNewTicket(String userINE, String title, String message, String groupID) throws SQLException {
+    public Ticket createNewTicket(long userID, String title, String message, String groupLabel) throws SQLException {
 
-        if (containsNullOrEmpty(title, message, groupID)) {
-            return false;
+        if (containsNullOrEmpty(title, message, groupLabel)) {
+            return null;
         }
 
-        final ResultSet ticketBDD = insertNewTicket(userINE, title, groupID);
+        final ResultSet ticketBDD = insertNewTicket(userID, title, groupLabel);
         if (!ticketBDD.next()) {
-            return false;
+            Debugger.logMessage("DatabaseManager", "No next, returning null");
+            return null;
         }
 
-        int ticketID = ticketBDD.getInt(1);
-        final ResultSet messageBDD = insertNewMessage(message, Integer.toString(ticketBDD.getInt(1)), userINE);
-        if (!messageBDD.next()) {
-            return false;
+        long ticketID = ticketBDD.getLong(1);
+        Groupe relatedGroup = relatedTicketGroup(ticketID);
+
+        final Message messageBDD = insertNewMessage(message, ticketBDD.getLong(1), userID);
+        if (messageBDD != null) {
+            TreeSet<Message> messages = new TreeSet<>();
+            messages.add(messageBDD);
+
+            return new Ticket(ticketID, title, messages);
         }
-
-
-        return insertTicketMessageUserRelation(
-                ticketBDD.getString(TICKET_ID),
-                userINE,
-                messageBDD.getString(MESSAGE_ID)
-        ).next();
+        Debugger.logMessage("DatabaseManager", "messageBDD = null || ticketMessageUserRelation == false");
+        return null;
     }
 
 
     /**
      * Insert a new message into the database
      *
-     * @param ine           The used id
-     * @param ticketid      The ticket id
-     * @param contents      The message contents
-     * @return              Whether the request is a success
+     * @param ine      The used id
+     * @param ticketid The ticket id
+     * @param contents The message contents
+     * @return Whether the request is a success
      * @throws SQLException Can thow an exception if the database can't be reached
      */
     public Boolean addNewMessage(String ine, String ticketid, String contents) throws SQLException {
 
-        if (ine == null || ticketid == null || contents == null) {
-            return false;
-        }
-
-        if (ine.isEmpty() || ticketid.isEmpty() || contents.isEmpty()) {
+        if (containsNullOrEmpty(ine, ticketid, contents)) {
             return false;
         }
 
@@ -408,7 +417,7 @@ public class DatabaseManager {
         if (statement.execute(request)) {
             request = String.format(
                     "INSERT INTO %s (%s, %s, %s) VALUES ('%s', '%s', '%s')",
-                    TABLE_NAME_MESSAGE, MESSAGE_TICKET_ID, MESSAGE_UTILISATEUR_INE, MESSAGE_CONTENU,
+                    TABLE_NAME_MESSAGE, MESSAGE_TICKET_ID, MESSAGE_UTILISATEUR_ID, MESSAGE_CONTENU,
                     ticketid, ine, contents
             );
 
@@ -421,14 +430,71 @@ public class DatabaseManager {
     }
 
 
-    public UserModel retrieveUserModel() throws SQLException {
+    public ArrayList<Utilisateur> retrieveAllUsers() throws SQLException {
         Statement statement = databaseConnection.createStatement();
         String request = String.format(
                 "SELECT * FROM %s",
                 TABLE_NAME_UTILISATEUR
         );
 
-        return new UserModel(statement.executeQuery(request));
+        ArrayList<Utilisateur> result = new ArrayList<>();
+        ResultSet set = statement.executeQuery(request);
+        while (set.next()) {
+            result.add(new Utilisateur(set));
+        }
+
+        return result;
+    }
+
+    public ArrayList<Groupe> retrieveAllGroups() throws SQLException {
+        Statement statement = databaseConnection.createStatement();
+
+        String request = String.format(
+                "SELECT * FROM %s",
+                TABLE_NAME_GROUPE
+        );
+
+        ArrayList<Groupe> result = new ArrayList<>();
+        ResultSet set = statement.executeQuery(request);
+        while (set.next()) {
+            result.add(new Groupe(set));
+        }
+
+        return result;
+    }
+
+    public ArrayList<Ticket> retrieveAllTickets() throws SQLException {
+        Statement statement = databaseConnection.createStatement();
+
+        String request = String.format(
+                "SELECT * FROM %s",
+                TABLE_NAME_TICKET
+        );
+
+        ArrayList<Ticket> result = new ArrayList<>();
+        ResultSet set = statement.executeQuery(request);
+        while (set.next()) {
+            result.add(new Ticket(set.getLong(TICKET_ID), set.getString(TICKET_TITRE), new TreeSet<>()));
+        }
+
+        return result;
+    }
+
+    public ArrayList<Message> retrieveAllMessages() throws SQLException {
+        Statement statement = databaseConnection.createStatement();
+
+        String request = String.format(
+                "SELECT * FROM %s",
+                TABLE_NAME_MESSAGE
+        );
+
+        ArrayList<Message> result = new ArrayList<>();
+        ResultSet set = statement.executeQuery(request);
+        while (set.next()) {
+            result.add(new Message(set));
+        }
+
+        return result;
     }
 
     public GroupModel retrieveGroupModel() throws SQLException {
@@ -528,7 +594,7 @@ public class DatabaseManager {
             Statement statement = databaseConnection.createStatement();
             String request = String.format(
                     "DELETE FROM %s WHERE %s.%s = '%s'",
-                    TABLE_NAME_APPARTENIR, TABLE_NAME_APPARTENIR, APPARTENIR_UTILISATEUR_INE, id
+                    TABLE_NAME_APPARTENIR, TABLE_NAME_APPARTENIR, APPARTENIR_UTILISATEUR_ID, id
             );
 
             Debugger.logMessage("updateExistingUserGroup", "Request: " + request);
@@ -587,7 +653,7 @@ public class DatabaseManager {
                 TABLE_NAME_GROUPE, GROUPE_LABEL,
                 TABLE_NAME_GROUPE, TABLE_NAME_APPARTENIR, TABLE_NAME_UTILISATEUR,
                 TABLE_NAME_UTILISATEUR, UTILISATEUR_INE, ine,
-                TABLE_NAME_APPARTENIR, APPARTENIR_UTILISATEUR_INE, TABLE_NAME_UTILISATEUR, UTILISATEUR_ID,
+                TABLE_NAME_APPARTENIR, APPARTENIR_UTILISATEUR_ID, TABLE_NAME_UTILISATEUR, UTILISATEUR_ID,
                 TABLE_NAME_GROUPE, GROUPE_ID, TABLE_NAME_APPARTENIR, APPARTENIR_GROUPE_ID
         );
 
@@ -606,7 +672,7 @@ public class DatabaseManager {
     }
 
 
-    public TreeSet<Message> getAllMessageForGivenTicket(long ticketid) throws SQLException {
+    public TreeSet<Message> getAllMessagesForGivenTicket(long ticketid) throws SQLException {
 
         final String messageRequest = String.format(
                 "SELECT * FROM %s WHERE %s = '%s'",
@@ -643,14 +709,47 @@ public class DatabaseManager {
             final long id = result.getLong(TICKET_ID);
             final String title = result.getString(TICKET_TITRE);
 
-            tickets.add(new Ticket(id, title, getAllMessageForGivenTicket(id)));
+            tickets.add(new Ticket(id, title, getAllMessagesForGivenTicket(id)));
         }
 
         return tickets;
     }
 
-    public TreeSet<Groupe> getAllGroups() throws SQLException {
+    public TreeSet<Groupe> getRelatedGroups(Utilisateur user) throws SQLException {
 
+        TreeSet<Groupe> groupes = new TreeSet<>();
+        final String query = String.format(
+                "SELECT * FROM %s, %s " +
+                        "WHERE %s.%s = '%s' " +
+                        "AND %s.%s = %s.%s",
+                TABLE_NAME_GROUPE, TABLE_NAME_APPARTENIR,
+                TABLE_NAME_APPARTENIR, APPARTENIR_UTILISATEUR_ID, user.getID(),
+                TABLE_NAME_GROUPE, GROUPE_ID, TABLE_NAME_APPARTENIR, APPARTENIR_GROUPE_ID
+        );
+
+        Statement statement = databaseConnection.createStatement();
+        ResultSet set = statement.executeQuery(query);
+
+        while (set.next()) {
+            final Long id = set.getLong(GROUPE_ID);
+            final String label = set.getString(GROUPE_LABEL);
+            TreeSet<Ticket> tickets = getAllTicketForGivenGroup(id);
+
+            Groupe groupe = new Groupe(id, label, tickets);
+            groupes.add(groupe);
+        }
+
+        return groupes;
+
+    }
+
+    public TreeSet<Groupe> treatLocalUpdateMessage(Utilisateur user) throws SQLException {
+        return getRelatedGroups(user);
+    }
+
+    public TreeSet<String> getAllGroups() throws SQLException {
+
+        TreeSet<String> groups = new TreeSet<>();
         final String groupRequest = String.format(
                 "SELECT * FROM %s", TABLE_NAME_GROUPE
         );
@@ -658,22 +757,69 @@ public class DatabaseManager {
         Statement statement = databaseConnection.createStatement();
         ResultSet result = statement.executeQuery(groupRequest);
 
-        TreeSet<Groupe> groups = new TreeSet<>();
 
         while (result.next()) {
-            final long id = result.getLong(GROUPE_ID);
             final String label = result.getString(GROUPE_LABEL);
-
-            groups.add(new Groupe(id, label, getAllTicketForGivenGroup(id)));
+            groups.add(label);
         }
 
         return groups;
 
     }
 
-    public TreeSet<Groupe> treatLocalUpdateMessage() throws SQLException {
-        return getAllGroups();
+    public Groupe relatedTicketGroup(long ticketID) throws SQLException {
+        final String query = String.format(
+                "SELECT DISTINCT %s.* " +
+                        "FROM %s, %s " +
+                        "WHERE %s.%s = %s " +
+                        "AND %s.%s = %s.%s",
+                TABLE_NAME_GROUPE,
+                TABLE_NAME_GROUPE, TABLE_NAME_TICKET,
+                TABLE_NAME_TICKET, TICKET_ID, ticketID,
+                TABLE_NAME_TICKET, TICKET_GROUP_ID, TABLE_NAME_GROUPE, GROUPE_ID
+        );
+
+        Statement statement = databaseConnection.createStatement();
+        ResultSet set = statement.executeQuery(query);
+        if (set.next()) {
+            final Long id = set.getLong(GROUPE_ID);
+            final String label = set.getString(GROUPE_LABEL);
+
+            return new Groupe(id, label);
+        }
+
+        return null;
     }
 
 
+    public Ticket getTicket(long ticketid) throws SQLException {
+        final Statement statement = databaseConnection.createStatement();
+        final String query = String.format(
+                "SELECT * FROM %s WHERE %s = '%s'",
+                TABLE_NAME_TICKET, TICKET_ID, ticketid
+        );
+
+        ResultSet set = statement.executeQuery(query);
+        TreeSet<Message> messages = getAllMessagesForGivenTicket(ticketid);
+        if (set.next()) {
+            return new Ticket(set.getLong(TICKET_ID), set.getString(TICKET_TITRE), messages);
+        }
+
+        return null;
+    }
+
+    public Groupe retrieveGroupForGivenID(Long id) throws SQLException {
+        final Statement statement = databaseConnection.createStatement();
+        final String query = String.format(
+                "SELECT * FROM %s WHERE %s = '%s'",
+                TABLE_NAME_GROUPE, GROUPE_ID, id
+        );
+
+        ResultSet set = statement.executeQuery(query);
+        if (set.next()) {
+            return new Groupe(id, set.getString(GROUPE_LABEL));
+        }
+
+        return null;
+    }
 }

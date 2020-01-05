@@ -43,6 +43,13 @@ public class ServerUIPanel extends JPanel {
         initialize();
     }
 
+    public static void updateModels(UserModel userModel, GroupModel groupModel, TicketModel ticketModel, MessageModel messageModel) {
+        userTableModel = userModel;
+        groupTableModel = groupModel;
+        ticketTableModel = ticketModel;
+        messageTableModel = messageModel;
+    }
+
     private void initialize() {
         this.setLayout(new BorderLayout(0, 0));
 
@@ -272,55 +279,19 @@ public class ServerUIPanel extends JPanel {
 
 
     private void setUserModel() {
-        if (userTableModel == null) {
-            try {
-                userTableModel = DatabaseManager.getInstance().retrieveUserModel();
-            } catch (SQLException | NoSuchAlgorithmException e) {
-                JOptionPane.showMessageDialog(this, "Impossible de joindre la base de donnée !");
-                e.printStackTrace();
-            }
-        }
-
         setModel(userTableModel);
     }
 
     private void setGroupModel() {
-        if (groupTableModel == null) {
-            try {
-                groupTableModel = DatabaseManager.getInstance().retrieveGroupModel();
-            } catch (SQLException | NoSuchAlgorithmException e) {
-                JOptionPane.showMessageDialog(this, "Impossible de joindre la base de donnée !");
-                e.printStackTrace();
-            }
-        }
-
         setModel(groupTableModel);
     }
 
 
     private void setTicketModel() {
-        if (ticketTableModel == null) {
-            try {
-                ticketTableModel = DatabaseManager.getInstance().retrieveTicketModel();
-            } catch (SQLException | NoSuchAlgorithmException e) {
-                JOptionPane.showMessageDialog(this, "Impossible de joindre la base de donnée !");
-                e.printStackTrace();
-            }
-        }
-
         setModel(ticketTableModel);
     }
 
     private void setMessageModel() {
-        if (messageTableModel == null) {
-            try {
-                messageTableModel = DatabaseManager.getInstance().retrieveMessageModel();
-            } catch (SQLException | NoSuchAlgorithmException e) {
-                JOptionPane.showMessageDialog(this, "Impossible de joindre la base de donnée !");
-                e.printStackTrace();
-            }
-        }
-
         setModel(messageTableModel);
     }
 
