@@ -15,10 +15,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Date;
-import java.util.TreeSet;
+import java.util.*;
 
 import static backend.database.Keys.*;
 
@@ -739,8 +737,41 @@ public class DatabaseManager {
             groupes.add(groupe);
         }
 
+        TreeSet<Groupe> others = getRelatedTickets(user);
+        groupes.addAll(others);
+
         return groupes;
 
+    }
+
+    private TreeSet<Groupe> getRelatedTickets(Utilisateur user) throws SQLException {
+
+        HashMap<Long, Groupe> groupes = new HashMap<>();
+
+        Statement statement = databaseConnection.createStatement();
+        final String query = String.format(
+                "SELECT * FROM %s WHERE %s.%s = '%s'",
+                TABLE_NAME_TICKET, TABLE_NAME_TICKET, TICKET_UTILISATEUR_ID, user.getID()
+        );
+
+
+        ResultSet set = statement.executeQuery(query);
+        while (set.next()) {
+            final Long id = set.getLong(TICKET_ID);
+            final String titre = set.getString(TICKET_TITRE);
+
+            Ticket ticket = new Ticket(id, titre, getAllMessagesForGivenTicket(id));
+            Groupe groupe = relatedTicketGroup(id);
+
+            if (groupes.containsKey(groupe.getID())) {
+                groupes.get(groupe.getID()).addTicket(ticket);
+            } else {
+                groupe.addTicket(ticket);
+                groupes.put(groupe.getID(), groupe);
+            }
+        }
+
+        return new TreeSet<>(groupes.values());
     }
 
     public TreeSet<Groupe> treatLocalUpdateMessage(Utilisateur user) throws SQLException {
@@ -821,5 +852,26 @@ public class DatabaseManager {
         }
 
         return null;
+    }
+
+    public Long ticketCreator(Long ticketID) throws SQLException {
+        Statement statement = databaseConnection.createStatement();
+        final String query = String.format(
+                "SELECT DISTINCT %s.%s " +
+                        "FROM %s, %s " +
+                        "WHERE %s.%s = '%s' " +
+                        "AND %s.%s = %s.%s",
+                TABLE_NAME_UTILISATEUR, UTILISATEUR_ID,
+                TABLE_NAME_UTILISATEUR, TABLE_NAME_TICKET,
+                TABLE_NAME_TICKET, TICKET_ID, ticketID,
+                TABLE_NAME_TICKET, TICKET_UTILISATEUR_ID, TABLE_NAME_UTILISATEUR, UTILISATEUR_ID
+        );
+
+        ResultSet set = statement.executeQuery(query);
+        if (set.next()) {
+            return set.getLong(UTILISATEUR_ID);
+        }
+
+        return 0L;
     }
 }

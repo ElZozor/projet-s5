@@ -22,7 +22,7 @@ public class Host extends Thread {
     public static final int PORT = 6666;
     public static Boolean isRunning = false;
     private static HashMap<String, HashSet<Server>> clientsByGroups = new HashMap<>();
-    private static HashMap<Long, Server> clientsByID;
+    private static HashMap<Long, Server> clientsByID = new HashMap<>();
     private SSLServerSocket mServerSocket;
 
     public Host() throws IOException {
@@ -67,6 +67,17 @@ public class Host extends Thread {
         if (servers != null) {
             clientsByGroups.remove(relatedGroup);
             clientsByGroups.put(label, servers);
+        }
+    }
+
+    public static void sendToClient(Long userID, ClassicMessage message) {
+        Server client = clientsByID.get(userID);
+        if (client != null) {
+            try {
+                client.sendData(message);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 

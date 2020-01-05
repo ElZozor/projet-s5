@@ -50,6 +50,14 @@ public class ClientManager extends Thread implements Server {
 
     }
 
+    private boolean isAdminOrStaff() {
+        if (user == null) {
+            return false;
+        }
+
+        return user.getType().equals("admin") || user.getType().equals("staff");
+    }
+
     /**
      * Main function overridden from the parent class "Thread".
      * It will run in background until the Host.running value became "false"
@@ -285,17 +293,20 @@ public class ClientManager extends Thread implements Server {
                     Debugger.logColorMessage(DBG_COLOR, "ClientManager", insertedMessage.toJSON().toString());
 
                     Groupe group = database.relatedTicketGroup(insertedMessage.getTicketID());
+                    Long userID = database.ticketCreator(insertedMessage.getTicketID());
                     if (group != null) {
+                        ClassicMessage message = ClassicMessage.createMessageAddedMessage(
+                                TABLE_NAME_MESSAGE,
+                                insertedMessage,
+                                group.getID(),
+                                insertedMessage.getTicketID()
+                        );
+
                         Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Broadcasting to group : " + group);
-                        Host.broadcast(
-                                ClassicMessage.createMessageAddedMessage(
-                                        TABLE_NAME_MESSAGE,
-                                        insertedMessage,
-                                        group.getID(),
-                                        insertedMessage.getTicketID()
-                                ),
-                                group.getLabel());
+                        Host.broadcast(message, group.getLabel());
+                        Host.sendToClient(userID, message);
                     }
+
                 }
 
             }
@@ -338,7 +349,7 @@ public class ClientManager extends Thread implements Server {
 
     private void handleDeleteMessage(ClassicMessage classicMessage) {
 
-        if ((!user.getType().equals("staff") && !user.getType().equals("admin"))) {
+        if (!isAdminOrStaff()) {
             return;
         }
 
@@ -395,7 +406,7 @@ public class ClientManager extends Thread implements Server {
 
     private void handleUpdateMessage(ClassicMessage classicMessage) {
 
-        if ((!user.getType().equals("staff") && !user.getType().equals("admin"))) {
+        if (!isAdminOrStaff()) {
             return;
         }
 
@@ -456,7 +467,7 @@ public class ClientManager extends Thread implements Server {
 
     private void handleAddMessage(ClassicMessage classicMessage) {
 
-        if (!user.getType().equals("staff") && !user.getType().equals("admin")) {
+        if (!isAdminOrStaff()) {
             return;
         }
 
@@ -516,7 +527,7 @@ public class ClientManager extends Thread implements Server {
     private void handleTableModelRequestMessage() {
 
         Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Table request received");
-        if (!user.getType().equals("staff") && !user.getType().equals("admin")) {
+        if (!isAdminOrStaff()) {
             Debugger.logColorMessage(DBG_COLOR, "ClientManager", "But user isn't an admin");
             return;
         }
