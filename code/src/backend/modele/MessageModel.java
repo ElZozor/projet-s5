@@ -6,10 +6,9 @@ import com.mysql.jdbc.StringUtils;
 import javax.swing.event.TableModelListener;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
-import java.util.TreeSet;
 
 public class MessageModel extends SearchableModel<Message> {
     private static final String[] columnNames = {
@@ -24,7 +23,7 @@ public class MessageModel extends SearchableModel<Message> {
     public MessageModel(ResultSet set) {
         try {
             for (; set.next(); ) {
-                elements.add(new Message(set, new TreeSet<>()));
+                elements.add(new Message(set, new ArrayList<>(), new ArrayList<>()));
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -37,23 +36,6 @@ public class MessageModel extends SearchableModel<Message> {
 
     public MessageModel(List<Message> messages) {
         elements.addAll(messages);
-    }
-
-    public void addRow(Message newMessage) {
-        ListIterator<Message> iterator = elements.listIterator();
-
-        boolean inserted = false;
-        for (; iterator.hasNext() && !inserted; ) {
-            Message m = iterator.next();
-            if (m.getID() > newMessage.getID()) {
-                iterator.previous();
-                iterator.add(newMessage);
-
-                inserted = true;
-            }
-        }
-
-        elements.add(newMessage);
     }
 
     @Override

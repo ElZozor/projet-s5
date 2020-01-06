@@ -158,6 +158,14 @@ public class ClientManager extends Thread implements Server {
             case TABLE_MODEL_REQUEST:
                 handleTableModelRequestMessage();
                 break;
+
+            case REQUEST_EVERYTHING:
+                handleRequestEverythingMessage();
+                break;
+
+            case MESSAGE_RECEIVED:
+                handleMessageSeenMessage(classicMessage);
+                break;
         }
 
     }
@@ -391,14 +399,28 @@ public class ClientManager extends Thread implements Server {
 
 
                 case TABLE_NAME_MESSAGE:
-                    Ticket ticket = database.getTicket(classicMessage.getEntryAsMessage().getTicketID());
-                    relatedGroup = database.relatedTicketGroup(ticket.getID());
-                    database.deleteMessage(entry.getID());
 
-                    message = ClassicMessage.createMessageDeletedMessage(
-                            classicMessage.getTable(), classicMessage.getEntryAsMessage(),
-                            relatedGroup, ticket
-                    );
+                    Ticket ticket = database.relatedMessageTicket(classicMessage.getEntryAsMessage().getID());
+                    if (ticket != null) {
+                        relatedGroup = database.relatedTicketGroup(ticket.getID());
+                        if (relatedGroup != null) {
+                            if (database.deleteMessage(entry.getID())) {
+                                message = ClassicMessage.createMessageDeletedMessage(
+                                        classicMessage.getTable(), classicMessage.getEntryAsMessage(),
+                                        relatedGroup, ticket
+                                );
+                            } else {
+                                Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Deletion failed");
+                                success = false;
+                            }
+                        } else {
+                            Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Group is null");
+                            success = false;
+                        }
+                    } else {
+                        Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Ticket is null");
+                        success = false;
+                    }
 
                     break;
             }
@@ -498,16 +520,20 @@ public class ClientManager extends Thread implements Server {
                     final String password = user.getPassword();
                     final String[] groups = user.getGroups();
 
-                    success = DatabaseManager.getInstance().registerNewUser(
+                    ResultSet set = DatabaseManager.getInstance().registerNewUser(
                             INE,
                             password,
                             nom,
                             prenom,
                             type,
                             String.join(";", groups)
-                    ).next();
+                    );
 
-                    relatedGroup = DatabaseManager.getInstance().relatedUserGroup(INE);
+                    if (set.next()) {
+                        user.setID(set.getLong(1));
+
+                        relatedGroup = DatabaseManager.getInstance().relatedUserGroup(INE);
+                    }
 
                     break;
                 }
@@ -564,6 +590,31 @@ public class ClientManager extends Thread implements Server {
 
         } catch (SQLException | IOException e) {
             e.printStackTrace();
+        }
+
+    }
+
+    private void handleRequestEverythingMessage() {
+
+        if (!isAdminOrStaff()) {
+            return;
+        }
+
+        Host.addAdmin(this);
+
+    }
+
+    private void handleMessageSeenMessage(ClassicMessage classicMessage) {
+
+        DatabaseManager database = DatabaseManager.getInstance();
+        ArrayList<Message> messages = classicMessage.getMessagesReceived();
+
+        for (Message message : messages) {
+            try {
+                database.setMessageReceived(message, user);
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
 
     }

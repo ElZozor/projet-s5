@@ -94,11 +94,13 @@ public class Groupe extends ProjectTable implements Comparable<Groupe> {
 
     @Override
     public int compareTo(@NotNull Groupe groupe) {
-        if (getID().compareTo(groupe.getID()) == 0) {
+        int idComparison = getID().compareTo(groupe.getID());
+        if (idComparison == 0) {
             return 0;
         }
 
-        return this.getLabel().compareTo(groupe.getLabel());
+        int labelComparison = this.getLabel().compareTo(groupe.getLabel());
+        return (labelComparison == 0 ? idComparison : labelComparison);
     }
 
     @Override

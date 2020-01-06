@@ -38,4 +38,7 @@ public class Keys {
     public static final String APPARTENIR_GROUPE_ID = "id_groupe";
     public static final String APPARTENIR_UTILISATEUR_ID = "id_util";
 
+    public static final String TABLE_NAME_RECU = "RECU";
+    public static final String RECU_MESSAGE_ID = "id_message";
+    public static final String RECU_UTILISATEUR_ID = "id_util";
 }

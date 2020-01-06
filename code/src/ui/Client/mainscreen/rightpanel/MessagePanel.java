@@ -5,6 +5,9 @@ import backend.data.Utilisateur;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.text.SimpleDateFormat;
 
 public class MessagePanel extends JPanel {
 
@@ -17,7 +20,6 @@ public class MessagePanel extends JPanel {
     private JLabel author = new JLabel();
     private JLabel date = new JLabel();
     private JTextArea text = new JTextArea();
-    private JButton infoButton = new JButton("Status");
 
     private Message message;
 
@@ -41,9 +43,8 @@ public class MessagePanel extends JPanel {
 
         infos.add(author);
 
-        date.setText(message.getHeureEnvoie().toString());
+        date.setText(new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(message.getHeureEnvoie()));
         infos.add(date);
-        infos.add(infoButton);
 
         text.setText(message.getContenu());
         text.setEditable(false);
@@ -53,9 +54,10 @@ public class MessagePanel extends JPanel {
 
         setColor(message);
 
-        infoButton.addActionListener(action -> {
-            showInfoDialog();
-        });
+        setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        addMouseListener(new ShowInfoOnClickListener());
+        text.addMouseListener(new ShowInfoOnClickListener());
     }
 
     private void setColor(Message message) {
@@ -83,6 +85,34 @@ public class MessagePanel extends JPanel {
 
     private void showInfoDialog() {
         JOptionPane.showMessageDialog(null, message.getFormattedState(), "Status", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private class ShowInfoOnClickListener implements MouseListener {
+
+        @Override
+        public void mouseClicked(MouseEvent mouseEvent) {
+            showInfoDialog();
+        }
+
+        @Override
+        public void mousePressed(MouseEvent mouseEvent) {
+
+        }
+
+        @Override
+        public void mouseReleased(MouseEvent mouseEvent) {
+
+        }
+
+        @Override
+        public void mouseEntered(MouseEvent mouseEvent) {
+
+        }
+
+        @Override
+        public void mouseExited(MouseEvent mouseEvent) {
+
+        }
     }
 
 }

@@ -2,6 +2,7 @@ package backend.server.client;
 
 
 import backend.data.Groupe;
+import backend.data.Message;
 import backend.data.Ticket;
 import backend.data.Utilisateur;
 import backend.modele.UserModel;
@@ -15,6 +16,7 @@ import javax.net.ssl.SSLSocket;
 import javax.swing.*;
 import java.io.*;
 import java.net.SocketException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.TreeSet;
 
@@ -226,13 +228,38 @@ public class Client extends Thread implements Server {
 
         ui.updateRelatedGroups(relatedGroups);
         ui.updateGroupsList(allGroups);
+
+        ArrayList<Message> received = new ArrayList<>();
+        for (Groupe groupe : relatedGroups) {
+            for (Ticket ticket : groupe.getTickets()) {
+                for (Message msg : ticket.getMessages()) {
+                    if (msg.state() < 3) {
+                        received.add(msg);
+                    }
+                }
+            }
+        }
+
+        try {
+            sendData(ClassicMessage.createMessageReceived(received));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
 
     private void handleEntryAdded(ClassicMessage message) {
+        ArrayList<Message> received = new ArrayList<>();
+
         switch (message.getTable()) {
             case TABLE_NAME_UTILISATEUR:
-                Utilisateur.addInstance(message.getEntryAsUtilisateur());
+                Utilisateur user = message.getEntryAsUtilisateur();
+                Utilisateur.addInstance(user);
+
+                if (ui instanceof ServerUI) {
+                    ((ServerUI) ui).addUser(user);
+                }
+
                 break;
 
             case TABLE_NAME_GROUPE:
@@ -241,11 +268,26 @@ public class Client extends Thread implements Server {
 
             case TABLE_NAME_TICKET:
                 ui.addTicket(message.getEntryRelatedGroup(), message.getEntryAsTicket());
+                TreeSet<Message> messages = message.getEntryAsTicket().getMessages();
+                if (messages != null) {
+                    received.addAll(messages);
+                }
+
                 break;
 
             case TABLE_NAME_MESSAGE:
                 ui.addMessage(message.getEntryRelatedGroup(), message.getEntryRelatedTicket(), message.getEntryAsMessage());
+                received.add(message.getEntryAsMessage());
                 break;
+        }
+
+
+        if (!received.isEmpty()) {
+            try {
+                sendData(ClassicMessage.createMessageReceived(received));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -285,6 +327,8 @@ public class Client extends Thread implements Server {
 
 
     private void handleEntryUpdated(ClassicMessage message) {
+        ArrayList<Message> received = new ArrayList<>();
+
         switch (message.getTable()) {
             case TABLE_NAME_UTILISATEUR:
                 Utilisateur user = message.getEntryAsUtilisateur();
@@ -304,12 +348,27 @@ public class Client extends Thread implements Server {
                 break;
 
             case TABLE_NAME_TICKET:
-                ui.updateTicket(message.getEntryRelatedGroup(), message.getEntryAsTicket());
+                Ticket ticket = message.getEntryAsTicket();
+                ui.updateTicket(message.getEntryRelatedGroup(), ticket);
+
+                TreeSet<Message> messages = ticket.getMessages();
+                if (messages != null) {
+                    received.addAll(messages);
+                }
                 break;
 
             case TABLE_NAME_MESSAGE:
                 ui.updateMessage(message.getEntryRelatedGroup(), message.getEntryRelatedTicket(), message.getEntryAsMessage());
+                received.add(message.getEntryAsMessage());
                 break;
+        }
+
+        if (!received.isEmpty()) {
+            try {
+                sendData(ClassicMessage.createMessageReceived(received));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 

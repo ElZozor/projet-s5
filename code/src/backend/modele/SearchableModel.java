@@ -46,12 +46,30 @@ public abstract class SearchableModel<T extends ProjectTable> implements TableMo
     }
 
     public final T getReferenceTo(int index) {
-        System.out.println(index);
         return elements.get(index);
     }
 
     public void updateEntry(T updatedEntry) {
-        elements.remove(updatedEntry);
+        removeEntry(updatedEntry.getID());
         elements.add(updatedEntry);
+    }
+
+    public void addRow(T ts) {
+        ListIterator<T> iterator = elements.listIterator();
+
+        boolean inserted = false;
+        for (; iterator.hasNext() && !inserted; ) {
+            T t = iterator.next();
+            if (t.getID() > t.getID()) {
+                iterator.previous();
+                iterator.add(ts);
+            }
+
+            inserted = t.getID() >= ts.getID();
+        }
+
+        if (!inserted) {
+            elements.add(ts);
+        }
     }
 }

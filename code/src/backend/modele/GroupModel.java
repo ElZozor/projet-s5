@@ -35,8 +35,8 @@ public class GroupModel extends SearchableModel<Groupe> {
         elements.addAll(groups);
     }
 
-    public void addRow(Groupe newUser) {
-        elements.add(newUser);
+    public void addRow(Groupe ts) {
+        elements.add(ts);
     }
 
     @Override

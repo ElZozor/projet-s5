@@ -10,6 +10,7 @@ import backend.modele.TicketModel;
 import backend.modele.UserModel;
 import backend.server.Server;
 import backend.server.client.Client;
+import backend.server.communication.classic.ClassicMessage;
 import debug.Debugger;
 import ui.Client.ConnexionScreen;
 import ui.InteractiveUI;
@@ -45,6 +46,12 @@ public class ServerUI extends InteractiveUI {
         initPanel();
 
         this.setVisible(true);
+
+        try {
+            client.sendData(ClassicMessage.createRequestEverything());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         this.client = client;
         client.setUI(this);
@@ -186,19 +193,26 @@ public class ServerUI extends InteractiveUI {
         uiPanel.update();
     }
 
+    public void addUser(Utilisateur user) {
+        userModel.addRow(user);
+    }
+
     @Override
     public void addGroupe(Groupe entryAsGroupe) {
-
+        groupModel.addRow(entryAsGroupe);
     }
 
     @Override
     public void addTicket(Groupe relatedGroupEntry, Ticket entryAsTicket) {
-
+        ticketModel.addRow(entryAsTicket);
+        for (Message message : entryAsTicket.getMessages()) {
+            addMessage(relatedGroupEntry, entryAsTicket, message);
+        }
     }
 
     @Override
     public void addMessage(Groupe entryRelatedGroup, Ticket entryRelatedTicket, Message entryAsMessage) {
-
+        messageModel.addRow(entryAsMessage);
     }
 
     @Override

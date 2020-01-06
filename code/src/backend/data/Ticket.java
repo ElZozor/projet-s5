@@ -93,12 +93,12 @@ public class Ticket extends ProjectTable implements Comparable<Ticket> {
 
     @Override
     public int compareTo(@NotNull Ticket ticket) {
-        int comparison = getID().compareTo(ticket.getID());
-        if (comparison == 0) {
-            return comparison;
+        int titleComparison = this.getTitre().compareTo(ticket.getTitre());
+        if (titleComparison == 0) {
+            return getID().compareTo(ticket.getID());
         }
 
-        return this.getTitre().compareTo(ticket.getTitre());
+        return titleComparison;
     }
 
     @Override

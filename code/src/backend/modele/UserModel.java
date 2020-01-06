@@ -8,7 +8,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
 
 public class UserModel extends SearchableModel<Utilisateur> {
 
@@ -37,23 +36,6 @@ public class UserModel extends SearchableModel<Utilisateur> {
 
     private UserModel() {
 
-    }
-
-    public void addRow(Utilisateur newUser) {
-        ListIterator<Utilisateur> iterator = elements.listIterator();
-
-        boolean inserted = false;
-        for (; iterator.hasNext() && !inserted; ) {
-            Utilisateur u = iterator.next();
-            if (u.getID() > newUser.getID()) {
-                iterator.previous();
-                iterator.add(newUser);
-
-                inserted = true;
-            }
-        }
-
-        elements.add(newUser);
     }
 
     @Override

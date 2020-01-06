@@ -258,16 +258,39 @@ public class DatabaseManager {
         return statement.executeUpdate() > 0;
     }
 
-    public TreeSet<String> getRemainingReadUsernames(Long id) throws SQLException {
-        TreeSet<String> result = new TreeSet<>();
+    private boolean addMessageRecuRelation(long id, long ticketid) throws SQLException {
+
+        String request = String.format(
+                "INSERT INTO %s(%s, %s) " +
+                        "SELECT %s, %s.%s " +
+                        "FROM %s, %s, %s " +
+                        "WHERE %s.%s = %s " +
+                        "AND %s.%s = %s.%s " +
+                        "AND %s.%s = %s.%s",
+                TABLE_NAME_RECU, RECU_MESSAGE_ID, RECU_UTILISATEUR_ID,
+                id, TABLE_NAME_UTILISATEUR, UTILISATEUR_ID,
+                TABLE_NAME_UTILISATEUR, TABLE_NAME_APPARTENIR, TABLE_NAME_TICKET,
+                TABLE_NAME_TICKET, TICKET_ID, ticketid,
+                TABLE_NAME_TICKET, TICKET_GROUP_ID, TABLE_NAME_APPARTENIR, APPARTENIR_GROUPE_ID,
+                TABLE_NAME_UTILISATEUR, UTILISATEUR_ID, TABLE_NAME_APPARTENIR, APPARTENIR_UTILISATEUR_ID
+        );
+
+        PreparedStatement statement = databaseConnection.prepareStatement(request);
+
+        return statement.executeUpdate() > 0;
+
+    }
+
+    public ArrayList<String> getRemainingReadUsernames(Long id) throws SQLException {
+        ArrayList<String> result = new ArrayList<>();
 
         final Statement statement = databaseConnection.createStatement();
         final String query = String.format(
-                "SELECT %s.%s " +
+                "SELECT %s.* " +
                         "FROM %s, %s " +
                         "WHERE %s.%s = '%s' " +
                         "AND %s.%s = %s.%s",
-                TABLE_NAME_UTILISATEUR, UTILISATEUR_NOM,
+                TABLE_NAME_UTILISATEUR,
                 TABLE_NAME_UTILISATEUR, TABLE_NAME_VU,
                 TABLE_NAME_VU, VU_MESSAGE_ID, id,
                 TABLE_NAME_UTILISATEUR, UTILISATEUR_ID, TABLE_NAME_VU, VU_UTILISATEUR_ID
@@ -275,12 +298,38 @@ public class DatabaseManager {
 
         ResultSet set = statement.executeQuery(query);
         while (set.next()) {
-            result.add(set.getString(UTILISATEUR_NOM));
+            result.add(set.getString(UTILISATEUR_NOM) + " " + set.getString(UTILISATEUR_PRENOM));
         }
 
         return result;
 
     }
+
+
+    public ArrayList<String> getRemainingReceiveUsernames(Long id) throws SQLException {
+        ArrayList<String> result = new ArrayList<>();
+
+        final Statement statement = databaseConnection.createStatement();
+        final String query = String.format(
+                "SELECT %s.* " +
+                        "FROM %s, %s " +
+                        "WHERE %s.%s = '%s' " +
+                        "AND %s.%s = %s.%s",
+                TABLE_NAME_UTILISATEUR,
+                TABLE_NAME_UTILISATEUR, TABLE_NAME_RECU,
+                TABLE_NAME_RECU, RECU_MESSAGE_ID, id,
+                TABLE_NAME_UTILISATEUR, UTILISATEUR_ID, TABLE_NAME_RECU, RECU_UTILISATEUR_ID
+        );
+
+        ResultSet set = statement.executeQuery(query);
+        while (set.next()) {
+            result.add(set.getString(UTILISATEUR_NOM) + " " + set.getString(UTILISATEUR_PRENOM));
+        }
+
+        return result;
+
+    }
+
 
     public Message insertNewMessage(final String contenu, final long ticketid, final long userID) throws SQLException {
         // Message creation in the "message" table
@@ -309,12 +358,13 @@ public class DatabaseManager {
 
         result = statement.executeQuery(query);
         addMessageVuRelation(id, ticketid);
+        addMessageRecuRelation(id, ticketid);
 
         result.next();
         final Date postDate = result.getTimestamp(MESSAGE_HEURE_ENVOIE);
         final int state = result.getInt(MESSAGE_STATE);
 
-        Message resultingMessage = new Message(id, userID, ticketid, postDate, contenu, getRemainingReadUsernames(id));
+        Message resultingMessage = new Message(id, userID, ticketid, postDate, contenu, getRemainingReadUsernames(id), getRemainingReceiveUsernames(id));
         Debugger.logMessage("DatabaseManager", "Resulting message: " + resultingMessage.toJSON());
 
         return resultingMessage;
@@ -514,7 +564,8 @@ public class DatabaseManager {
         ArrayList<Message> result = new ArrayList<>();
         ResultSet set = statement.executeQuery(request);
         while (set.next()) {
-            result.add(new Message(set, getRemainingReadUsernames(set.getLong(MESSAGE_ID))));
+            final Long id = set.getLong(MESSAGE_ID);
+            result.add(new Message(set, getRemainingReadUsernames(id), getRemainingReceiveUsernames(id)));
         }
 
         return result;
@@ -672,7 +723,6 @@ public class DatabaseManager {
             return editExistingUser(id, ine, name, surname, type, groups);
         }
 
-        Statement statement = databaseConnection.createStatement();
         String request = String.format(
                 "UPDATE %s "
                         + "SET "
@@ -690,6 +740,8 @@ public class DatabaseManager {
                 UTILISATEUR_MDP, hashPassword(password),
                 UTILISATEUR_ID, id
         );
+
+        PreparedStatement statement = databaseConnection.prepareStatement(request);
 
         Boolean result = statement.executeUpdate(request) == 1;
         updateExistingUserGroups(id, ine, groups);
@@ -740,7 +792,8 @@ public class DatabaseManager {
         TreeSet<Message> messages = new TreeSet<>();
 
         while (result.next()) {
-            messages.add(new Message(result, getRemainingReadUsernames(result.getLong(MESSAGE_ID))));
+            final Long id = result.getLong(MESSAGE_ID);
+            messages.add(new Message(result, getRemainingReadUsernames(id), getRemainingReceiveUsernames(id)));
         }
 
         return messages;
@@ -786,7 +839,7 @@ public class DatabaseManager {
         ResultSet set = statement.executeQuery(query);
 
         while (set.next()) {
-            final Long id = set.getLong(GROUPE_ID);
+            final long id = set.getLong(GROUPE_ID);
             final String label = set.getString(GROUPE_LABEL);
             TreeSet<Ticket> tickets = getAllTicketForGivenGroup(id);
 
@@ -814,7 +867,7 @@ public class DatabaseManager {
 
         ResultSet set = statement.executeQuery(query);
         while (set.next()) {
-            final Long id = set.getLong(TICKET_ID);
+            final long id = set.getLong(TICKET_ID);
             final String titre = set.getString(TICKET_TITRE);
 
             Ticket ticket = new Ticket(id, titre, getAllMessagesForGivenTicket(id));
@@ -979,5 +1032,43 @@ public class DatabaseManager {
         }
 
         return users;
+    }
+
+    public Ticket relatedMessageTicket(Long id) throws SQLException {
+
+        final String query = String.format(
+                "SELECT DISTINCT %s.* " +
+                        "FROM %s, %s " +
+                        "WHERE %s.%s = '%s' " +
+                        "AND %s.%s = %s.%s",
+                TABLE_NAME_TICKET,
+                TABLE_NAME_TICKET, TABLE_NAME_MESSAGE,
+                TABLE_NAME_MESSAGE, MESSAGE_ID, id,
+                TABLE_NAME_TICKET, TICKET_ID, TABLE_NAME_MESSAGE, MESSAGE_TICKET_ID
+        );
+
+        ResultSet set = databaseConnection.createStatement().executeQuery(query);
+        if (set.next()) {
+            return new Ticket(set.getLong(TICKET_ID), set.getString(TICKET_TITRE), new TreeSet<>());
+        }
+
+        return null;
+
+    }
+
+    public void setMessageReceived(Message message, Utilisateur user) throws SQLException {
+
+        String request = String.format(
+                "DELETE FROM %s " +
+                        "WHERE %s.%s = '%s' " +
+                        "AND %s.%s = '%s'",
+                TABLE_NAME_RECU,
+                TABLE_NAME_RECU, RECU_MESSAGE_ID, message.getID(),
+                TABLE_NAME_RECU, RECU_UTILISATEUR_ID, user.getID()
+        );
+
+        Statement statement = databaseConnection.createStatement();
+        statement.executeUpdate(request);
+
     }
 }

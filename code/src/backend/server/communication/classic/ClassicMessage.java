@@ -31,22 +31,32 @@ public class ClassicMessage extends CommunicationMessage {
     public final static String TYPE_DELETE = "deletion";
     public final static String TYPE_ADD = "add";
     public final static String TYPE_UPDATE = "update";
+    public final static String TYPE_MESSAGE_RECEIVED = "message_received";
+    private static final String TYPE_TICKET_CLICKED = "ticket_clicked";
+    private static final String TYPE_TABLE_MODEL = "table_model";
+    private static final String TYPE_TABLE_MODEL_REQUEST = "model_request";
+    private static final String TYPE_REQUEST_EVERYTHING = "request_everything";
+
+
     public static final String CONNECTION_INE = "ine";
     public static final String CONNECTION_PASSWORD = "password";
+
     public static final String TICKET_TITLE = "title";
     public static final String TICKET_MESSAGE = "message";
     public static final String TICKET_GROUP = "group";
+
     public static final String MESSAGE_TICKET_ID = "ticketid";
     public static final String MESSAGE_CONTENTS = "contents";
+
     public static final String RESPONSE_VALUE = "value";
     public static final String RESPONSE_SUCCESS = "success";
     public static final String RESPONSE_ERROR = "error";
     public static final String RESPONSE_REASON = "reason";
+
     public static final String LOCAL_UPDATE_DATE = "contents";
+
     public static final String MESSAGE_UPDATE_CONTENT = "contents";
-    private static final String TYPE_TICKET_CLICKED = "ticket_clicked";
-    private static final String TYPE_TABLE_MODEL = "table_model";
-    private static final String TYPE_TABLE_MODEL_REQUEST = "model_request";
+
     private static final String TICKET_CLICKED_ID = "id";
     private static final String TICKET_CLICKED_RESPONSE_CONTENTS = "contents";
     private static final String TICKET_RESPONSE_NULL = "null";
@@ -58,6 +68,7 @@ public class ClassicMessage extends CommunicationMessage {
     private static final String RELATED_GROUPS = "related_groups";
     private static final String ALL_GROUPS = "all_groups";
     private static final String USERS = "users";
+    private static final String MESSAGE_RECEIVED = "message_received";
 
 
     private final CLASSIC_MESSAGE_TYPE CLASSICMESSAGE_type;
@@ -334,6 +345,29 @@ public class ClassicMessage extends CommunicationMessage {
 
     }
 
+    public static ClassicMessage createRequestEverything() {
+
+        ClassicMessage message = new ClassicMessage(CLASSIC_MESSAGE_TYPE.REQUEST_EVERYTHING, TYPE_REQUEST_EVERYTHING);
+
+        return message;
+
+    }
+
+    public static ClassicMessage createMessageReceived(ArrayList<Message> received) {
+
+        ClassicMessage message = new ClassicMessage(CLASSIC_MESSAGE_TYPE.MESSAGE_RECEIVED, TYPE_MESSAGE_RECEIVED);
+
+        JSONArray array = new JSONArray();
+        for (Message s : received) {
+            array.put(s.toJSON());
+        }
+
+        message.addData(MESSAGE_RECEIVED, array);
+
+        return message;
+
+    }
+
     public static ClassicMessage createTableModel
             (List<Utilisateur> users, List<Groupe> groups, List<Ticket> tickets, List<Message> messages) {
 
@@ -431,6 +465,12 @@ public class ClassicMessage extends CommunicationMessage {
 
             case TYPE_TABLE_MODEL_REQUEST:
                 return CLASSIC_MESSAGE_TYPE.TABLE_MODEL_REQUEST;
+
+            case TYPE_REQUEST_EVERYTHING:
+                return CLASSIC_MESSAGE_TYPE.REQUEST_EVERYTHING;
+
+            case TYPE_MESSAGE_RECEIVED:
+                return CLASSIC_MESSAGE_TYPE.MESSAGE_RECEIVED;
 
 
             default:
@@ -665,7 +705,7 @@ public class ClassicMessage extends CommunicationMessage {
     }
 
     public Ticket getEntryRelatedTicket() {
-        return new Ticket(getData().getJSONObject(RELATED_TICKETS));
+        return new Ticket(new JSONObject(getData().getString(RELATED_TICKETS)));
     }
 
     public UserModel getTableModelUserModel() {
@@ -706,5 +746,15 @@ public class ClassicMessage extends CommunicationMessage {
         }
 
         return new MessageModel(messages);
+    }
+
+    public ArrayList<Message> getMessagesReceived() {
+        JSONArray array = getData().getJSONArray(MESSAGE_RECEIVED);
+        ArrayList<Message> received = new ArrayList<>();
+        for (int i = 0; i < array.length(); ++i) {
+            received.add(new Message(array.getJSONObject(i)));
+        }
+
+        return received;
     }
 }

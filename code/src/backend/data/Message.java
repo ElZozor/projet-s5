@@ -1,13 +1,14 @@
 package backend.data;
 
+import debug.Debugger;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Date;
-import java.util.TreeSet;
 
 import static backend.database.Keys.*;
 
@@ -19,26 +20,29 @@ public class Message extends ProjectTable implements Comparable<Message> {
     private Date mHeureEnvoie;
     private String mContenu;
     private String mUtilisateur;
-    private TreeSet<String> mHaveToRead;
+    private ArrayList<String> mHaveToRead;
+    private ArrayList<String> mHaveToReceive;
 
 
-    public Message(Long id, Long utilisateurID, Long ticketID, Date date, String contenu, TreeSet<String> haveToRead) {
+    public Message(Long id, Long utilisateurID, Long ticketID, Date date, String contenu, ArrayList<String> haveToRead, ArrayList<String> haveToReceive) {
         mID = id;
         mUtilisateurID = utilisateurID;
         mTicketID = ticketID;
         mHeureEnvoie = date;
         mContenu = contenu;
         mHaveToRead = haveToRead;
+        mHaveToReceive = haveToReceive;
     }
 
 
-    public Message(ResultSet set, TreeSet<String> haveToRead) throws SQLException {
+    public Message(ResultSet set, ArrayList<String> haveToRead, ArrayList<String> haveToReceive) throws SQLException {
         mID = set.getLong(1);
         mUtilisateurID = set.getLong(5);
         mTicketID = set.getLong(4);
         mHeureEnvoie = set.getTimestamp(3);
         mContenu = set.getString(2);
         mHaveToRead = haveToRead;
+        mHaveToReceive = haveToReceive;
     }
 
     public Message(JSONObject json) {
@@ -48,10 +52,16 @@ public class Message extends ProjectTable implements Comparable<Message> {
         mHeureEnvoie = new Date(json.getLong(MESSAGE_HEURE_ENVOIE));
         mContenu = json.getString(MESSAGE_CONTENU);
 
-        mHaveToRead = new TreeSet<>();
+        mHaveToRead = new ArrayList<>();
         JSONArray array = json.getJSONArray("have_to_read");
         for (int i = 0; i < array.length(); ++i) {
             mHaveToRead.add(array.getString(i));
+        }
+
+        mHaveToReceive = new ArrayList<>();
+        array = json.getJSONArray("have_to_receive");
+        for (int i = 0; i < array.length(); ++i) {
+            mHaveToReceive.add(array.getString(i));
         }
     }
 
@@ -68,8 +78,14 @@ public class Message extends ProjectTable implements Comparable<Message> {
         for (String s : mHaveToRead) {
             array.put(s);
         }
-
         json.put("have_to_read", array);
+
+
+        array = new JSONArray();
+        for (String s : mHaveToReceive) {
+            array.put(s);
+        }
+        json.put("have_to_receive", array);
 
         return json;
     }
@@ -95,8 +111,10 @@ public class Message extends ProjectTable implements Comparable<Message> {
     }
 
     public int state() {
-        if (mHaveToRead == null) {
-            return 0;
+        if (mHaveToRead == null || mHaveToReceive == null) {
+            return 1;
+        } else if (mHaveToReceive.size() > 0) {
+            return 2;
         } else if (mHaveToRead.size() > 0) {
             return 3;
         } else {
@@ -105,29 +123,44 @@ public class Message extends ProjectTable implements Comparable<Message> {
     }
 
     public String getFormattedState() {
-        if (mHaveToRead != null) {
-            if (mHaveToRead.isEmpty()) {
-                return "Tous les utilisateurs ont vus ce message.";
-            }
+        Debugger.logMessage("Utilisateur", "Non recus : " + mHaveToReceive + "\n" +
+                "Non vus : " + mHaveToRead);
+        StringBuilder builder = new StringBuilder();
 
-            StringBuilder builder = new StringBuilder();
-            builder.append("Doit être lu par:\n");
-            for (String s : mHaveToRead) {
-                builder.append("-").append(s).append("\n");
+        if (mHaveToReceive != null) {
+            if (mHaveToReceive.isEmpty()) {
+                builder.append("Tous les utilisateurs ont reçu ce message");
+            } else {
+                builder.append("Doit être reçu par:\n");
+                for (String s : mHaveToReceive) {
+                    builder.append("-> ").append(s).append("\n");
+                }
             }
-
-            return builder.toString();
         }
 
-        return "Aucune info disponible sur ce message.";
+        if (mHaveToRead != null) {
+            if (mHaveToRead.isEmpty()) {
+                builder.append("Tous les utilisateurs ont vus ce message.");
+            } else {
+                builder.append("Doit être lu par:\n");
+                for (String s : mHaveToRead) {
+                    builder.append("-> ").append(s).append("\n");
+                }
+            }
+        }
+
+        return builder.toString();
     }
 
     @Override
     public int compareTo(@NotNull Message message) {
-        if (this.getID().compareTo(message.getID()) == 0) {
+        int idComparison = this.getID().compareTo(message.getID());
+        if (idComparison == 0) {
             return 0;
         }
-        return this.getHeureEnvoie().compareTo(message.getHeureEnvoie());
+
+        int dateComparison = this.getHeureEnvoie().compareTo(message.getHeureEnvoie());
+        return (dateComparison == 0 ? idComparison : dateComparison);
     }
 
     @Override

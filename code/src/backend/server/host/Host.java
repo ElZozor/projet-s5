@@ -11,6 +11,7 @@ import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -23,6 +24,7 @@ public class Host extends Thread {
     public static Boolean isRunning = false;
     private static HashMap<String, HashSet<Server>> clientsByGroups = new HashMap<>();
     private static HashMap<Long, Server> clientsByID = new HashMap<>();
+    private static ArrayList<Server> admins = new ArrayList<>();
     private SSLServerSocket mServerSocket;
 
     public Host() throws IOException {
@@ -46,6 +48,7 @@ public class Host extends Thread {
         }
 
         clientsByID.remove(clientID);
+        admins.remove(client);
     }
 
     public static void broadcastToGroup(final ClassicMessage message, final String group) {
@@ -60,6 +63,14 @@ public class Host extends Thread {
                 }
             }
         }
+
+        for (Server server : admins) {
+            try {
+                server.sendData(message);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     public static void broadcast(final ClassicMessage message) {
@@ -67,6 +78,14 @@ public class Host extends Thread {
         for (Server s : clients) {
             try {
                 s.sendData(message);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        for (Server server : admins) {
+            try {
+                server.sendData(message);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -90,6 +109,14 @@ public class Host extends Thread {
                 e.printStackTrace();
             }
         }
+    }
+
+    public static void addAdmin(Server server) {
+        admins.add(server);
+    }
+
+    public static void removeAdmin(Server server) {
+        admins.remove(server);
     }
 
     @Override

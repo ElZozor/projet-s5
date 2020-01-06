@@ -8,7 +8,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.List;
-import java.util.ListIterator;
 
 public class TicketModel extends SearchableModel<Ticket> {
     private static final String[] columnNames = {
@@ -35,23 +34,6 @@ public class TicketModel extends SearchableModel<Ticket> {
 
     public TicketModel(List<Ticket> tickets) {
         elements.addAll(tickets);
-    }
-
-    public void addRow(Ticket newTicket) {
-        ListIterator<Ticket> iterator = elements.listIterator();
-
-        boolean inserted = false;
-        for (; iterator.hasNext() && !inserted; ) {
-            Ticket t = iterator.next();
-            if (t.getID() > newTicket.getID()) {
-                iterator.previous();
-                iterator.add(newTicket);
-
-                inserted = true;
-            }
-        }
-
-        elements.add(newTicket);
     }
 
     @Override

@@ -12,6 +12,7 @@ import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.awt.event.ItemEvent;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.TreeSet;
 
@@ -358,7 +359,7 @@ public class ServerUIPanel extends JPanel {
             parent.client.sendData(
                     ClassicMessage.createDeleteMessage(
                             TABLE_NAME_MESSAGE,
-                            new Message(id, 0L, 0L, new Date(0), "", new TreeSet<>())
+                            new Message(id, 0L, 0L, new Date(0), "", new ArrayList<>(), new ArrayList<>())
                     )
             );
         } catch (IOException e) {
