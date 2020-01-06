@@ -61,7 +61,9 @@ public interface Server {
                 throw new SocketDisconnectedException();
             }
 
-            return new ClassicMessage(line);
+            ClassicMessage message = new ClassicMessage(line);
+            Debugger.logColorMessage(Debugger.GREEN, "Server", "Received data: \n" + message.toFormattedString());
+            return message;
         } catch (SocketTimeoutException e) {
             System.out.println("Socket read timeout !");
         }

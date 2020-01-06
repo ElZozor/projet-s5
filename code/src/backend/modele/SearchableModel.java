@@ -49,4 +49,9 @@ public abstract class SearchableModel<T extends ProjectTable> implements TableMo
         System.out.println(index);
         return elements.get(index);
     }
+
+    public void updateEntry(T updatedEntry) {
+        elements.remove(updatedEntry);
+        elements.add(updatedEntry);
+    }
 }

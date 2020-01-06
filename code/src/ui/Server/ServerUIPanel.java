@@ -1,8 +1,8 @@
 package ui.Server;
 
-import backend.data.ProjectTable;
-import backend.database.DatabaseManager;
+import backend.data.*;
 import backend.modele.*;
+import backend.server.communication.classic.ClassicMessage;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
@@ -11,8 +11,11 @@ import java.awt.*;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.awt.event.ItemEvent;
-import java.security.NoSuchAlgorithmException;
-import java.sql.SQLException;
+import java.io.IOException;
+import java.util.Date;
+import java.util.TreeSet;
+
+import static backend.database.Keys.*;
 
 public class ServerUIPanel extends JPanel {
 
@@ -43,11 +46,13 @@ public class ServerUIPanel extends JPanel {
         initialize();
     }
 
-    public static void updateModels(UserModel userModel, GroupModel groupModel, TicketModel ticketModel, MessageModel messageModel) {
+    public void updateModels(UserModel userModel, GroupModel groupModel, TicketModel ticketModel, MessageModel messageModel) {
         userTableModel = userModel;
         groupTableModel = groupModel;
         ticketTableModel = ticketModel;
         messageTableModel = messageModel;
+
+        updateModelTable();
     }
 
     private void initialize() {
@@ -74,26 +79,7 @@ public class ServerUIPanel extends JPanel {
         table_selector.addItemListener(itemEvent -> {
             if (itemEvent.getStateChange() == ItemEvent.SELECTED) {
                 searchModel = null;
-                search_bar.setText("");
-                String selection = (String) itemEvent.getItem();
-
-                switch (selection) {
-                    case "Utilisateur":
-                        setUserModel();
-                        break;
-
-                    case "Groupe":
-                        setGroupModel();
-                        break;
-
-                    case "Ticket":
-                        setTicketModel();
-                        break;
-
-                    case "Message":
-                        setMessageModel();
-                        break;
-                }
+                updateModelTable();
             }
         });
 
@@ -166,31 +152,24 @@ public class ServerUIPanel extends JPanel {
 
             final String selected_table = (String) table_selector.getSelectedItem();
 
-            boolean deleted = false;
             if (selected_table != null) {
                 switch (selected_table) {
                     case "Utilisateur":
-                        deleted = delUser(id);
+                        delUser(id);
                         break;
 
                     case "Groupe":
-                        deleted = delGroup(id);
+                        delGroup(id);
                         break;
 
                     case "Ticket":
-                        deleted = delTicket(id);
+                        delTicket(id);
                         break;
 
                     case "Message":
-                        deleted = delMessage(id);
+                        delMessage(id);
                         break;
                 }
-            }
-
-            if (deleted) {
-                System.out.println("deleting..");
-                currentModel.removeEntry(id);
-                table.updateUI();
             }
         });
 
@@ -227,6 +206,32 @@ public class ServerUIPanel extends JPanel {
             }
         });
 
+    }
+
+    private void updateModelTable() {
+        search_bar.setText("");
+        String selection = (String) table_selector.getSelectedItem();
+        if (selection == null) {
+            return;
+        }
+
+        switch (selection) {
+            case "Utilisateur":
+                setUserModel();
+                break;
+
+            case "Groupe":
+                setGroupModel();
+                break;
+
+            case "Ticket":
+                setTicketModel();
+                break;
+
+            case "Message":
+                setMessageModel();
+                break;
+        }
     }
 
     private void initTopPanel() {
@@ -309,45 +314,61 @@ public class ServerUIPanel extends JPanel {
     }
 
 
-    private boolean delUser(Long id) {
+    private void delUser(Long id) {
         try {
-            return DatabaseManager.getInstance().deleteUser(id);
-        } catch (NoSuchAlgorithmException | SQLException e) {
+            parent.client.sendData(
+                    ClassicMessage.createDeleteMessage(
+                            TABLE_NAME_UTILISATEUR,
+                            new Utilisateur(id, "", "", "", "")
+                    )
+            );
+        } catch (IOException e) {
             e.printStackTrace();
-
-            return false;
         }
     }
 
-    private boolean delGroup(Long id) {
+    private void delGroup(Long id) {
         try {
-            return DatabaseManager.getInstance().deleteGroup(id);
-        } catch (NoSuchAlgorithmException | SQLException e) {
+            parent.client.sendData(
+                    ClassicMessage.createDeleteMessage(
+                            TABLE_NAME_GROUPE,
+                            new Groupe(id, "")
+                    )
+            );
+        } catch (IOException e) {
             e.printStackTrace();
-
-            return false;
         }
     }
 
-    private boolean delTicket(Long id) {
+    private void delTicket(Long id) {
         try {
-            return DatabaseManager.getInstance().deleteTicket(id);
-        } catch (NoSuchAlgorithmException | SQLException e) {
+            parent.client.sendData(
+                    ClassicMessage.createDeleteMessage(
+                            TABLE_NAME_TICKET,
+                            new Ticket(id, "", new TreeSet<>())
+                    )
+            );
+        } catch (IOException e) {
             e.printStackTrace();
-
-            return false;
         }
     }
 
-    private boolean delMessage(Long id) {
+    private void delMessage(Long id) {
         try {
-            return DatabaseManager.getInstance().deleteMessage(id);
-        } catch (NoSuchAlgorithmException | SQLException e) {
+            parent.client.sendData(
+                    ClassicMessage.createDeleteMessage(
+                            TABLE_NAME_MESSAGE,
+                            new Message(id, 0L, 0L, new Date(0), "", new TreeSet<>())
+                    )
+            );
+        } catch (IOException e) {
             e.printStackTrace();
-
-            return false;
         }
     }
 
 
+    public void update() {
+        updateModelTable();
+        table.updateUI();
+    }
 }

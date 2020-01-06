@@ -27,6 +27,7 @@ public class ServerUI extends InteractiveUI {
 
     private Container mainPanel;
     private Container secondPanel = null;
+    private ServerUIPanel uiPanel;
     public Client client;
 
     private UserModel userModel;
@@ -115,7 +116,20 @@ public class ServerUI extends InteractiveUI {
 
     private void initPanel() {
         Container pane = this.getContentPane();
-        pane.add(new ServerUIPanel(this), BorderLayout.CENTER);
+        uiPanel = new ServerUIPanel(this);
+        pane.add(uiPanel, BorderLayout.CENTER);
+    }
+
+
+    public void setAllModels(UserModel userModel, GroupModel groupModel, TicketModel ticketModel, MessageModel messageModel) {
+        this.userModel = userModel;
+        this.groupModel = groupModel;
+        this.ticketModel = ticketModel;
+        this.messageModel = messageModel;
+
+
+        Debugger.logMessage("ServerUI", "Sending all of theses models to the panel");
+        uiPanel.updateModels(userModel, groupModel, ticketModel, messageModel);
     }
 
     @Override
@@ -130,32 +144,46 @@ public class ServerUI extends InteractiveUI {
 
     @Override
     public void updateGroupe(Groupe entryAsGroupe) {
-
+        groupModel.updateEntry(entryAsGroupe);
     }
 
     @Override
-    public void updateTicket(Long entryRelatedGroup, Ticket entryAsTicket) {
-
+    public void updateTicket(Groupe entryRelatedGroup, Ticket entryAsTicket) {
+        ticketModel.updateEntry(entryAsTicket);
     }
 
     @Override
-    public void updateMessage(Long entryRelatedGroup, Long entryRelatedTicket, Message entryAsMessage) {
+    public void updateMessage(Groupe entryRelatedGroup, Ticket entryRelatedTicket, Message entryAsMessage) {
+        messageModel.updateEntry(entryAsMessage);
+    }
 
+    public void updateUser(Utilisateur user) {
+        userModel.updateEntry(user);
+        uiPanel.update();
+    }
+
+    @Override
+    public void deleteUser(Utilisateur entryAsUser) {
+        userModel.removeEntry(entryAsUser.getID());
+        uiPanel.update();
     }
 
     @Override
     public void deleteGroupe(Groupe entryAsGroupe) {
-
+        groupModel.removeEntry(entryAsGroupe.getID());
+        uiPanel.update();
     }
 
     @Override
-    public void deleteTicket(Long entryRelatedGroup, Ticket entryAsTicket) {
-
+    public void deleteTicket(Groupe entryRelatedGroup, Ticket entryAsTicket) {
+        ticketModel.removeEntry(entryAsTicket.getID());
+        uiPanel.update();
     }
 
     @Override
-    public void deleteMessage(Long entryRelatedGroup, Long entryRelatedTicket, Message entryAsMessage) {
-
+    public void deleteMessage(Groupe entryRelatedGroup, Ticket entryRelatedTicket, Message entryAsMessage) {
+        messageModel.removeEntry(entryAsMessage.getID());
+        uiPanel.update();
     }
 
     @Override
@@ -164,23 +192,23 @@ public class ServerUI extends InteractiveUI {
     }
 
     @Override
-    public void addTicket(Long relatedGroupEntry, Ticket entryAsTicket) {
+    public void addTicket(Groupe relatedGroupEntry, Ticket entryAsTicket) {
 
     }
 
     @Override
-    public void addMessage(Long entryRelatedGroup, Long entryRelatedTicket, Message entryAsMessage) {
+    public void addMessage(Groupe entryRelatedGroup, Ticket entryRelatedTicket, Message entryAsMessage) {
 
     }
 
-    public void setAllModels(UserModel userModel, GroupModel groupModel, TicketModel ticketModel, MessageModel messageModel) {
-        this.userModel = userModel;
-        this.groupModel = groupModel;
-        this.ticketModel = ticketModel;
-        this.messageModel = messageModel;
+    @Override
+    public void dispose() {
+        super.dispose();
 
-
-        Debugger.logMessage("ServerUI", "Sending all of theses models to the panel");
-        ServerUIPanel.updateModels(userModel, groupModel, ticketModel, messageModel);
+        try {
+            client.disconnect();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }

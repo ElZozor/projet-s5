@@ -10,10 +10,10 @@ import java.util.TreeSet;
 public class Tests {
 
     public static void main(String[] args) {
-        Message messageGrpOH1 = new Message(1l, 1l, 1l, new Date(1), "message1");
-        Message messageGrpOH2 = new Message(2l, 1l, 1l, new Date(3), "message2");
-        Message messageGrpAH1 = new Message(3l, 2l, 2l, new Date(2), "message 1 bis");
-        Message messageGrpAH2 = new Message(1l, 1l, 2l, new Date(3), "message 2 bis");
+        Message messageGrpOH1 = new Message(1l, 1l, 1l, new Date(1), "message1", new TreeSet<>());
+        Message messageGrpOH2 = new Message(2l, 1l, 1l, new Date(3), "message2", new TreeSet<>());
+        Message messageGrpAH1 = new Message(3l, 2l, 2l, new Date(2), "message 1 bis", new TreeSet<>());
+        Message messageGrpAH2 = new Message(1l, 1l, 2l, new Date(3), "message 2 bis", new TreeSet<>());
 
         TreeSet<Message> oh = new TreeSet<>();
         oh.add(messageGrpOH1);

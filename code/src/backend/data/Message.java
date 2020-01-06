@@ -1,11 +1,13 @@
 package backend.data;
 
 import org.jetbrains.annotations.NotNull;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Date;
+import java.util.TreeSet;
 
 import static backend.database.Keys.*;
 
@@ -17,23 +19,26 @@ public class Message extends ProjectTable implements Comparable<Message> {
     private Date mHeureEnvoie;
     private String mContenu;
     private String mUtilisateur;
+    private TreeSet<String> mHaveToRead;
 
 
-    public Message(Long id, Long utilisateurID, Long ticketID, Date date, String contenu) {
+    public Message(Long id, Long utilisateurID, Long ticketID, Date date, String contenu, TreeSet<String> haveToRead) {
         mID = id;
         mUtilisateurID = utilisateurID;
         mTicketID = ticketID;
         mHeureEnvoie = date;
         mContenu = contenu;
+        mHaveToRead = haveToRead;
     }
 
 
-    public Message(ResultSet set) throws SQLException {
+    public Message(ResultSet set, TreeSet<String> haveToRead) throws SQLException {
         mID = set.getLong(1);
         mUtilisateurID = set.getLong(5);
         mTicketID = set.getLong(4);
         mHeureEnvoie = set.getTimestamp(3);
         mContenu = set.getString(2);
+        mHaveToRead = haveToRead;
     }
 
     public Message(JSONObject json) {
@@ -42,6 +47,12 @@ public class Message extends ProjectTable implements Comparable<Message> {
         mTicketID = json.getLong(MESSAGE_TICKET_ID);
         mHeureEnvoie = new Date(json.getLong(MESSAGE_HEURE_ENVOIE));
         mContenu = json.getString(MESSAGE_CONTENU);
+
+        mHaveToRead = new TreeSet<>();
+        JSONArray array = json.getJSONArray("have_to_read");
+        for (int i = 0; i < array.length(); ++i) {
+            mHaveToRead.add(array.getString(i));
+        }
     }
 
     public JSONObject toJSON() {
@@ -52,6 +63,13 @@ public class Message extends ProjectTable implements Comparable<Message> {
         json.put(MESSAGE_HEURE_ENVOIE, getHeureEnvoie().getTime());
         json.put(MESSAGE_CONTENU, getContenu());
         json.put(MESSAGE_TICKET_ID, getTicketID());
+
+        JSONArray array = new JSONArray();
+        for (String s : mHaveToRead) {
+            array.put(s);
+        }
+
+        json.put("have_to_read", array);
 
         return json;
     }
@@ -76,14 +94,40 @@ public class Message extends ProjectTable implements Comparable<Message> {
         return mContenu;
     }
 
-    @Override
-    public int compareTo(@NotNull Message message) {
-        int comparison = this.getHeureEnvoie().compareTo(message.getHeureEnvoie());
-        if (comparison == 0) {
-            return this.getID().compareTo(message.getID());
+    public int state() {
+        if (mHaveToRead == null) {
+            return 0;
+        } else if (mHaveToRead.size() > 0) {
+            return 3;
+        } else {
+            return 4;
+        }
+    }
+
+    public String getFormattedState() {
+        if (mHaveToRead != null) {
+            if (mHaveToRead.isEmpty()) {
+                return "Tous les utilisateurs ont vus ce message.";
+            }
+
+            StringBuilder builder = new StringBuilder();
+            builder.append("Doit être lu par:\n");
+            for (String s : mHaveToRead) {
+                builder.append("-").append(s).append("\n");
+            }
+
+            return builder.toString();
         }
 
-        return comparison;
+        return "Aucune info disponible sur ce message.";
+    }
+
+    @Override
+    public int compareTo(@NotNull Message message) {
+        if (this.getID().compareTo(message.getID()) == 0) {
+            return 0;
+        }
+        return this.getHeureEnvoie().compareTo(message.getHeureEnvoie());
     }
 
     @Override

@@ -5,8 +5,6 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.NoSuchElementException;
-import java.util.Set;
-import java.util.SortedSet;
 import java.util.TreeSet;
 
 import static backend.database.Keys.TICKET_ID;
@@ -16,7 +14,7 @@ public class Ticket extends ProjectTable implements Comparable<Ticket> {
 
     private static final String KEY_MESSAGES = "messages";
     private String mTitre;
-    private SortedSet<Message> mMessages = new TreeSet<>();
+    private TreeSet<Message> mMessages = new TreeSet<>();
     private Long mID;
 
     public Ticket(JSONObject ticket) {
@@ -30,12 +28,12 @@ public class Ticket extends ProjectTable implements Comparable<Ticket> {
         }
     }
 
-    public Ticket(String titre, SortedSet<Message> messages) throws NoSuchElementException {
+    public Ticket(String titre, TreeSet<Message> messages) throws NoSuchElementException {
         mMessages = messages;
         mTitre = titre;
     }
 
-    public Ticket(Long id, String titre, SortedSet<Message> messages) throws NoSuchElementException {
+    public Ticket(Long id, String titre, TreeSet<Message> messages) throws NoSuchElementException {
         mID = id;
         mMessages = messages;
         mTitre = titre;
@@ -57,8 +55,12 @@ public class Ticket extends ProjectTable implements Comparable<Ticket> {
         return ticketAsJSON;
     }
 
-    public Set<Message> getMessages() {
+    public TreeSet<Message> getMessages() {
         return mMessages;
+    }
+
+    public void setMessage(TreeSet<Message> message) {
+        mMessages = message;
     }
 
     public Long getID() {
@@ -70,11 +72,19 @@ public class Ticket extends ProjectTable implements Comparable<Ticket> {
     }
 
     public Message premierMessage() {
-        return mMessages.first();
+        if (mMessages.size() > 0) {
+            return mMessages.first();
+        }
+
+        return null;
     }
 
     public Message dernierMessage() {
-        return mMessages.last();
+        if (mMessages.size() > 0) {
+            return mMessages.last();
+        }
+
+        return null;
     }
 
     public void addMessage(Message message) {
@@ -83,12 +93,12 @@ public class Ticket extends ProjectTable implements Comparable<Ticket> {
 
     @Override
     public int compareTo(@NotNull Ticket ticket) {
-        int comparison = this.getTitre().compareTo(ticket.getTitre());
+        int comparison = getID().compareTo(ticket.getID());
         if (comparison == 0) {
-            return getID().compareTo(ticket.getID());
+            return comparison;
         }
 
-        return comparison;
+        return this.getTitre().compareTo(ticket.getTitre());
     }
 
     @Override
@@ -107,5 +117,18 @@ public class Ticket extends ProjectTable implements Comparable<Ticket> {
         }
 
         return false;
+    }
+
+    public int getNotSeenMessages() {
+        int result = 0;
+        if (mMessages != null) {
+            for (Message message : mMessages) {
+                if (message.state() < 4) {
+                    ++result;
+                }
+            }
+        }
+
+        return result;
     }
 }

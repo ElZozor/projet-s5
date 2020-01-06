@@ -24,7 +24,8 @@ public class TicketTree extends JPanel {
 
     private void initPanel(TreeSet<Groupe> groupes) {
         groupeModel = new GroupeTreeModel(groupes);
-        ticketTree = new JTree(groupeModel);
+        ticketTree = new JTree(new TicketTreeObject(new DefaultMutableTreeNode(groupes)));
+        ticketTree.setCellRenderer(new TicketTreeRenderer());
 
         scrollPane = new JScrollPane();
         scrollPane.setViewportView(ticketTree);
@@ -33,17 +34,20 @@ public class TicketTree extends JPanel {
 
 
         ticketTree.addTreeSelectionListener(tsl -> {
-            DefaultMutableTreeNode node = (DefaultMutableTreeNode) ticketTree.getLastSelectedPathComponent();
+            Object node = ticketTree.getLastSelectedPathComponent();
 
             if (node == null) {
                 return;
             }
 
-            Object nodeInfo = node.getUserObject();
             if (listener != null) {
-                listener.selected(nodeInfo);
+                listener.selected(node);
             }
         });
+    }
+
+    public void updateTree(TreeSet<Groupe> groupes) {
+        ((TicketTreeObject) ticketTree.getModel()).reload();
     }
 
     public void addTreeSelectionListener(TreeItemSelectedListener isl) {

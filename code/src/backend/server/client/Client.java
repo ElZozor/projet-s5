@@ -3,6 +3,8 @@ package backend.server.client;
 
 import backend.data.Groupe;
 import backend.data.Ticket;
+import backend.data.Utilisateur;
+import backend.modele.UserModel;
 import backend.server.Server;
 import backend.server.communication.classic.ClassicMessage;
 import debug.Debugger;
@@ -10,6 +12,7 @@ import ui.InteractiveUI;
 import ui.Server.ServerUI;
 
 import javax.net.ssl.SSLSocket;
+import javax.swing.*;
 import java.io.*;
 import java.net.SocketException;
 import java.util.Date;
@@ -30,6 +33,8 @@ public class Client extends Thread implements Server {
 
     private InteractiveUI ui;
     private Boolean running = false;
+
+    private Utilisateur myUser;
 
     /**
      * This class is used on the client side.
@@ -99,6 +104,10 @@ public class Client extends Thread implements Server {
             returnedData = sendAndWaitForReturn(
                     ClassicMessage.createConnection(INE, password)
             );
+
+            if (returnedData != null && returnedData.isAck()) {
+                myUser = new Utilisateur(0L, "", "", INE, "");
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -186,6 +195,10 @@ public class Client extends Thread implements Server {
         if (ui instanceof ServerUI) {
             Debugger.logMessage("Client", "Table model received, sending to the ui");
             ServerUI serverUI = (ServerUI) ui;
+
+            final UserModel userModel = message.getTableModelUserModel();
+            myUser = userModel.getReferenceTo(myUser.getINE());
+
             serverUI.setAllModels(
                     message.getTableModelUserModel(),
                     message.getTableModelGroupModel(),
@@ -200,6 +213,16 @@ public class Client extends Thread implements Server {
     private void handleLocalUpdate(ClassicMessage message) {
         TreeSet<Groupe> relatedGroups = message.getLocalUpdateResponseRelatedGroups();
         TreeSet<String> allGroups = message.getLocalUpdateResponseAllGroups();
+        TreeSet<Utilisateur> users = message.getLocalUpdateResponseUsers();
+
+        for (Utilisateur user : users) {
+            if (user.getINE().equals(myUser.getINE())) {
+                myUser = user;
+                break;
+            }
+        }
+
+        Utilisateur.setInstances(users);
 
         ui.updateRelatedGroups(relatedGroups);
         ui.updateGroupsList(allGroups);
@@ -209,7 +232,7 @@ public class Client extends Thread implements Server {
     private void handleEntryAdded(ClassicMessage message) {
         switch (message.getTable()) {
             case TABLE_NAME_UTILISATEUR:
-//                ui.updateUtilisateur(message.getEntryAsUtilisateur());
+                Utilisateur.addInstance(message.getEntryAsUtilisateur());
                 break;
 
             case TABLE_NAME_GROUPE:
@@ -230,7 +253,20 @@ public class Client extends Thread implements Server {
     private void handleEntryDeleted(ClassicMessage message) {
         switch (message.getTable()) {
             case TABLE_NAME_UTILISATEUR:
-//                ui.deleteUtilisateur(message.getEntryAsUtilisateur());
+                Utilisateur user = message.getEntryAsUtilisateur();
+                Utilisateur.removeInstance(user.getID());
+
+                if (user.equals(myUser)) {
+                    JOptionPane.showMessageDialog(ui,
+                            "Votre utilisateur a été supprimé !",
+                            "Déconnexion",
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                    ui.dispose();
+
+                } else {
+                    ui.deleteUser(user);
+                }
                 break;
 
             case TABLE_NAME_GROUPE:
@@ -251,7 +287,16 @@ public class Client extends Thread implements Server {
     private void handleEntryUpdated(ClassicMessage message) {
         switch (message.getTable()) {
             case TABLE_NAME_UTILISATEUR:
-//                ui.updateUtilisateur(message.getEntryAsUtilisateur());
+                Utilisateur user = message.getEntryAsUtilisateur();
+                Utilisateur.updateInstance(user);
+                if (user.getID().equals(myUser.getID())) {
+                    myUser = user;
+                }
+
+                if (ui instanceof ServerUI) {
+                    ((ServerUI) ui).updateUser(user);
+                }
+
                 break;
 
             case TABLE_NAME_GROUPE:

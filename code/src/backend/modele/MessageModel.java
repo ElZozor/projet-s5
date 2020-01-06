@@ -9,6 +9,7 @@ import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.TreeSet;
 
 public class MessageModel extends SearchableModel<Message> {
     private static final String[] columnNames = {
@@ -23,7 +24,7 @@ public class MessageModel extends SearchableModel<Message> {
     public MessageModel(ResultSet set) {
         try {
             for (; set.next(); ) {
-                elements.add(new Message(set));
+                elements.add(new Message(set, new TreeSet<>()));
             }
         } catch (SQLException e) {
             e.printStackTrace();

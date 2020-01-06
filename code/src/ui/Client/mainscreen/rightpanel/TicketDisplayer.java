@@ -62,7 +62,7 @@ public class TicketDisplayer extends JPanel {
             for (Message message : ticket.getMessages()) {
                 GridBagConstraints gbc = new GridBagConstraints();
                 gbc.weightx = 1.0;
-                gbc.weighty = 1.0;
+                gbc.weighty = 0.0;
                 gbc.gridx = 0;
                 gbc.gridy = y++;
                 gbc.insets = new Insets(8, 8, 8, 8);
@@ -71,6 +71,14 @@ public class TicketDisplayer extends JPanel {
 
                 messagePanel.add(new MessagePanel(message), gbc);
             }
+
+            GridBagConstraints gbc = new GridBagConstraints();
+            gbc.weightx = 1.0;
+            gbc.weighty = 1.0;
+            gbc.gridx = 0;
+            gbc.gridy = y;
+
+            messagePanel.add(new JPanel(), gbc);
         }
 
     }

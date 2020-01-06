@@ -30,6 +30,7 @@ public class DatabaseManager {
     private static DatabaseManager mDatabase;
     private Connection databaseConnection;
     private MessageDigest digest = MessageDigest.getInstance("SHA-256");
+
     private DatabaseManager() throws SQLException, NoSuchAlgorithmException {
         try {
             Class.forName("com.mysql.jdbc.Driver");
@@ -41,6 +42,10 @@ public class DatabaseManager {
         databaseConnection = DriverManager.getConnection(DB_URL, username, password);
     }
 
+    public static void initDatabaseConnection() throws SQLException, NoSuchAlgorithmException {
+        mDatabase = new DatabaseManager();
+    }
+
     /**
      * As this class is a Singleton, this function returns
      * the unique instance of this class.
@@ -48,11 +53,7 @@ public class DatabaseManager {
      * @return An instance of DataBaseManager
      * @throws SQLException Can throw an exception if the database can't be reached
      */
-    public static DatabaseManager getInstance() throws SQLException, NoSuchAlgorithmException {
-        if (mDatabase == null) {
-            mDatabase = new DatabaseManager();
-        }
-
+    public static DatabaseManager getInstance() {
         return mDatabase;
     }
 
@@ -150,7 +151,7 @@ public class DatabaseManager {
 
         PreparedStatement statement = databaseConnection.prepareStatement(request);
 
-        return statement.execute();
+        return statement.executeUpdate() > 0;
     }
 
     /**
@@ -257,6 +258,29 @@ public class DatabaseManager {
         return statement.executeUpdate() > 0;
     }
 
+    public TreeSet<String> getRemainingReadUsernames(Long id) throws SQLException {
+        TreeSet<String> result = new TreeSet<>();
+
+        final Statement statement = databaseConnection.createStatement();
+        final String query = String.format(
+                "SELECT %s.%s " +
+                        "FROM %s, %s " +
+                        "WHERE %s.%s = '%s' " +
+                        "AND %s.%s = %s.%s",
+                TABLE_NAME_UTILISATEUR, UTILISATEUR_NOM,
+                TABLE_NAME_UTILISATEUR, TABLE_NAME_VU,
+                TABLE_NAME_VU, VU_MESSAGE_ID, id,
+                TABLE_NAME_UTILISATEUR, UTILISATEUR_ID, TABLE_NAME_VU, VU_UTILISATEUR_ID
+        );
+
+        ResultSet set = statement.executeQuery(query);
+        while (set.next()) {
+            result.add(set.getString(UTILISATEUR_NOM));
+        }
+
+        return result;
+
+    }
 
     public Message insertNewMessage(final String contenu, final long ticketid, final long userID) throws SQLException {
         // Message creation in the "message" table
@@ -288,8 +312,9 @@ public class DatabaseManager {
 
         result.next();
         final Date postDate = result.getTimestamp(MESSAGE_HEURE_ENVOIE);
+        final int state = result.getInt(MESSAGE_STATE);
 
-        Message resultingMessage = new Message(id, userID, ticketid, postDate, contenu);
+        Message resultingMessage = new Message(id, userID, ticketid, postDate, contenu, getRemainingReadUsernames(id));
         Debugger.logMessage("DatabaseManager", "Resulting message: " + resultingMessage.toJSON());
 
         return resultingMessage;
@@ -489,7 +514,7 @@ public class DatabaseManager {
         ArrayList<Message> result = new ArrayList<>();
         ResultSet set = statement.executeQuery(request);
         while (set.next()) {
-            result.add(new Message(set));
+            result.add(new Message(set, getRemainingReadUsernames(set.getLong(MESSAGE_ID))));
         }
 
         return result;
@@ -596,7 +621,7 @@ public class DatabaseManager {
             );
 
             Debugger.logMessage("updateExistingUserGroup", "Request: " + request);
-            statement.execute(request);
+            statement.executeUpdate(request);
 
 
             for (String g : groups.split(";")) {
@@ -631,6 +656,38 @@ public class DatabaseManager {
                 UTILISATEUR_NOM, name,
                 UTILISATEUR_PRENOM, surname,
                 UTILISATEUR_TYPE, type,
+                UTILISATEUR_ID, id
+        );
+
+        Boolean result = statement.executeUpdate(request) == 1;
+        updateExistingUserGroups(id, ine, groups);
+
+        return result;
+    }
+
+
+    public Boolean editExistingUser(long id, String ine, String name, String surname, String type, String groups, String password) throws SQLException {
+        if (containsNullOrEmpty(password)) {
+            Debugger.logMessage("DatabaseManager", "password is null or empty edditing the classic way");
+            return editExistingUser(id, ine, name, surname, type, groups);
+        }
+
+        Statement statement = databaseConnection.createStatement();
+        String request = String.format(
+                "UPDATE %s "
+                        + "SET "
+                        + "%s = '%s', "
+                        + "%s = '%s', "
+                        + "%s = '%s', "
+                        + "%s = '%s', "
+                        + "%s = '%s' "
+                        + "WHERE %s = '%s'",
+                TABLE_NAME_UTILISATEUR,
+                UTILISATEUR_INE, ine,
+                UTILISATEUR_NOM, name,
+                UTILISATEUR_PRENOM, surname,
+                UTILISATEUR_TYPE, type,
+                UTILISATEUR_MDP, hashPassword(password),
                 UTILISATEUR_ID, id
         );
 
@@ -683,7 +740,7 @@ public class DatabaseManager {
         TreeSet<Message> messages = new TreeSet<>();
 
         while (result.next()) {
-            messages.add(new Message(result));
+            messages.add(new Message(result, getRemainingReadUsernames(result.getLong(MESSAGE_ID))));
         }
 
         return messages;
@@ -873,5 +930,54 @@ public class DatabaseManager {
         }
 
         return 0L;
+    }
+
+    public void setMessagesFromTicketRead(Long ticketID, Long userID) throws SQLException {
+
+        Statement statement = databaseConnection.createStatement();
+
+        final String query = String.format(
+                "SELECT DISTINCT %s.%s FROM %s, %s, %s " +
+                        "WHERE %s.%s = '%s' " +
+                        "AND %s.%s = %s.%s AND " +
+                        "%s.%s = '%s'",
+                TABLE_NAME_VU, VU_MESSAGE_ID, TABLE_NAME_VU, TABLE_NAME_UTILISATEUR, TABLE_NAME_MESSAGE,
+                TABLE_NAME_MESSAGE, MESSAGE_TICKET_ID, ticketID,
+                TABLE_NAME_VU, VU_MESSAGE_ID, TABLE_NAME_MESSAGE, MESSAGE_ID,
+                TABLE_NAME_VU, UTILISATEUR_ID, userID
+        );
+
+        System.out.println(query);
+
+        ResultSet set = statement.executeQuery(query);
+        Statement other = databaseConnection.createStatement();
+        while (set.next()) {
+            Long messageID = set.getLong(VU_MESSAGE_ID);
+            final String update = String.format(
+                    "DELETE FROM %s WHERE %s.%s = '%s' AND %s.%s = '%s'",
+                    TABLE_NAME_VU, TABLE_NAME_VU, VU_MESSAGE_ID, messageID,
+                    TABLE_NAME_VU, VU_UTILISATEUR_ID, userID
+            );
+
+            other.execute(update);
+        }
+
+    }
+
+    public TreeSet<Utilisateur> getAllUsers() throws SQLException {
+        final TreeSet<Utilisateur> users = new TreeSet<>();
+        final String query = String.format(
+                "SELECT * FROM %s",
+                TABLE_NAME_UTILISATEUR
+        );
+
+        Statement statement = databaseConnection.createStatement();
+        ResultSet set = statement.executeQuery(query);
+
+        while (set.next()) {
+            users.add(new Utilisateur(set));
+        }
+
+        return users;
     }
 }

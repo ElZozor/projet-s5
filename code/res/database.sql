@@ -1,4 +1,5 @@
 drop table APPARTENIR;
+drop table RECU;
 drop table VU;
 drop table MESSAGE;
 drop table TICKET;
@@ -67,6 +68,7 @@ create TABLE MESSAGE (
     heure_envoi     DATETIME            NOT NULL DEFAULT CURRENT_TIMESTAMP,
     id_ticket       INT                 NOT NULL,
     id_util         INT                 NOT NULL,
+    state           INT                 NOT NULL DEFAULT 2,
 
     PRIMARY KEY(id_message),
     FOREIGN KEY(id_ticket)              REFERENCES TICKET(id_ticket)    ON delete CASCADE,
@@ -77,11 +79,22 @@ create TABLE MESSAGE (
     CONSTRAINT CK_contenu               CHECK  (contenu <> ''),
     CONSTRAINT CK_heure_envoi           CHECK  (heure_envoi <> ''),
     CONSTRAINT CK_id_ticket             CHECK  (id_ticket <> ''),
-    CONSTRAINT CK_id_util               CHECK  (id_util <> '')
+    CONSTRAINT CK_id_util               CHECK  (id_util <> ''),
+    CONSTRAINT CK_state                 CHECK  (state in (1, 2, 3))
 );
 
 
 create TABLE VU (
+
+    id_message      INT                 NOT NULL,
+    id_util         INT                 NOT NULL,
+
+    FOREIGN KEY(id_message)             REFERENCES MESSAGE(id_message)  ON delete CASCADE,
+    FOREIGN KEY(id_util)                REFERENCES UTILISATEUR(id_util) ON delete CASCADE
+
+);
+
+CREATE TABLE RECU (
 
     id_message      INT                 NOT NULL,
     id_util         INT                 NOT NULL,

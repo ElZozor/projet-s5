@@ -1,13 +1,13 @@
 package ui.Server;
 
 import backend.data.Utilisateur;
-import backend.database.DatabaseManager;
+import backend.server.communication.classic.ClassicMessage;
 
 import javax.swing.*;
 import java.awt.*;
-import java.security.NoSuchAlgorithmException;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.io.IOException;
+
+import static backend.database.Keys.TABLE_NAME_UTILISATEUR;
 
 public class EditUserPanel extends JPanel {
 
@@ -211,9 +211,7 @@ public class EditUserPanel extends JPanel {
     }
 
     private void setActionListeners() {
-        annulerButton.addActionListener(actionEvent -> {
-            parent.setMainPanel();
-        });
+        annulerButton.addActionListener(actionEvent -> parent.setMainPanel());
 
 
         enregistrerButton.addActionListener(actionEvent -> {
@@ -231,11 +229,7 @@ public class EditUserPanel extends JPanel {
         prenomField.setText(user.getPrenom());
         nomField.setText(user.getNom());
         typeField.setText(user.getType());
-        try {
-            groupField.setText(DatabaseManager.getInstance().relatedUserGroup(user.getINE()));
-        } catch (NoSuchAlgorithmException | SQLException e) {
-            e.printStackTrace();
-        }
+        groupField.setText(String.join(";", user.getGroups()));
     }
 
 
@@ -244,30 +238,26 @@ public class EditUserPanel extends JPanel {
         final String nom = nomField.getText();
         final String prenom = prenomField.getText();
         final String type = typeField.getText();
-        final String mdp = new String(mdpField.getPassword());
         final String groups = groupField.getText();
+        final String mdp = new String(mdpField.getPassword());
 
-        boolean success = false;
-        ResultSet result;
+
+        Utilisateur user = new Utilisateur(0, nom, prenom, INE, type);
+        user.setGroups(groups.split(";"));
+        user.setPassword(mdp);
+
         try {
-            result = DatabaseManager.getInstance().registerNewUser(INE, mdp, nom, prenom, type, groups);
-            success = (result != null) && result.next();
-
-            if (success) {
-                ServerUIPanel.userTableModel.addRow(new Utilisateur(result.getLong(1), nom, prenom, INE, type));
-            }
-        } catch (SQLException | NoSuchAlgorithmException e) {
+            parent.client.sendData(
+                    ClassicMessage.createAddMessage(
+                            TABLE_NAME_UTILISATEUR,
+                            user
+                    )
+            );
+        } catch (IOException e) {
             e.printStackTrace();
         }
 
-        if (success) {
-            JOptionPane.showMessageDialog(this, "Utilisateur ajouté avec succès !");
-            if (parent != null) {
-                parent.setMainPanel();
-            }
-        } else {
-            JOptionPane.showMessageDialog(this, "Impossible d'ajouter l'utilisateur");
-        }
+        parent.setMainPanel();
     }
 
 
@@ -277,27 +267,26 @@ public class EditUserPanel extends JPanel {
         final String prenom = prenomField.getText();
         final String type = typeField.getText();
         final String groups = groupField.getText();
+        final String mdp = new String(mdpField.getPassword());
 
-        boolean success = false;
-        try {
-            success = DatabaseManager.getInstance().editExistingUser(user.getID(), INE, nom, prenom, type, groups);
-        } catch (NoSuchAlgorithmException | SQLException e) {
-            e.printStackTrace();
+        if (user != null) {
+            Utilisateur edittedUser = new Utilisateur(user.getID(), nom, prenom, INE, type);
+            edittedUser.setGroups(groups.split(";"));
+            edittedUser.setPassword(mdp);
+
+            try {
+                parent.client.sendData(
+                        ClassicMessage.createUpdateMessage(
+                                TABLE_NAME_UTILISATEUR,
+                                edittedUser
+                        )
+                );
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
-        if (success) {
-            JOptionPane.showMessageDialog(this, "Utilisateur édité avec succès !");
-            user.setINE(INE);
-            user.setNom(nom);
-            user.setPrenom(prenom);
-            user.setType(type);
-        } else {
-            JOptionPane.showMessageDialog(this, "Impossible de modifier l'utilisateur");
-        }
-
-        if (parent != null) {
-            parent.setMainPanel();
-        }
+        parent.setMainPanel();
     }
 
 }

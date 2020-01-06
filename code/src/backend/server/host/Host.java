@@ -48,7 +48,7 @@ public class Host extends Thread {
         clientsByID.remove(clientID);
     }
 
-    public static void broadcast(final ClassicMessage message, final String group) {
+    public static void broadcastToGroup(final ClassicMessage message, final String group) {
         HashSet<Server> clients = clientsByGroups.get(group);
 
         if (clients != null) {
@@ -58,6 +58,17 @@ public class Host extends Thread {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
+            }
+        }
+    }
+
+    public static void broadcast(final ClassicMessage message) {
+        Collection<Server> clients = clientsByID.values();
+        for (Server s : clients) {
+            try {
+                s.sendData(message);
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
     }

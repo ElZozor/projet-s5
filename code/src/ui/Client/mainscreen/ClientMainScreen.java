@@ -3,6 +3,7 @@ package ui.Client.mainscreen;
 import backend.data.Groupe;
 import backend.data.Message;
 import backend.data.Ticket;
+import backend.data.Utilisateur;
 import backend.server.client.Client;
 import backend.server.communication.classic.ClassicMessage;
 import debug.Debugger;
@@ -114,6 +115,10 @@ public class ClientMainScreen extends InteractiveUI {
         leftPanel.updateUI();
     }
 
+    private void updateTree() {
+        ticketTree.updateTree(relatedGroups);
+    }
+
     private void elementSelectedOnTree(Object object) {
         boolean displayATicket = false;
         if (object instanceof Ticket) {
@@ -152,74 +157,111 @@ public class ClientMainScreen extends InteractiveUI {
                 allGroups.remove(old_label);
                 allGroups.add(entryAsGroupe.getLabel());
 
-                updateTicketTree();
+                updateTree();
 
                 return;
             }
         }
     }
 
-    public void updateTicket(Long entryRelatedGroup, Ticket entryAsTicket) {
-        for (Groupe groupe : relatedGroups) {
-            if (groupe.getID().equals(entryRelatedGroup)) {
-                groupe.getTickets().remove(entryAsTicket);
-                groupe.getTickets().add(entryAsTicket);
+    public void updateTicket(Groupe entryRelatedGroup, Ticket entryAsTicket) {
+        if (relatedGroups.contains(entryRelatedGroup)) {
+            for (Groupe groupe : relatedGroups) {
+                if (groupe.equals(entryRelatedGroup)) {
+                    if (entryAsTicket.equals(selectedTicket)) {
+                        updateTicketDisplayer(entryAsTicket);
+                    }
 
-                if (entryAsTicket.equals(selectedTicket)) {
-                    updateTicketDisplayer(selectedTicket);
+                    groupe.getTickets().remove(entryAsTicket);
+                    groupe.getTickets().add(entryAsTicket);
+
+
+                    updateTree();
+                    return;
                 }
-
-                updateTicketTree();
-                return;
             }
+        } else {
+            entryRelatedGroup.addTicket(entryAsTicket);
+            relatedGroups.add(entryRelatedGroup);
+            updateTree();
         }
     }
 
-    public void updateMessage(Long entryRelatedGroup, Long entryRelatedTicket, Message entryAsMessage) {
-        for (Groupe groupe : relatedGroups) {
-            if (groupe.getID().equals(entryRelatedGroup)) {
-                for (Ticket ticket : groupe.getTickets()) {
-                    if (ticket.getID().equals(entryRelatedTicket)) {
-                        Set<Message> messages = ticket.getMessages();
-                        messages.remove(entryAsMessage);
-                        messages.add(entryAsMessage);
+    public void updateMessage(Groupe entryRelatedGroup, Ticket entryRelatedTicket, Message entryAsMessage) {
+        if (relatedGroups.contains(entryRelatedGroup)) {
 
-                        if (ticket.equals(selectedTicket)) {
-                            updateTicketDisplayer(selectedTicket);
+            for (Groupe groupe : relatedGroups) {
+                if (groupe.equals(entryRelatedGroup)) {
+                    TreeSet<Ticket> tickets = groupe.getTickets();
+
+                    if (tickets.contains(entryRelatedTicket)) {
+                        for (Ticket ticket : tickets) {
+                            if (ticket.equals(entryRelatedTicket)) {
+                                Set<Message> messages = ticket.getMessages();
+                                messages.remove(entryAsMessage);
+                                messages.add(entryAsMessage);
+
+                                if (ticket.equals(selectedTicket)) {
+                                    updateTicketDisplayer(selectedTicket);
+                                }
+
+                                updateTree();
+
+                                return;
+                            }
                         }
+                    } else {
+                        entryRelatedTicket.addMessage(entryAsMessage);
+                        groupe.addTicket(entryRelatedTicket);
+                        updateTree();
 
                         return;
                     }
                 }
             }
+        } else {
+            entryRelatedTicket.addMessage(entryAsMessage);
+            entryRelatedGroup.addTicket(entryRelatedTicket);
+            relatedGroups.add(entryRelatedGroup);
+            updateTree();
+            return;
         }
     }
 
+    @Override
+    public void deleteUser(Utilisateur entryAsUser) {
+
+    }
+
     public void deleteGroupe(Groupe entryAsGroupe) {
+        Debugger.logMessage("ClientMainScreen",
+                "Delete following group: " + entryAsGroupe.toJSON() + " present : " + relatedGroups.contains(entryAsGroupe));
         relatedGroups.remove(entryAsGroupe);
         allGroups.remove(entryAsGroupe.getLabel());
 
-        updateTicketTree();
+        updateTree();
     }
 
-    public void deleteTicket(Long entryRelatedGroup, Ticket entryAsTicket) {
+    public void deleteTicket(Groupe entryRelatedGroup, Ticket entryAsTicket) {
         for (Groupe groupe : relatedGroups) {
-            if (groupe.getID().equals(entryRelatedGroup)) {
-                groupe.getTickets().remove(entryAsTicket);
+            if (groupe.equals(entryRelatedGroup)) {
+                Debugger.logMessage("ClientMainScreen", "Ticket removed: " + groupe.getTickets().remove(entryAsTicket));
                 if (entryAsTicket.equals(selectedTicket)) {
                     updateTicketDisplayer(null);
                 }
+
+                updateTree();
 
                 return;
             }
         }
     }
 
-    public void deleteMessage(Long entryRelatedGroup, Long entryRelatedTicket, Message entryAsMessage) {
+    public void deleteMessage(Groupe entryRelatedGroup, Ticket entryRelatedTicket, Message entryAsMessage) {
         for (Groupe groupe : relatedGroups) {
-            if (groupe.getID().equals(entryRelatedGroup)) {
+            if (groupe.equals(entryRelatedGroup)) {
                 for (Ticket ticket : groupe.getTickets()) {
-                    if (ticket.getID().equals(entryRelatedTicket)) {
+                    if (ticket.equals(entryRelatedTicket)) {
                         ticket.getMessages().remove(entryAsMessage);
                         if (ticket.equals(selectedTicket)) {
                             updateTicketDisplayer(ticket);
@@ -235,28 +277,36 @@ public class ClientMainScreen extends InteractiveUI {
     public void addGroupe(Groupe entryAsGroupe) {
         allGroups.add(entryAsGroupe.getLabel());
         relatedGroups.add(entryAsGroupe);
-        updateTicketTree();
+        updateTree();
     }
 
-    public void addTicket(Long relatedGroupEntry, Ticket entryAsTicket) {
-        for (Groupe groupe : relatedGroups) {
-            if (groupe.getID().equals(relatedGroupEntry)) {
-                groupe.getTickets().add(entryAsTicket);
-                updateTicketTree();
-                return;
+    public void addTicket(Groupe relatedGroupEntry, Ticket entryAsTicket) {
+        if (relatedGroups.contains(relatedGroupEntry)) {
+            for (Groupe groupe : relatedGroups) {
+                if (groupe.equals(relatedGroupEntry)) {
+                    groupe.getTickets().add(entryAsTicket);
+                    updateTree();
+                    return;
+                }
             }
+        } else {
+            relatedGroupEntry.addTicket(entryAsTicket);
+            relatedGroups.add(relatedGroupEntry);
+            updateTree();
         }
     }
 
-    public void addMessage(Long entryRelatedGroup, Long entryRelatedTicket, Message entryAsMessage) {
+    public void addMessage(Groupe entryRelatedGroup, Ticket entryRelatedTicket, Message entryAsMessage) {
         for (Groupe groupe : relatedGroups) {
-            if (groupe.getID().equals(entryRelatedGroup)) {
+            if (groupe.equals(entryRelatedGroup)) {
                 for (Ticket ticket : groupe.getTickets()) {
-                    if (ticket.getID().equals(entryRelatedTicket)) {
+                    if (ticket.equals(entryRelatedTicket)) {
                         ticket.getMessages().add(entryAsMessage);
                         if (ticket.equals(selectedTicket)) {
                             updateTicketDisplayer(ticket);
                         }
+
+                        updateTree();
 
                         return;
                     }
@@ -267,11 +317,13 @@ public class ClientMainScreen extends InteractiveUI {
 
     @Override
     public void dispose() {
+        super.dispose();
+
         try {
             client.disconnect();
         } catch (IOException e) {
             e.printStackTrace();
         }
-        super.dispose();
+
     }
 }

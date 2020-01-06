@@ -57,6 +57,7 @@ public class ClassicMessage extends CommunicationMessage {
     private static final String RELATED_TICKETS = "related_tickets";
     private static final String RELATED_GROUPS = "related_groups";
     private static final String ALL_GROUPS = "all_groups";
+    private static final String USERS = "users";
 
 
     private final CLASSIC_MESSAGE_TYPE CLASSICMESSAGE_type;
@@ -79,7 +80,7 @@ public class ClassicMessage extends CommunicationMessage {
         }
 
         setTypeString(jsonData.getString(TYPE));
-        ;
+
         setData(jsonData.getJSONObject(DATA));
 
         CLASSICMESSAGE_type = guessType();
@@ -141,7 +142,8 @@ public class ClassicMessage extends CommunicationMessage {
         return classicMessage;
     }
 
-    public static ClassicMessage createLocalUpdateResponse(TreeSet<Groupe> relatedGroups, TreeSet<String> allGroups) {
+    public static ClassicMessage createLocalUpdateResponse(
+            TreeSet<Groupe> relatedGroups, TreeSet<String> allGroups, TreeSet<Utilisateur> users) {
         ClassicMessage classicMessage = new ClassicMessage(CLASSIC_MESSAGE_TYPE.LOCAL_UPDATE_RESPONSE, TYPE_LOCAL_UPDATE_RESPONSE);
 
         JSONArray relatedGroupsArray = new JSONArray();
@@ -149,13 +151,20 @@ public class ClassicMessage extends CommunicationMessage {
             relatedGroupsArray.put(group.toJSON());
         }
 
+        JSONArray usersArray = new JSONArray();
+        for (Utilisateur u : users) {
+            usersArray.put(u.toJSON());
+        }
+
         JSONArray allGroupsArray = new JSONArray();
         for (String s : allGroups) {
             allGroupsArray.put(s);
         }
 
+
         classicMessage.addData(RELATED_GROUPS, relatedGroupsArray);
         classicMessage.addData(ALL_GROUPS, allGroupsArray);
+        classicMessage.addData(USERS, usersArray);
 
         return classicMessage;
     }
@@ -183,27 +192,27 @@ public class ClassicMessage extends CommunicationMessage {
 
     }
 
-    public static ClassicMessage createTicketDeletedMessage(final String table, Ticket entry, Long relatedGroup) {
+    public static ClassicMessage createTicketDeletedMessage(final String table, Ticket entry, Groupe relatedGroup) {
 
         ClassicMessage classicMessage = new ClassicMessage(CLASSIC_MESSAGE_TYPE.ENTRY_DELETED, TYPE_ENTRY_DELETED);
 
         classicMessage.addData(TABLE, table);
         classicMessage.addData(ENTRY, entry.toJSON().toString());
-        classicMessage.addData(RELATED_GROUPS, relatedGroup.toString());
+        classicMessage.addData(RELATED_GROUPS, relatedGroup.toJSON().toString());
 
         return classicMessage;
 
     }
 
     public static ClassicMessage createMessageDeletedMessage
-            (final String table, Message entry, Long relatedGroup, Long relatedTicket) {
+            (final String table, Message entry, Groupe relatedGroup, Ticket relatedTicket) {
 
         ClassicMessage classicMessage = new ClassicMessage(CLASSIC_MESSAGE_TYPE.ENTRY_DELETED, TYPE_ENTRY_DELETED);
 
         classicMessage.addData(TABLE, table);
         classicMessage.addData(ENTRY, entry.toJSON().toString());
-        classicMessage.addData(RELATED_GROUPS, relatedGroup.toString());
-        classicMessage.addData(RELATED_TICKETS, relatedTicket.toString());
+        classicMessage.addData(RELATED_GROUPS, relatedGroup.toJSON().toString());
+        classicMessage.addData(RELATED_TICKETS, relatedTicket.toJSON().toString());
 
         return classicMessage;
 
@@ -220,27 +229,27 @@ public class ClassicMessage extends CommunicationMessage {
 
     }
 
-    public static ClassicMessage createTicketAddedMessage(final String table, Ticket entry, Long relatedGroup) {
+    public static ClassicMessage createTicketAddedMessage(final String table, Ticket entry, Groupe relatedGroup) {
 
         ClassicMessage classicMessage = new ClassicMessage(CLASSIC_MESSAGE_TYPE.ENTRY_ADDED, TYPE_ENTRY_ADDED);
 
         classicMessage.addData(TABLE, table);
         classicMessage.addData(ENTRY, entry.toJSON().toString());
-        classicMessage.addData(RELATED_GROUPS, relatedGroup.toString());
+        classicMessage.addData(RELATED_GROUPS, relatedGroup.toJSON().toString());
 
         return classicMessage;
 
     }
 
     public static ClassicMessage createMessageAddedMessage
-            (final String table, Message entry, Long relatedGroup, Long relatedTicket) {
+            (final String table, Message entry, Groupe relatedGroup, Ticket relatedTicket) {
 
         ClassicMessage classicMessage = new ClassicMessage(CLASSIC_MESSAGE_TYPE.ENTRY_ADDED, TYPE_ENTRY_ADDED);
 
         classicMessage.addData(TABLE, table);
         classicMessage.addData(ENTRY, entry.toJSON().toString());
-        classicMessage.addData(RELATED_GROUPS, relatedGroup.toString());
-        classicMessage.addData(RELATED_TICKETS, relatedTicket.toString());
+        classicMessage.addData(RELATED_GROUPS, relatedGroup.toJSON().toString());
+        classicMessage.addData(RELATED_TICKETS, relatedTicket.toJSON().toString());
 
         return classicMessage;
 
@@ -258,27 +267,27 @@ public class ClassicMessage extends CommunicationMessage {
 
     }
 
-    public static ClassicMessage createTicketUpdatedMessage(final String table, Ticket entry, Long relatedGroup) {
+    public static ClassicMessage createTicketUpdatedMessage(final String table, Ticket entry, Groupe relatedGroup) {
 
         ClassicMessage classicMessage = new ClassicMessage(CLASSIC_MESSAGE_TYPE.ENTRY_UPDATED, TYPE_ENTRY_UPDATED);
 
         classicMessage.addData(TABLE, table);
         classicMessage.addData(ENTRY, entry.toJSON().toString());
-        classicMessage.addData(RELATED_GROUPS, relatedGroup.toString());
+        classicMessage.addData(RELATED_GROUPS, relatedGroup.toJSON().toString());
 
         return classicMessage;
 
     }
 
     public static ClassicMessage createMessageUpdatedMessage
-            (final String table, Message entry, Long relatedGroup, Long relatedTicket) {
+            (final String table, Message entry, Groupe relatedGroup, Ticket relatedTicket) {
 
         ClassicMessage classicMessage = new ClassicMessage(CLASSIC_MESSAGE_TYPE.ENTRY_UPDATED, TYPE_ENTRY_UPDATED);
 
         classicMessage.addData(TABLE, table);
         classicMessage.addData(ENTRY, entry.toJSON().toString());
-        classicMessage.addData(RELATED_GROUPS, relatedGroup.toString());
-        classicMessage.addData(RELATED_TICKETS, relatedTicket.toString());
+        classicMessage.addData(RELATED_GROUPS, relatedGroup.toJSON().toString());
+        classicMessage.addData(RELATED_TICKETS, relatedTicket.toJSON().toString());
 
         return classicMessage;
 
@@ -641,12 +650,22 @@ public class ClassicMessage extends CommunicationMessage {
         return groups;
     }
 
-    public Long getEntryRelatedGroup() {
-        return getData().getLong(RELATED_GROUPS);
+    public TreeSet<Utilisateur> getLocalUpdateResponseUsers() {
+        TreeSet<Utilisateur> users = new TreeSet<>();
+        JSONArray array = getData().getJSONArray(USERS);
+        for (int i = 0; i < array.length(); ++i) {
+            users.add(new Utilisateur(array.getJSONObject(i)));
+        }
+
+        return users;
     }
 
-    public Long getEntryRelatedTicket() {
-        return getData().getLong(RELATED_TICKETS);
+    public Groupe getEntryRelatedGroup() {
+        return new Groupe(new JSONObject(getData().getString(RELATED_GROUPS)));
+    }
+
+    public Ticket getEntryRelatedTicket() {
+        return new Ticket(getData().getJSONObject(RELATED_TICKETS));
     }
 
     public UserModel getTableModelUserModel() {

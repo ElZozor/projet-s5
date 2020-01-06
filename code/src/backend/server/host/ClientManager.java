@@ -8,7 +8,6 @@ import debug.Debugger;
 
 import javax.net.ssl.SSLSocket;
 import java.io.*;
-import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -100,7 +99,7 @@ public class ClientManager extends Thread implements Server {
             try {
                 groups = DatabaseManager.getInstance().relatedUserGroup(user.getINE());
                 Host.removeClient(new ArrayList<>(Arrays.asList(groups.split(";"))), user.getID(), this);
-            } catch (SQLException | NoSuchAlgorithmException e) {
+            } catch (SQLException e) {
                 e.printStackTrace();
             }
         }
@@ -203,8 +202,6 @@ public class ClientManager extends Thread implements Server {
         } catch (SQLException e) {
             e.printStackTrace();
             fail_reason = ERROR_MESSAGE_DATABASE_ERROR;
-        } catch (NoSuchAlgorithmException e) {
-            fail_reason = ERROR_MESSAGE_SERVER_ERROR;
         }
 
 
@@ -249,19 +246,20 @@ public class ClientManager extends Thread implements Server {
                     ClassicMessage message = ClassicMessage.createTicketAddedMessage(
                             TABLE_NAME_TICKET,
                             inserted,
-                            relatedGroup.getID()
+                            relatedGroup
                     );
 
-                    Host.broadcast(
+                    Host.broadcastToGroup(
                             message,
                             relatedGroup.getLabel()
                     );
 
+                    System.out.println("Sending to " + user.getID());
                     sendData(message);
                 }
             }
 
-        } catch (SQLException | NoSuchAlgorithmException | IOException e) {
+        } catch (SQLException | IOException e) {
             e.printStackTrace();
         }
 
@@ -293,17 +291,18 @@ public class ClientManager extends Thread implements Server {
                     Debugger.logColorMessage(DBG_COLOR, "ClientManager", insertedMessage.toJSON().toString());
 
                     Groupe group = database.relatedTicketGroup(insertedMessage.getTicketID());
+                    Ticket ticket = database.getTicket(insertedMessage.getTicketID());
                     Long userID = database.ticketCreator(insertedMessage.getTicketID());
                     if (group != null) {
                         ClassicMessage message = ClassicMessage.createMessageAddedMessage(
                                 TABLE_NAME_MESSAGE,
                                 insertedMessage,
-                                group.getID(),
-                                insertedMessage.getTicketID()
+                                group,
+                                ticket
                         );
 
                         Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Broadcasting to group : " + group);
-                        Host.broadcast(message, group.getLabel());
+                        Host.broadcastToGroup(message, group.getLabel());
                         Host.sendToClient(userID, message);
                     }
 
@@ -311,7 +310,7 @@ public class ClientManager extends Thread implements Server {
 
             }
 
-        } catch (SQLException | NoSuchAlgorithmException e) {
+        } catch (SQLException e) {
             e.printStackTrace();
         }
 
@@ -325,9 +324,10 @@ public class ClientManager extends Thread implements Server {
         try {
             TreeSet<Groupe> relatedGroups = DatabaseManager.getInstance().treatLocalUpdateMessage(user);
             TreeSet<String> allGroups = DatabaseManager.getInstance().getAllGroups();
+            TreeSet<Utilisateur> users = DatabaseManager.getInstance().getAllUsers();
 
-            sendData(ClassicMessage.createLocalUpdateResponse(relatedGroups, allGroups));
-        } catch (SQLException | NoSuchAlgorithmException | IOException e) {
+            sendData(ClassicMessage.createLocalUpdateResponse(relatedGroups, allGroups, users));
+        } catch (SQLException | IOException e) {
             e.printStackTrace();
         }
 
@@ -336,11 +336,16 @@ public class ClientManager extends Thread implements Server {
     private void handleTicketClickedMessage(ClassicMessage classicMessage) {
 
         try {
-            Ticket ticket = DatabaseManager.getInstance().getTicket(classicMessage.getTicketClickedID());
-            Groupe groupe = DatabaseManager.getInstance().relatedTicketGroup(ticket.getID());
-            sendData(ClassicMessage.createTicketUpdatedMessage(TABLE_NAME_TICKET, ticket, groupe.getID()));
 
-        } catch (SQLException | NoSuchAlgorithmException | IOException e) {
+            DatabaseManager manager = DatabaseManager.getInstance();
+            manager.setMessagesFromTicketRead(classicMessage.getTicketClickedID(), user.getID());
+            Ticket ticket = manager.getTicket(classicMessage.getTicketClickedID());
+            Groupe groupe = manager.relatedTicketGroup(ticket.getID());
+            ClassicMessage message = ClassicMessage.createTicketUpdatedMessage(TABLE_NAME_TICKET, ticket, groupe);
+            sendData(message);
+            Host.broadcastToGroup(message, groupe.getLabel());
+
+        } catch (SQLException | IOException e) {
             e.printStackTrace();
         }
 
@@ -355,52 +360,58 @@ public class ClientManager extends Thread implements Server {
 
         ProjectTable entry = classicMessage.getEntry();
         boolean success = true;
-        boolean shouldBroadcast = false;
         Groupe relatedGroup = null;
+        ClassicMessage message = null;
 
         try {
+            DatabaseManager database = DatabaseManager.getInstance();
+
             switch (classicMessage.getTable()) {
                 case TABLE_NAME_UTILISATEUR:
-                    DatabaseManager.getInstance().deleteUser(entry.getID());
+                    database.deleteUser(entry.getID());
+                    message = ClassicMessage.createEntryDeletedMessage(TABLE_NAME_UTILISATEUR, classicMessage.getEntry());
                     break;
 
 
                 case TABLE_NAME_GROUPE:
-                    DatabaseManager.getInstance().deleteGroup(entry.getID());
-                    relatedGroup = ((Groupe) entry);
-                    shouldBroadcast = true;
+                    relatedGroup = classicMessage.getEntryAsGroupe();
+                    database.deleteGroup(entry.getID());
+                    message = ClassicMessage.createEntryDeletedMessage(TABLE_NAME_GROUPE, classicMessage.getEntry());
                     break;
 
 
                 case TABLE_NAME_TICKET:
-                    DatabaseManager.getInstance().deleteTicket(entry.getID());
-                    relatedGroup = DatabaseManager.getInstance().relatedTicketGroup(entry.getID());
-                    shouldBroadcast = true;
+                    relatedGroup = database.relatedTicketGroup(entry.getID());
+                    database.deleteTicket(entry.getID());
+                    message = ClassicMessage.createTicketDeletedMessage(
+                            classicMessage.getTable(), classicMessage.getEntryAsTicket(), relatedGroup
+                    );
+
                     break;
 
 
                 case TABLE_NAME_MESSAGE:
-                    DatabaseManager.getInstance().deleteMessage(entry.getID());
-                    relatedGroup = DatabaseManager.getInstance().relatedTicketGroup(((Message) entry).getTicketID());
-                    shouldBroadcast = true;
+                    Ticket ticket = database.getTicket(classicMessage.getEntryAsMessage().getTicketID());
+                    relatedGroup = database.relatedTicketGroup(ticket.getID());
+                    database.deleteMessage(entry.getID());
+
+                    message = ClassicMessage.createMessageDeletedMessage(
+                            classicMessage.getTable(), classicMessage.getEntryAsMessage(),
+                            relatedGroup, ticket
+                    );
+
                     break;
             }
-        } catch (NoSuchAlgorithmException | SQLException e) {
+        } catch (SQLException e) {
             e.printStackTrace();
             success = false;
         }
 
+        Debugger.logColorMessage(DBG_COLOR, "ClientManager",
+                String.format("Deletion, success %s relatedGroup %s", success, relatedGroup));
 
         if (success) {
-            if (shouldBroadcast && relatedGroup != null) {
-                Host.broadcast(
-                        ClassicMessage.createEntryDeletedMessage(
-                                classicMessage.getTable(),
-                                classicMessage.getEntry()
-                        ),
-                        relatedGroup.getLabel()
-                );
-            }
+            Host.broadcast(message);
         }
     }
 
@@ -412,7 +423,6 @@ public class ClientManager extends Thread implements Server {
 
         ProjectTable entry = classicMessage.getEntry();
         boolean success = true;
-        String relatedGroup = null;
 
         try {
             switch (classicMessage.getTable()) {
@@ -423,6 +433,8 @@ public class ClientManager extends Thread implements Server {
                     final String prenom = user.getPrenom();
                     final String type = user.getType();
                     final String[] groups = user.getGroups();
+                    final String password = user.getPassword();
+
 
                     success = DatabaseManager.getInstance().editExistingUser(
                             entry.getID(),
@@ -430,7 +442,8 @@ public class ClientManager extends Thread implements Server {
                             nom,
                             prenom,
                             type,
-                            String.join(";", groups)
+                            String.join(";", groups),
+                            password
                     );
 
                     break;
@@ -439,7 +452,7 @@ public class ClientManager extends Thread implements Server {
 
                 case TABLE_NAME_GROUPE:
                     Groupe groupe = (Groupe) entry;
-                    relatedGroup = DatabaseManager.getInstance().retrieveGroupForGivenID(entry.getID()).getLabel();
+                    String relatedGroup = DatabaseManager.getInstance().retrieveGroupForGivenID(entry.getID()).getLabel();
                     success = DatabaseManager.getInstance().editExistingGroup(
                             groupe.getID(),
                             groupe.getLabel()
@@ -449,18 +462,17 @@ public class ClientManager extends Thread implements Server {
                         Host.changeGroupName(relatedGroup, groupe.getLabel());
                     }
 
-                    relatedGroup = groupe.getLabel();
-
                     break;
             }
-        } catch (NoSuchAlgorithmException | SQLException e) {
+        } catch (SQLException e) {
             e.printStackTrace();
             success = false;
         }
 
 
-        if (success && relatedGroup != null) {
-            Host.broadcast(ClassicMessage.createEntryUpdatedMessage(classicMessage.getTable(), entry), relatedGroup);
+        if (success) {
+            ClassicMessage message = ClassicMessage.createEntryUpdatedMessage(classicMessage.getTable(), entry);
+            Host.broadcast(message);
         }
 
     }
@@ -511,14 +523,14 @@ public class ClientManager extends Thread implements Server {
 
                     break;
             }
-        } catch (NoSuchAlgorithmException | SQLException e) {
+        } catch (SQLException e) {
             e.printStackTrace();
             success = false;
         }
 
 
         if (success) {
-            Host.broadcast(ClassicMessage.createEntryAddedMessage(classicMessage.getTable(), entry), relatedGroup);
+            Host.broadcastToGroup(ClassicMessage.createEntryAddedMessage(classicMessage.getTable(), entry), relatedGroup);
         }
 
 
@@ -535,6 +547,10 @@ public class ClientManager extends Thread implements Server {
         try {
             DatabaseManager databaseManager = DatabaseManager.getInstance();
             List<Utilisateur> users = databaseManager.retrieveAllUsers();
+            for (Utilisateur u : users) {
+                u.setGroups(databaseManager.relatedUserGroup(u.getINE()).split(";"));
+            }
+
             List<Groupe> groups = databaseManager.retrieveAllGroups();
             List<Ticket> tickets = databaseManager.retrieveAllTickets();
             List<Message> messages = databaseManager.retrieveAllMessages();
@@ -546,7 +562,7 @@ public class ClientManager extends Thread implements Server {
                     messages
             ));
 
-        } catch (NoSuchAlgorithmException | SQLException | IOException e) {
+        } catch (SQLException | IOException e) {
             e.printStackTrace();
         }
 

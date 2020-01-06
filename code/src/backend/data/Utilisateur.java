@@ -1,16 +1,19 @@
 package backend.data;
 
+import org.jetbrains.annotations.NotNull;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
+import java.util.TreeSet;
 
 import static backend.database.Keys.*;
 
-public class Utilisateur extends ProjectTable {
+public class Utilisateur extends ProjectTable implements Comparable<Utilisateur> {
 
-    private static HashMap<Long, Utilisateur> instances;
+    private static HashMap<Long, Utilisateur> instances = new HashMap<>();
 
     private String mType;
     private String mNom;
@@ -43,7 +46,14 @@ public class Utilisateur extends ProjectTable {
         mPrenom = object.getString(UTILISATEUR_PRENOM);
         mType = object.getString(UTILISATEUR_TYPE);
         mPassword = object.optString(UTILISATEUR_MDP);
-        mGroups = (String[]) object.opt("groups");
+
+        JSONArray array = object.optJSONArray("groups");
+        if (array != null) {
+            mGroups = new String[array.length()];
+            for (int i = 0; i < array.length(); ++i) {
+                mGroups[i] = array.getString(i);
+            }
+        }
     }
 
     public static Utilisateur getInstance(long id) {
@@ -51,13 +61,26 @@ public class Utilisateur extends ProjectTable {
     }
 
     public static Boolean addInstance(long id, String nom, String prenom, String INE, String type) {
-        if (instances.containsKey(id)) {
-            return false;
+        return instances.put(id, new Utilisateur(id, nom, prenom, INE, type)) != null;
+    }
+
+    public static boolean addInstance(Utilisateur entryAsUtilisateur) {
+        return instances.put(entryAsUtilisateur.getID(), entryAsUtilisateur) != null;
+    }
+
+    public static void removeInstance(Long id) {
+        instances.remove(id);
+    }
+
+    public static void updateInstance(Utilisateur entryAsUtilisateur) {
+        instances.replace(entryAsUtilisateur.getID(), entryAsUtilisateur);
+    }
+
+    public static void setInstances(TreeSet<Utilisateur> users) {
+        instances = new HashMap<>();
+        for (Utilisateur user : users) {
+            instances.put(user.getID(), user);
         }
-
-        instances.put(id, new Utilisateur(id, nom, prenom, INE, type));
-
-        return true;
     }
 
     public String getNom() {
@@ -125,6 +148,7 @@ public class Utilisateur extends ProjectTable {
         result.put(UTILISATEUR_NOM, getNom());
         result.put(UTILISATEUR_PRENOM, getPrenom());
         result.put(UTILISATEUR_TYPE, getType());
+        System.out.println("PASSWORD: " + getPassword());
         result.putOpt(UTILISATEUR_MDP, getPassword());
         result.putOpt("groups", getGroups());
 
@@ -142,5 +166,10 @@ public class Utilisateur extends ProjectTable {
         }
 
         return false;
+    }
+
+    @Override
+    public int compareTo(@NotNull Utilisateur utilisateur) {
+        return getID().compareTo(utilisateur.getID());
     }
 }

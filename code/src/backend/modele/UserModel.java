@@ -178,4 +178,14 @@ public class UserModel extends SearchableModel<Utilisateur> {
 
         return userModel;
     }
+
+    public Utilisateur getReferenceTo(String ine) {
+        for (Utilisateur user : elements) {
+            if (user.getINE().equals(ine)) {
+                return user;
+            }
+        }
+
+        return null;
+    }
 }

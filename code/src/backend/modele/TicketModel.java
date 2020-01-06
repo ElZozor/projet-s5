@@ -15,9 +15,7 @@ public class TicketModel extends SearchableModel<Ticket> {
             "ID",
             "TITRE",
             "PREMIER_MESSAGE",
-            "DERNIER MESSAGE",
-            "ID USER",
-            "ID GROUPE"
+            "DERNIER MESSAGE"
     };
 
 
@@ -89,14 +87,6 @@ public class TicketModel extends SearchableModel<Ticket> {
     public Object getValueAt(int ligne, int colonne) {
         Ticket t = elements.get(ligne);
 
-        /*
-
-        id_ticket       INT                 NOT NULL AUTO_INCREMENT,
-                titre           VARCHAR(50)         NOT NULL,
-        premier_message LONGTEXT            NOT NULL,
-        dernier_message LONGTEXT            NOT NULL,
-        id_util         INT                 NOT NULL,
-        id_groupe       INT                 NOT NULL,
         switch (colonne) {
             case 0 : return t.getID();
             case 1 :
@@ -108,18 +98,8 @@ public class TicketModel extends SearchableModel<Ticket> {
             case 3 :
                 return t.dernierMessage();
 
-            case 4 :
-                return t.idUtilisateur();
-
-            case 5:
-                return t.idGroupe();
-
             default : return "ohohoh";
         }
-
-        */
-
-        return "";
     }
 
     @Override
