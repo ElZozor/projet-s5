@@ -158,7 +158,7 @@ public class ClientManager extends Thread implements Server {
                 break;
 
             case MESSAGE_RECEIVED:
-                handleMessageSeenMessage(classicMessage);
+                handleMessageReceivedMessage(classicMessage);
                 break;
         }
 
@@ -220,7 +220,7 @@ public class ClientManager extends Thread implements Server {
      *
      * @param classicMessage Le message qui contient le ticket
      */
-    private void handleTicketCreation(ClassicMessage classicMessage) {
+    private synchronized void handleTicketCreation(ClassicMessage classicMessage) {
 
         try {
 
@@ -267,7 +267,7 @@ public class ClientManager extends Thread implements Server {
      *
      * @param classicMessage Le message à ajouter.
      */
-    private void handleClassicMessage(ClassicMessage classicMessage) {
+    private synchronized void handleClassicMessage(ClassicMessage classicMessage) {
         Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Classic message: \n" + classicMessage.toString());
 
         try {
@@ -337,20 +337,25 @@ public class ClientManager extends Thread implements Server {
      *
      * @param classicMessage Le ticket
      */
-    private void handleTicketClickedMessage(ClassicMessage classicMessage) {
+    private synchronized void handleTicketClickedMessage(ClassicMessage classicMessage) {
 
         try {
 
             DatabaseManager manager = DatabaseManager.getInstance();
 
-            manager.setMessagesFromTicketRead(classicMessage.getTicketClickedID(), user.getID());
-            Ticket ticket = manager.getTicket(classicMessage.getTicketClickedID());
-            if (ticket != null) {
-                Groupe groupe = manager.relatedTicketGroup(ticket.getID());
-                if (groupe != null) {
-                    ClassicMessage message = ClassicMessage.createTicketUpdatedMessage(TABLE_NAME_TICKET, ticket, groupe);
-                    sendData(message);
-                    Host.broadcastToGroup(message, groupe.getLabel());
+            int editted = manager.setMessagesFromTicketRead(classicMessage.getTicketClickedID(), user.getID());
+
+            if (editted > 0) {
+                Ticket ticket = manager.getTicket(classicMessage.getTicketClickedID());
+                if (ticket != null) {
+                    Groupe groupe = manager.relatedTicketGroup(ticket.getID());
+                    if (groupe != null) {
+                        ClassicMessage message = ClassicMessage.createTicketUpdatedMessage(TABLE_NAME_TICKET, ticket, groupe);
+                        Host.broadcastToGroup(message, groupe.getLabel());
+
+                        Long ticketCreator = manager.ticketCreator(ticket.getID());
+                        Host.sendToClient(ticketCreator, message);
+                    }
                 }
             }
         } catch (SQLException e) {
@@ -364,7 +369,7 @@ public class ClientManager extends Thread implements Server {
      *
      * @param classicMessage L'entrée à supprimer et sa table
      */
-    private void handleDeleteMessage(ClassicMessage classicMessage) {
+    private synchronized void handleDeleteMessage(ClassicMessage classicMessage) {
 
         if (!isAdminOrStaff()) {
             return;
@@ -447,7 +452,7 @@ public class ClientManager extends Thread implements Server {
      *
      * @param classicMessage L'entrée et sa table
      */
-    private void handleUpdateMessage(ClassicMessage classicMessage) {
+    private synchronized void handleUpdateMessage(ClassicMessage classicMessage) {
 
         if (!isAdminOrStaff()) {
             return;
@@ -515,7 +520,7 @@ public class ClientManager extends Thread implements Server {
      *
      * @param classicMessage L'entrée et sa table
      */
-    private void handleAddMessage(ClassicMessage classicMessage) {
+    private synchronized void handleAddMessage(ClassicMessage classicMessage) {
 
         if (!isAdminOrStaff()) {
             return;
@@ -621,7 +626,7 @@ public class ClientManager extends Thread implements Server {
      * Fonction qui traite le fait qu'un client doit
      * recevoir tous les messages sortant du serveur
      */
-    private void handleRequestEverythingMessage() {
+    private synchronized void handleRequestEverythingMessage() {
 
         if (!isAdminOrStaff()) {
             return;
@@ -633,18 +638,35 @@ public class ClientManager extends Thread implements Server {
 
 
     /**
-     * Fonction qui traite le fait qu'un message soit lu par un utilisateur
+     * Fonction qui traite le fait qu'un message soit recu par un utilisateur
      *
      * @param classicMessage - Le message et l'utilisateur
      */
-    private void handleMessageSeenMessage(ClassicMessage classicMessage) {
+    private synchronized void handleMessageReceivedMessage(ClassicMessage classicMessage) {
 
         DatabaseManager database = DatabaseManager.getInstance();
         ArrayList<Message> messages = classicMessage.getMessagesReceived();
 
+        Debugger.logColorMessage(Debugger.BLUE, "ClientManager", user.getNom() + " has received " + messages);
+
         for (Message message : messages) {
             try {
-                database.setMessageReceived(message, user);
+                int entryUpdated = database.setMessageReceived(message, user);
+                Debugger.logColorMessage(Debugger.BLUE, "ClientManager", entryUpdated + " entries updated");
+                if (entryUpdated > 0) {
+                    Message m = database.getMessage(message.getID());
+                    if (m != null) {
+                        Ticket ticket = database.relatedMessageTicket(message.getID());
+                        if (ticket != null) {
+                            Groupe groupe = database.relatedTicketGroup(ticket.getID());
+                            if (groupe != null) {
+                                ClassicMessage msg = ClassicMessage.createMessageUpdatedMessage(TABLE_NAME_MESSAGE, m, groupe, ticket);
+                                Host.broadcastToGroup(msg, groupe.getLabel());
+                                Host.sendToClient(database.ticketCreator(ticket.getID()), msg);
+                            }
+                        }
+                    }
+                }
             } catch (SQLException e) {
                 e.printStackTrace();
             }

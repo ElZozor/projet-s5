@@ -8,6 +8,7 @@ import backend.server.client.Client;
 import backend.server.communication.classic.ClassicMessage;
 import debug.Debugger;
 import ui.Client.mainscreen.leftpanel.TicketTree;
+import ui.Client.mainscreen.rightpanel.MessageEditor;
 import ui.Client.mainscreen.rightpanel.TicketDisplayer;
 import ui.Client.ticketcreation.TicketCreationScreen;
 import ui.InteractiveUI;
@@ -59,6 +60,8 @@ public class ClientMainScreen extends InteractiveUI {
         setDividerStyle();
         initLeftSidePanel();
         initRightSidePanel();
+
+
     }
 
     private void setDividerStyle() {
@@ -88,6 +91,8 @@ public class ClientMainScreen extends InteractiveUI {
 
     private void initRightSidePanel() {
         updateTicketDisplayer(null);
+
+        mainPanel.setRightComponent(ticketDisplayer);
     }
 
     private void updateTicketDisplayer(Ticket ticket) {
@@ -110,9 +115,14 @@ public class ClientMainScreen extends InteractiveUI {
         selectedTicket = ticket;
         mainPanel.setRightComponent(ticketDisplayer);
 
+        revalidate();
+        ticketDisplayer.setViewToBottom();
+
+
         ticketDisplayer.setMessageSendDemandListener((ticketClicked, text) -> {
             if (ticketClicked != null && text != null && !text.isEmpty()) {
                 client.postAMessage(ticketClicked.getID(), text);
+                MessageEditor.oldText = null;
             }
         });
     }
@@ -170,12 +180,10 @@ public class ClientMainScreen extends InteractiveUI {
 
     public void updateGroupe(Groupe entryAsGroupe) {
         String old_label = null;
-        System.out.println("Before edit: " + relatedGroups);
         for (Groupe groupe : relatedGroups) {
             if (groupe.getID().equals(entryAsGroupe.getID())) {
                 old_label = groupe.getLabel();
                 groupe.setLabel(entryAsGroupe.getLabel());
-                System.out.println("After edit: " + relatedGroups);
 
                 allGroups.remove(old_label);
                 allGroups.add(entryAsGroupe.getLabel());
@@ -193,6 +201,10 @@ public class ClientMainScreen extends InteractiveUI {
                 if (groupe.equals(entryRelatedGroup)) {
                     if (entryAsTicket.equals(selectedTicket)) {
                         updateTicketDisplayer(entryAsTicket);
+
+                        if (entryAsTicket.containsUnreadOrUnreceivedMessages()) {
+                            client.sendNotificationTicketClicked(entryAsTicket);
+                        }
                     }
 
                     groupe.getTickets().remove(entryAsTicket);
@@ -211,6 +223,7 @@ public class ClientMainScreen extends InteractiveUI {
     }
 
     public void updateMessage(Groupe entryRelatedGroup, Ticket entryRelatedTicket, Message entryAsMessage) {
+        System.out.println("SELECTED COMPARISON");
         if (relatedGroups.contains(entryRelatedGroup)) {
 
             for (Groupe groupe : relatedGroups) {
@@ -225,7 +238,11 @@ public class ClientMainScreen extends InteractiveUI {
                                 messages.add(entryAsMessage);
 
                                 if (ticket.equals(selectedTicket)) {
-                                    ticketDisplayer.updateContents(selectedTicket);
+                                    System.out.println("Updating ticket");
+                                    updateTicketDisplayer(selectedTicket);
+                                    if (entryRelatedTicket.containsUnreadOrUnreceivedMessages()) {
+                                        client.sendNotificationTicketClicked(entryRelatedTicket);
+                                    }
                                 }
 
                                 updateTree();

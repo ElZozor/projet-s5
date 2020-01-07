@@ -289,6 +289,19 @@ public class ClassicMessage extends CommunicationMessage {
 
     }
 
+    public static ClassicMessage createMessageUpdatedMessage(final String table, Message entry, Groupe relatedGroup, Ticket ticket) {
+
+        ClassicMessage classicMessage = new ClassicMessage(CLASSIC_MESSAGE_TYPE.ENTRY_UPDATED, TYPE_ENTRY_UPDATED);
+
+        classicMessage.addData(TABLE, table);
+        classicMessage.addData(ENTRY, entry.toJSON().toString());
+        classicMessage.addData(RELATED_GROUPS, relatedGroup.toJSON().toString());
+        classicMessage.addData(RELATED_TICKETS, ticket.toJSON().toString());
+
+        return classicMessage;
+
+    }
+
     public static ClassicMessage createDeleteMessage(final String table, ProjectTable entry) {
 
         ClassicMessage message = new ClassicMessage(CLASSIC_MESSAGE_TYPE.DELETE, TYPE_DELETE);
@@ -660,6 +673,7 @@ public class ClassicMessage extends CommunicationMessage {
     }
 
     public Ticket getEntryRelatedTicket() {
+        System.out.println(getData().getString(RELATED_TICKETS));
         return new Ticket(new JSONObject(getData().getString(RELATED_TICKETS)));
     }
 

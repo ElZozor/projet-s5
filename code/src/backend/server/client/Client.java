@@ -72,6 +72,10 @@ public class Client extends Thread implements Server {
         this.ui = ui;
     }
 
+    public Utilisateur getUser() {
+        return myUser;
+    }
+
 
     /**
      * A synchronized function that send a message and wait for the return value.
@@ -85,11 +89,7 @@ public class Client extends Thread implements Server {
 
         try {
             return readData();
-        } catch (IOException | ClassicMessage.InvalidMessageException e) {
-            e.printStackTrace();
-
-            return null;
-        } catch (SocketDisconnectedException e) {
+        } catch (IOException | ClassicMessage.InvalidMessageException | SocketDisconnectedException e) {
             return null;
         }
     }
@@ -140,12 +140,13 @@ public class Client extends Thread implements Server {
 
     }
 
-    @Override
+
     /**
      * methode bouclant à l'infini tant qu'il n'y a pas de fermeture de l'application,
      * cette methode attend la reception d'un message et le transmet à handleMessage pour le traiter.
-     * En cas de perte de connexion il y'a tentative de reconnection jusqu'a reussite ou fermeture de l'application
-    **/
+     * En cas de perte de connexion il y'a tentative de reconnexion jusqu'a reussite ou fermeture de l'application
+     */
+    @Override
     public void run() {
 
         try {
@@ -261,6 +262,8 @@ public class Client extends Thread implements Server {
             myUser = userModel.getReferenceTo(myUser.getINE());
             myUser.setPassword(password);
 
+            ui.setTitle("Administration | Connecté en tant que : " + myUser.getNom() + " " + myUser.getPrenom());
+
             serverUI.setAllModels(
                     message.getTableModelUserModel(),
                     message.getTableModelGroupModel(),
@@ -282,6 +285,8 @@ public class Client extends Thread implements Server {
                 final String password = myUser.getPassword();
                 myUser = user;
                 myUser.setPassword(password);
+
+                ui.setTitle("Connecté en tant que : " + myUser.getNom() + " " + myUser.getPrenom());
                 break;
             }
         }
@@ -405,15 +410,21 @@ public class Client extends Thread implements Server {
                 Ticket ticket = message.getEntryAsTicket();
                 ui.updateTicket(message.getEntryRelatedGroup(), ticket);
 
-                TreeSet<Message> messages = ticket.getMessages();
-                if (messages != null) {
-                    received.addAll(messages);
+                if (ticket.containsUnreceivedMessages()) {
+                    TreeSet<Message> messages = ticket.getMessages();
+                    if (messages != null) {
+                        received.addAll(messages);
+                    }
                 }
                 break;
 
             case TABLE_NAME_MESSAGE:
+                System.out.println("blblbl");
                 ui.updateMessage(message.getEntryRelatedGroup(), message.getEntryRelatedTicket(), message.getEntryAsMessage());
-                received.add(message.getEntryAsMessage());
+                if (message.getEntryAsMessage().state() < 3) {
+                    received.add(message.getEntryAsMessage());
+                }
+
                 break;
         }
 
@@ -433,16 +444,7 @@ public class Client extends Thread implements Server {
      * @return The message received from the host
      */
     public Boolean createANewTicket(String title, String messageContent, String group) {
-
-
-        try {
-            sendData(ClassicMessage.createTicket(title, group, messageContent));
-            return true;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
-        }
-
+        return sendData(ClassicMessage.createTicket(title, group, messageContent));
     }
 
 

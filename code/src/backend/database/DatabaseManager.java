@@ -8,6 +8,10 @@ import com.mysql.jdbc.StringUtils;
 import debug.Debugger;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -35,15 +39,18 @@ public class DatabaseManager {
      * @throws SQLException             - Peut être jetée si la connection à la database échoue
      * @throws NoSuchAlgorithmException - Ne devrait normalement pas être jetée
      */
-    private DatabaseManager() throws SQLException, NoSuchAlgorithmException {
+    private DatabaseManager() throws SQLException, NoSuchAlgorithmException, IOException {
         try {
             Class.forName("com.mysql.jdbc.Driver");
+
         } catch (ClassNotFoundException e) {
             System.err.println("Cannot launch the database driver");
             e.printStackTrace();
         }
 
         databaseConnection = DriverManager.getConnection(DB_URL, username, password);
+
+        checkTableExistance();
     }
 
     /**
@@ -53,8 +60,52 @@ public class DatabaseManager {
      * @throws SQLException             - Peut être jeté si la connection à la bdd échoue
      * @throws NoSuchAlgorithmException - Ne devrait normalement pas être jetée
      */
-    public static void initDatabaseConnection() throws SQLException, NoSuchAlgorithmException {
+    public static void initDatabaseConnection() throws SQLException, NoSuchAlgorithmException, IOException {
         mDatabase = new DatabaseManager();
+    }
+
+    /**
+     * Teste si les tables existent et dans le cas contraire, les initialises.
+     *
+     * @throws SQLException
+     * @throws IOException
+     */
+    private void checkTableExistance() throws SQLException, IOException {
+        boolean found = false;
+        ResultSet set = databaseConnection.getMetaData().getTables(null, null, null,
+                new String[]{"TABLE"});
+
+        for (; set.next() && !found; ) {
+            if (set.getString("TABLE_NAME").equals("UTILISATEUR")) {
+                found = true;
+            }
+        }
+
+        if (!found) {
+            File file = new File("res/database.sql");
+            BufferedReader reader = new BufferedReader(new FileReader(file));
+
+            String line;
+            StringBuilder builder = new StringBuilder();
+            for (; (line = reader.readLine()) != null; ) {
+                builder.append(line);
+                if (line.contains("--")) {
+                    builder = new StringBuilder();
+                } else if (line.contains(";")) {
+                    String query = builder.toString();
+                    query = query.replaceAll("\\s", " ");
+                    System.out.println("Exécution de la requête: " + query);
+                    Statement statement = databaseConnection.createStatement();
+                    statement.executeUpdate(query);
+
+                    builder = new StringBuilder();
+                }
+            }
+        }
+    }
+
+    public void closeConnection() throws SQLException {
+        databaseConnection.close();
     }
 
     /**
@@ -1162,7 +1213,7 @@ public class DatabaseManager {
      * @param userID   - L'id de l'utilisateur
      * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
      */
-    public void setMessagesFromTicketRead(Long ticketID, Long userID) throws SQLException {
+    public int setMessagesFromTicketRead(Long ticketID, Long userID) throws SQLException {
 
         Statement statement = databaseConnection.createStatement();
 
@@ -1177,10 +1228,9 @@ public class DatabaseManager {
                 TABLE_NAME_VU, UTILISATEUR_ID, userID
         );
 
-        System.out.println(query);
-
         ResultSet set = statement.executeQuery(query);
         Statement other = databaseConnection.createStatement();
+        int result = 0;
         while (set.next()) {
             Long messageID = set.getLong(VU_MESSAGE_ID);
             final String update = String.format(
@@ -1189,8 +1239,10 @@ public class DatabaseManager {
                     TABLE_NAME_VU, VU_UTILISATEUR_ID, userID
             );
 
-            other.execute(update);
+            result += other.executeUpdate(update);
         }
+
+        return result;
 
     }
 
@@ -1239,7 +1291,10 @@ public class DatabaseManager {
 
         ResultSet set = databaseConnection.createStatement().executeQuery(query);
         if (set.next()) {
-            return new Ticket(set.getLong(TICKET_ID), set.getString(TICKET_TITRE), new TreeSet<>());
+            final long ticketid = set.getLong(TICKET_ID);
+            final String title = set.getString(TICKET_TITRE);
+
+            return new Ticket(ticketid, title, getAllMessagesForGivenTicket(ticketid));
         }
 
         return null;
@@ -1253,7 +1308,7 @@ public class DatabaseManager {
      * @param user    - L'utilisateur en question
      * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
      */
-    public void setMessageReceived(Message message, Utilisateur user) throws SQLException {
+    public int setMessageReceived(Message message, Utilisateur user) throws SQLException {
 
         String request = String.format(
                 "DELETE FROM %s " +
@@ -1265,7 +1320,25 @@ public class DatabaseManager {
         );
 
         Statement statement = databaseConnection.createStatement();
-        statement.executeUpdate(request);
+        return statement.executeUpdate(request);
+
+    }
+
+    public Message getMessage(Long id) throws SQLException {
+
+        final String query = String.format(
+                "SELECT * FROM %s WHERE %s.%s = '%s'",
+                TABLE_NAME_MESSAGE, TABLE_NAME_MESSAGE, MESSAGE_ID, id
+        );
+
+        Statement statement = databaseConnection.createStatement();
+        ResultSet set = statement.executeQuery(query);
+
+        if (set.next()) {
+            return new Message(set, getRemainingReadUsernames(id), getRemainingReceiveUsernames(id));
+        }
+
+        return null;
 
     }
 }

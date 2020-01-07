@@ -34,8 +34,8 @@ public class TicketDisplayer extends JPanel {
     }
 
     private void initPanel() {
-        initMessagePanel();
         initMessageEditor();
+        initMessagePanel();
     }
 
     private void initMessagePanel() {
@@ -50,7 +50,6 @@ public class TicketDisplayer extends JPanel {
         scrollPane.setViewportView(messagePanel);
         add(scrollPane, BorderLayout.CENTER);
 
-        scrollPane.getVerticalScrollBar().setValue(scrollPane.getVerticalScrollBar().getMaximum());
     }
 
     private void addMessageToPanel(Message message) {
@@ -81,7 +80,8 @@ public class TicketDisplayer extends JPanel {
             gbc.gridx = 0;
             gbc.gridy = y;
 
-            messagePanel.add(new JPanel(), gbc);
+            JPanel panel = new JPanel();
+            messagePanel.add(panel, gbc);
         }
 
     }
@@ -105,11 +105,11 @@ public class TicketDisplayer extends JPanel {
         this.sendDemandListener = listener;
     }
 
-    public void updateContents(Ticket selectedTicket) {
-        Debugger.logMessage("TicketDisplayer", "updating contents");
-        ticket = selectedTicket;
-        initMessagePanel();
+    public void setViewToBottom() {
+        scrollPane.revalidate();
+        scrollPane.getVerticalScrollBar().setValue(scrollPane.getVerticalScrollBar().getMaximum());
     }
+
 
     public interface OnMessageSendRequest {
         void sendMessage(Ticket ticket, String text);

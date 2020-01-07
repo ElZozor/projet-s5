@@ -1,10 +1,10 @@
-drop table APPARTENIR;
-drop table RECU;
-drop table VU;
-drop table MESSAGE;
-drop table TICKET;
-drop table UTILISATEUR;
-drop table GROUPE;
+--drop table APPARTENIR;
+--drop table RECU;
+--drop table VU;
+--drop table MESSAGE;
+--drop table TICKET;
+--drop table UTILISATEUR;
+--drop table GROUPE;
 
 
 
@@ -37,7 +37,7 @@ create TABLE UTILISATEUR (
     CONSTRAINT CK_nom                   CHECK (nom <> ''),
     CONSTRAINT CK_prenom                CHECK (prenom <> ''),
     CONSTRAINT CK_ine                   CHECK (ine <> ''),
-    CONSTRAINT CK_type_util             CHECK (type_util <> ''),
+    CONSTRAINT CK_type_util             CHECK (type_util in ("admin", "staff", "other")),
     CONSTRAINT UK_ine                   UNIQUE (ine)
 
 );
@@ -51,8 +51,8 @@ create TABLE TICKET (
     id_groupe       INT                 NOT NULL,
 
     PRIMARY KEY(id_ticket),
-    FOREIGN KEY(id_util)                REFERENCES UTILISATEUR(id_util) ON delete CASCADE, -- si l'utilisateur qui a créé le ticket est supprimé alors on supprime le ticket
-    FOREIGN KEY(id_groupe)              REFERENCES GROUPE(id_groupe)    ON delete CASCADE, -- pareil avec le groupe sur lequel se trouve le ticket
+    FOREIGN KEY(id_util)                REFERENCES UTILISATEUR(id_util) ON delete CASCADE,
+    FOREIGN KEY(id_groupe)              REFERENCES GROUPE(id_groupe)    ON delete CASCADE,
 
     CONSTRAINT CK_id_ticket             CHECK (id_ticket <> ''),
     CONSTRAINT CK_titre                 CHECK (titre <> ''),

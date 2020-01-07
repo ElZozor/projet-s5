@@ -126,10 +126,6 @@ public class ServerUIPanel extends JPanel {
             }
         });
 
-        edit_button.addActionListener(action -> {
-
-        });
-
         del_button.addActionListener(action -> {
             int selectRow = table.getSelectedRow();
             if (selectRow == -1) {
@@ -246,7 +242,7 @@ public class ServerUIPanel extends JPanel {
         constraints.fill = GridBagConstraints.HORIZONTAL;
         upside_options.add(table_selector, constraints);
 
-        search_bar = new JTextField();
+        search_bar = new JTextField(HINT_SEARCH_BAR);
         constraints = new GridBagConstraints();
         constraints.gridx = 1;
         constraints.gridy = 0;
@@ -285,19 +281,31 @@ public class ServerUIPanel extends JPanel {
 
     private void setUserModel() {
         setModel(userTableModel);
+        add_button.setEnabled(true);
+        edit_button.setEnabled(true);
+        del_button.setEnabled(true);
     }
 
     private void setGroupModel() {
         setModel(groupTableModel);
+        add_button.setEnabled(true);
+        edit_button.setEnabled(true);
+        del_button.setEnabled(true);
     }
 
 
     private void setTicketModel() {
         setModel(ticketTableModel);
+        add_button.setEnabled(false);
+        edit_button.setEnabled(false);
+        del_button.setEnabled(true);
     }
 
     private void setMessageModel() {
         setModel(messageTableModel);
+        add_button.setEnabled(false);
+        edit_button.setEnabled(false);
+        del_button.setEnabled(true);
     }
 
 

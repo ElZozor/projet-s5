@@ -1,5 +1,6 @@
 package backend.server.host;
 
+import backend.database.DatabaseManager;
 import backend.server.Server;
 import backend.server.communication.classic.ClassicMessage;
 import debug.Debugger;
@@ -11,6 +12,7 @@ import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -32,7 +34,7 @@ public class Host extends Thread {
         mServerSocket = (SSLServerSocket) factory.createServerSocket(PORT);
     }
 
-    public static void addClient(Collection<String> groups, Long clientID, ClientManager client) {
+    public synchronized static void addClient(Collection<String> groups, Long clientID, ClientManager client) {
         for (String group : groups) {
             HashSet<Server> clientSet = clientsByGroups.computeIfAbsent(group, k -> new HashSet<>());
 
@@ -46,7 +48,8 @@ public class Host extends Thread {
         clientsByID.get(clientID).add(client);
     }
 
-    public static void removeClient(Collection<String> groups, Long clientID, Server client) {
+
+    public synchronized static void removeClient(Collection<String> groups, Long clientID, Server client) {
         for (String group : groups) {
             HashSet<Server> set = clientsByGroups.get(group);
             if (set != null) {
@@ -59,7 +62,7 @@ public class Host extends Thread {
         admins.remove(client);
     }
 
-    public static void broadcastToGroup(final ClassicMessage message, final String group) {
+    public synchronized static void broadcastToGroup(final ClassicMessage message, final String group) {
         HashSet<Server> clients = clientsByGroups.get(group);
 
         if (clients != null) {
@@ -73,7 +76,7 @@ public class Host extends Thread {
         }
     }
 
-    public static void broadcast(final ClassicMessage message) {
+    public synchronized static void broadcast(final ClassicMessage message) {
         Collection<HashSet<Server>> clients = clientsByID.values();
         System.out.println(clientsByID.values());
         for (HashSet<Server> clientList : clients) {
@@ -87,7 +90,7 @@ public class Host extends Thread {
         }
     }
 
-    public static void changeGroupName(String relatedGroup, String label) {
+    public synchronized static void changeGroupName(String relatedGroup, String label) {
         HashSet<Server> servers = clientsByGroups.get(relatedGroup);
         if (servers != null) {
             clientsByGroups.remove(relatedGroup);
@@ -95,7 +98,7 @@ public class Host extends Thread {
         }
     }
 
-    public static void sendToClient(Long userID, ClassicMessage message) {
+    public synchronized static void sendToClient(Long userID, ClassicMessage message) {
         HashSet<Server> client = clientsByID.get(userID);
         if (client != null) {
             for (Server s : client) {
@@ -105,11 +108,11 @@ public class Host extends Thread {
         }
     }
 
-    public static void addAdmin(Server server) {
+    public synchronized static void addAdmin(Server server) {
         admins.add(server);
     }
 
-    public static void removeAdmin(Server server) {
+    public synchronized static void removeAdmin(Server server) {
         admins.remove(server);
     }
 
@@ -140,6 +143,12 @@ public class Host extends Thread {
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
             System.exit(1);
+        }
+
+        try {
+            DatabaseManager.getInstance().closeConnection();
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
     }
 }

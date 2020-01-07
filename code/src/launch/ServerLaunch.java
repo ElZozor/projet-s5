@@ -35,7 +35,7 @@ public class ServerLaunch {
                 e.printStackTrace();
             }
 
-        } catch (SQLException | NoSuchAlgorithmException e) {
+        } catch (SQLException | NoSuchAlgorithmException | IOException e) {
             e.printStackTrace();
         }
     }
