@@ -11,7 +11,6 @@ import java.awt.*;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.awt.event.ItemEvent;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.TreeSet;
@@ -316,55 +315,39 @@ public class ServerUIPanel extends JPanel {
 
 
     private void delUser(Long id) {
-        try {
-            parent.client.sendData(
-                    ClassicMessage.createDeleteMessage(
-                            TABLE_NAME_UTILISATEUR,
-                            new Utilisateur(id, "", "", "", "")
-                    )
-            );
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        parent.client.sendData(
+                ClassicMessage.createDeleteMessage(
+                        TABLE_NAME_UTILISATEUR,
+                        new Utilisateur(id, "", "", "", "")
+                )
+        );
     }
 
     private void delGroup(Long id) {
-        try {
-            parent.client.sendData(
-                    ClassicMessage.createDeleteMessage(
-                            TABLE_NAME_GROUPE,
-                            new Groupe(id, "")
-                    )
-            );
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        parent.client.sendData(
+                ClassicMessage.createDeleteMessage(
+                        TABLE_NAME_GROUPE,
+                        new Groupe(id, "")
+                )
+        );
     }
 
     private void delTicket(Long id) {
-        try {
-            parent.client.sendData(
-                    ClassicMessage.createDeleteMessage(
-                            TABLE_NAME_TICKET,
-                            new Ticket(id, "", new TreeSet<>())
-                    )
-            );
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        parent.client.sendData(
+                ClassicMessage.createDeleteMessage(
+                        TABLE_NAME_TICKET,
+                        new Ticket(id, "", new TreeSet<>())
+                )
+        );
     }
 
     private void delMessage(Long id) {
-        try {
-            parent.client.sendData(
-                    ClassicMessage.createDeleteMessage(
-                            TABLE_NAME_MESSAGE,
-                            new Message(id, 0L, 0L, new Date(0), "", new ArrayList<>(), new ArrayList<>())
-                    )
-            );
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        parent.client.sendData(
+                ClassicMessage.createDeleteMessage(
+                        TABLE_NAME_MESSAGE,
+                        new Message(id, 0L, 0L, new Date(0), "", new ArrayList<>(), new ArrayList<>())
+                )
+        );
     }
 
 

@@ -5,7 +5,6 @@ import backend.server.communication.classic.ClassicMessage;
 
 import javax.swing.*;
 import java.awt.*;
-import java.io.IOException;
 
 import static backend.database.Keys.TABLE_NAME_UTILISATEUR;
 
@@ -246,16 +245,12 @@ public class EditUserPanel extends JPanel {
         user.setGroups(groups.split(";"));
         user.setPassword(mdp);
 
-        try {
-            parent.client.sendData(
-                    ClassicMessage.createAddMessage(
-                            TABLE_NAME_UTILISATEUR,
-                            user
-                    )
-            );
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        parent.client.sendData(
+                ClassicMessage.createAddMessage(
+                        TABLE_NAME_UTILISATEUR,
+                        user
+                )
+        );
 
         parent.setMainPanel();
     }
@@ -274,16 +269,12 @@ public class EditUserPanel extends JPanel {
             edittedUser.setGroups(groups.split(";"));
             edittedUser.setPassword(mdp);
 
-            try {
-                parent.client.sendData(
-                        ClassicMessage.createUpdateMessage(
-                                TABLE_NAME_UTILISATEUR,
-                                edittedUser
-                        )
-                );
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            parent.client.sendData(
+                    ClassicMessage.createUpdateMessage(
+                            TABLE_NAME_UTILISATEUR,
+                            edittedUser
+                    )
+            );
         }
 
         parent.setMainPanel();

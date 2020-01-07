@@ -55,11 +55,7 @@ public class ClassicMessage extends CommunicationMessage {
 
     public static final String LOCAL_UPDATE_DATE = "contents";
 
-    public static final String MESSAGE_UPDATE_CONTENT = "contents";
-
     private static final String TICKET_CLICKED_ID = "id";
-    private static final String TICKET_CLICKED_RESPONSE_CONTENTS = "contents";
-    private static final String TICKET_RESPONSE_NULL = "null";
 
     private static final String TABLE = "table";
     private static final String ENTRY = "entry";
@@ -288,20 +284,6 @@ public class ClassicMessage extends CommunicationMessage {
         classicMessage.addData(TABLE, table);
         classicMessage.addData(ENTRY, entry.toJSON().toString());
         classicMessage.addData(RELATED_GROUPS, relatedGroup.toJSON().toString());
-
-        return classicMessage;
-
-    }
-
-    public static ClassicMessage createMessageUpdatedMessage
-            (final String table, Message entry, Groupe relatedGroup, Ticket relatedTicket) {
-
-        ClassicMessage classicMessage = new ClassicMessage(CLASSIC_MESSAGE_TYPE.ENTRY_UPDATED, TYPE_ENTRY_UPDATED);
-
-        classicMessage.addData(TABLE, table);
-        classicMessage.addData(ENTRY, entry.toJSON().toString());
-        classicMessage.addData(RELATED_GROUPS, relatedGroup.toJSON().toString());
-        classicMessage.addData(RELATED_TICKETS, relatedTicket.toJSON().toString());
 
         return classicMessage;
 
@@ -592,30 +574,14 @@ public class ClassicMessage extends CommunicationMessage {
         return getType().equals(CLASSIC_MESSAGE_TYPE.MESSAGE);
     }
 
-    public Boolean isLocalUpdate() {
-        return getType().equals(CLASSIC_MESSAGE_TYPE.LOCAL_UPDATE);
-    }
-
     public Boolean isLocalUpdateResponse() {
         return getType().equals(CLASSIC_MESSAGE_TYPE.LOCAL_UPDATE_RESPONSE);
-    }
-
-    public boolean isTicketClicked() {
-        return getType().equals(CLASSIC_MESSAGE_TYPE.TICKET_CLICKED);
     }
 
     public CLASSIC_MESSAGE_TYPE getType() {
         return CLASSICMESSAGE_type;
     }
 
-
-    public JSONObject getAckData() throws WrongMessageTypeException {
-        if (!isAck()) {
-            throw new WrongMessageTypeException("Requiring ack data on a non-ack message");
-        }
-
-        return new JSONObject(getData());
-    }
 
     public String getNackReason() throws WrongMessageTypeException {
         if (!isNack()) {
@@ -654,22 +620,8 @@ public class ClassicMessage extends CommunicationMessage {
         return getData().getLong(MESSAGE_TICKET_ID);
     }
 
-    public Message getMessageUpdateContents() {
-        System.out.println(getData().get(MESSAGE_UPDATE_CONTENT));
-        return new Message(new JSONObject(getData().getString(MESSAGE_UPDATE_CONTENT)));
-    }
-
     public Long getTicketClickedID() {
         return getData().getLong(TICKET_CLICKED_ID);
-    }
-
-    public Ticket getTicketClickedResponseTicket() {
-        String ticketString = getData().getString(TICKET_CLICKED_RESPONSE_CONTENTS);
-        if (ticketString == TICKET_RESPONSE_NULL) {
-            return null;
-        }
-
-        return new Ticket(new JSONObject(getData().getString(TICKET_CLICKED_RESPONSE_CONTENTS)));
     }
 
     public TreeSet<Groupe> getLocalUpdateResponseRelatedGroups() {

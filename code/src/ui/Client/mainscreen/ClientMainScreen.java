@@ -13,6 +13,8 @@ import ui.Client.ticketcreation.TicketCreationScreen;
 import ui.InteractiveUI;
 
 import javax.swing.*;
+import javax.swing.plaf.basic.BasicSplitPaneDivider;
+import javax.swing.plaf.basic.BasicSplitPaneUI;
 import java.awt.*;
 import java.io.IOException;
 import java.util.Set;
@@ -54,8 +56,15 @@ public class ClientMainScreen extends InteractiveUI {
         setContentPane(mainPanel);
         mainPanel.setOrientation(JSplitPane.HORIZONTAL_SPLIT);
 
+        setDividerStyle();
         initLeftSidePanel();
         initRightSidePanel();
+    }
+
+    private void setDividerStyle() {
+        BasicSplitPaneDivider divider = ((BasicSplitPaneUI) mainPanel.getUI()).getDivider();
+        divider.setBackground(Color.black);
+        divider.setDividerSize(2);
     }
 
     private void initLeftSidePanel() {
@@ -73,11 +82,7 @@ public class ClientMainScreen extends InteractiveUI {
     private void createTicket() {
         TicketCreationScreen ticketCreationScreen = new TicketCreationScreen(allGroups);
         ticketCreationScreen.setTicketCreationListener((title, group, contents) -> {
-            try {
-                client.sendData(ClassicMessage.createTicket(title, group, contents));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            client.sendData(ClassicMessage.createTicket(title, group, contents));
         });
     }
 
@@ -86,13 +91,23 @@ public class ClientMainScreen extends InteractiveUI {
     }
 
     private void updateTicketDisplayer(Ticket ticket) {
+        if (ticket != null) {
+            Message premierMessage = ticket.premierMessage();
+            if (premierMessage == null || Utilisateur.getInstance(premierMessage.getUtilisateurID()) == null) {
+                Debugger.logMessage("ClientMainScreen", "User does not exists, deleting ticket");
+                deleteTicket(ticket);
+                updateTree();
+                ticket = null;
+            }
+        }
+
         if (ticket == null) {
             ticketDisplayer = new TicketDisplayer();
         } else {
             ticketDisplayer = new TicketDisplayer(ticket);
         }
-        selectedTicket = ticket;
 
+        selectedTicket = ticket;
         mainPanel.setRightComponent(ticketDisplayer);
 
         ticketDisplayer.setMessageSendDemandListener((ticketClicked, text) -> {
@@ -107,6 +122,10 @@ public class ClientMainScreen extends InteractiveUI {
             leftPanel.remove(ticketTree);
         }
 
+        for (Groupe groupe : relatedGroups) {
+            groupe.updateTickets();
+        }
+
         System.out.println(relatedGroups);
         ticketTree = new TicketTree(relatedGroups);
         ticketTree.addTreeSelectionListener(this::elementSelectedOnTree);
@@ -116,6 +135,10 @@ public class ClientMainScreen extends InteractiveUI {
     }
 
     private void updateTree() {
+        for (Groupe groupe : relatedGroups) {
+            groupe.updateTickets();
+        }
+
         ticketTree.updateTree(relatedGroups);
     }
 
@@ -202,7 +225,7 @@ public class ClientMainScreen extends InteractiveUI {
                                 messages.add(entryAsMessage);
 
                                 if (ticket.equals(selectedTicket)) {
-                                    updateTicketDisplayer(selectedTicket);
+                                    ticketDisplayer.updateContents(selectedTicket);
                                 }
 
                                 updateTree();
@@ -224,7 +247,6 @@ public class ClientMainScreen extends InteractiveUI {
             entryRelatedGroup.addTicket(entryRelatedTicket);
             relatedGroups.add(entryRelatedGroup);
             updateTree();
-            return;
         }
     }
 
@@ -257,6 +279,14 @@ public class ClientMainScreen extends InteractiveUI {
         }
     }
 
+    private void deleteTicket(Ticket ticket) {
+        for (Groupe groupe : relatedGroups) {
+            if (groupe.getTickets().remove(ticket)) {
+                return;
+            }
+        }
+    }
+
     public void deleteMessage(Groupe entryRelatedGroup, Ticket entryRelatedTicket, Message entryAsMessage) {
         for (Groupe groupe : relatedGroups) {
             if (groupe.equals(entryRelatedGroup)) {
@@ -284,8 +314,10 @@ public class ClientMainScreen extends InteractiveUI {
         if (relatedGroups.contains(relatedGroupEntry)) {
             for (Groupe groupe : relatedGroups) {
                 if (groupe.equals(relatedGroupEntry)) {
-                    groupe.getTickets().add(entryAsTicket);
-                    updateTree();
+                    groupe.addTicket(entryAsTicket);
+                    ticketTree.updateTree(relatedGroups);
+                    ticketTree.revalidate();
+                    ticketTree.repaint();
                     return;
                 }
             }
@@ -301,12 +333,10 @@ public class ClientMainScreen extends InteractiveUI {
             if (groupe.equals(entryRelatedGroup)) {
                 for (Ticket ticket : groupe.getTickets()) {
                     if (ticket.equals(entryRelatedTicket)) {
-                        ticket.getMessages().add(entryAsMessage);
+                        ticket.addMessage(entryAsMessage);
                         if (ticket.equals(selectedTicket)) {
                             updateTicketDisplayer(ticket);
                         }
-
-                        updateTree();
 
                         return;
                     }

@@ -29,7 +29,6 @@ public class TicketTreeObject extends DefaultTreeModel {
             Groupe groupe = (Groupe) o;
             return groupe.getTickets().toArray()[index];
         }
-
         return null;
     }
 

@@ -68,7 +68,6 @@ create TABLE MESSAGE (
     heure_envoi     DATETIME            NOT NULL DEFAULT CURRENT_TIMESTAMP,
     id_ticket       INT                 NOT NULL,
     id_util         INT                 NOT NULL,
-    state           INT                 NOT NULL DEFAULT 2,
 
     PRIMARY KEY(id_message),
     FOREIGN KEY(id_ticket)              REFERENCES TICKET(id_ticket)    ON delete CASCADE,
