@@ -18,36 +18,78 @@ public abstract class CommunicationMessage {
     private String type;
     private JSONObject data = new JSONObject();
 
-
+    /**
+     * methode permettant d'ajouter des informations sur un message
+     * 
+     * @param key - clé qui fera référence aux données ajoutées
+     * @param data - données à ajouter
+    **/
     protected void addData(String key, JSONArray data) {
         this.data.put(key, data);
     }
-
+    
+    /**
+     * Accesseur sur les données d'un message
+     *
+     * @return les données du message
+    **/
     protected JSONObject getData() {
         return data;
     }
-
+    
+    /**
+     * Mutateur sur les données d'un message
+     * 
+     * @param data - nouvelles données à placer dans le message
+    **/
     protected void setData(JSONObject data) {
         this.data = data;
     }
-
+    
+    /**
+     * Accesseur sur le type du message
+     *
+     * @return le type du message
+    **/
     protected String getTypeToString() {
         return type;
     }
-
+    
+    /**
+     * Mutateur sur le type du message 
+     *
+     * @param le nouveau type du message
+    **/
     protected void setTypeString(String type) {
         this.type = type;
     }
-
+    
+    /**
+     * methode ajoutant des données (sous forme de string) au message 
+     *
+     * @param key - clé liée aux données ajoutées
+     * @param data - données à ajouter sous forme de chaine de caractères
+    **/
     protected void addData(String key, String data) {
         this.data.put(key, data);
     }
-
+    
+   /**
+     * methode ajoutant des données (sous forme d'octets) au message 
+     *
+     * @param key - clé liée aux données ajoutées
+     * @param data - données à ajouter sous forme de tableau d'octet 
+    **/
     protected void addData(String key, byte[] data) {
         this.data.put(key, data);
     }
 
-
+    /**
+     * methode verifiant si les données sont valides pour devenir un objet JSON
+     *
+     * @param data - données à évlauer
+     * @return true si on peut coder les données au format JSON , false sinon
+    **/
     protected Boolean isValidJSON(String data) {
         try {
             new JSONObject(data);
@@ -63,7 +105,6 @@ public abstract class CommunicationMessage {
         return true;
     }
 
-
     public String toString() {
         JSONObject result = new JSONObject();
         result.put(TYPE, getTypeToString());
@@ -71,7 +112,12 @@ public abstract class CommunicationMessage {
 
         return result.toString() + "\n";
     }
-
+    
+    /**
+     * traduit le message sous forme JSONObject en un String formaté via la fonction format
+     *
+     * @return Une chaine de caractères formatée contenant les informations du message 
+    **/
     public String toFormattedString() {
         JSONObject result = new JSONObject();
         result.put(TYPE, getTypeToString());
@@ -80,7 +126,14 @@ public abstract class CommunicationMessage {
         return format("", result, 0);
     }
 
-
+    /**
+     * formate une clé, un objet au format JSON en une chaine de caractère formatée
+     * 
+     * @param key - clé 
+     * @param object - objet au format JSON à formater
+     * @param padding - tabulation
+     * @return une chaine de caractères contenant les information 
+    **/
     private String format(final String key, JSONObject object, int padding) {
         final String pad = new String(new char[padding]).replace("\0", "\t");
 
@@ -114,7 +167,14 @@ public abstract class CommunicationMessage {
 
         return builder.toString();
     }
-
+    /**
+     * formate une clé, un tableau JSON en une chaine de caractère formatée
+     * 
+     * @param key - clé 
+     * @param object - tableau JSON à formater
+     * @param padding - tabulation
+     * @return une chaine de caractères contenant les information 
+    **/
     private String format(final String key, JSONArray array, int padding) {
         final String pad = new String(new char[padding]).replace("\0", "\t");
 
@@ -146,19 +206,40 @@ public abstract class CommunicationMessage {
 
         return builder.toString();
     }
-
+    
+    /**
+     * methode verifiant si un objet JSON contient bien un type et des données
+     *
+     * @param data - objet au format JSON à vérifier
+     * @return true si l'objet possède un type et des données, false sinon
+    **/
     protected Boolean isValid(final JSONObject data) {
         return data.has(TYPE) && data.has(DATA);
     }
-
+    
+    /**
+     * Accesseur sur la table stockée sur les données du message
+     *
+     * @return une chaine de caractères étant la table 
+    **/
     public String getTable() {
         return getData().getString(TABLE);
     }
-
+    
+    /**
+     * Accesseur sur les entrées stockées sur les données du message
+     *
+     * @retunr les entrées sosu forme de JSONObject
+    **/
     public JSONObject getEntryAsJSON() {
         return new JSONObject(getData().getString(ENTRY));
     }
-
+    
+    /**
+     * methode de relayage permettant de recupérer les instances de table en fonction du nom de la table
+     *
+     * @return null si aucun nom n'est connnu, l'instance correspondante sinon
+    **/
     public ProjectTable getEntry() {
         switch (getTable()) {
             case TABLE_NAME_UTILISATEUR:
@@ -177,24 +258,44 @@ public abstract class CommunicationMessage {
                 return null;
         }
     }
-
+    
+    /**
+     * methode retournant un utilisateur en fonction d'un entrée de table
+     *
+     * @return utilisateur généré
+    **/
     public Utilisateur getEntryAsUtilisateur() {
         return new Utilisateur(getEntryAsJSON());
     }
-
+    
+    /**
+     * methode retournant un groupe en fonction d'un entrée de table
+     *
+     * @return groupe généré
+    **/
     public Groupe getEntryAsGroupe() {
         return new Groupe(getEntryAsJSON());
     }
 
+    /**
+     * methode retournant un ticket en fonction d'un entrée de table
+     *
+     * @return ticket généré
+    **/
     public Ticket getEntryAsTicket() {
         return new Ticket(getEntryAsJSON());
     }
-
+    
+    /**
+     * methode retournant un message en fonction d'un entrée de table
+     *
+     * @return message généré
+    **/
     public Message getEntryAsMessage() {
         return new Message(getEntryAsJSON());
     }
 
-
+    
     public static class InvalidMessageException extends Exception {
         public InvalidMessageException() {
             super();
