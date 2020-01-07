@@ -18,22 +18,46 @@ public class Groupe extends ProjectTable implements Comparable<Groupe> {
 
     private TreeSet<Ticket> mTickets = new TreeSet<>();
 
+    /**
+     * Constructeur de l'objet Groupe à partir d'un identifiant et d'un nom de groupe
+     *
+     * @param id : identifiant unique du groupe 
+     * @param label : nom du groupe
+     **/
     public Groupe(final Long id, final String label) {
         mID = id;
         mLabel = label;
     }
-
+    
+    /**
+     * Constructeur de l'objet Groupe à partir d'un identifiant, d'un nom de groupe et d'un ensemble trié de tickets
+     *
+     * @param id : identifiant unique du groupe 
+     * @param label : nom du groupe
+     * @param tickets : ensemble de tickets liés à ce groupe
+    **/
     public Groupe(final Long id, final String label, final TreeSet<Ticket> tickets) {
         mID = id;
         mLabel = label;
         mTickets = tickets;
     }
-
+    
+    /**
+     * Constructeur de l'objet Groupe à partir des informations extraites de la base de données
+     *
+     * @param set : ensemble d'informations recupérées dans la base de donnée
+     * @throws SQLException : peut être renvoyée si une entrée n'est pas présente dans le ResultSet
+    **/
     public Groupe(ResultSet set) throws SQLException {
         mID = set.getLong(1);
         mLabel = set.getString(2);
     }
-
+    
+    /**
+     * Constructeur de l'objet Groupe à partir d'un message au format JSON 
+     *
+     * @param jsonObject : objet json contenant toutes les onformations d'un groupe
+    **/
     public Groupe(JSONObject jsonObject) {
         mID = jsonObject.getLong(GROUPE_ID);
         mLabel = jsonObject.getString(GROUPE_LABEL);
@@ -45,7 +69,10 @@ public class Groupe extends ProjectTable implements Comparable<Groupe> {
             mTickets.add(new Ticket(o));
         }
     }
-
+    
+    /**
+     * Constructeur de l'objet groupe à partir d'un titre 
+    **/
     public Groupe(String label) {
         super();
 
