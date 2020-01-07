@@ -74,13 +74,21 @@ public class ClassicMessage extends CommunicationMessage {
     private final CLASSIC_MESSAGE_TYPE CLASSICMESSAGE_type;
     
     /**
-     * Constructeur de l'objet Message à partir d'un type de message et 
+     * Constructeur de l'objet Message à partir d'un type de message et d'un type de message de communication 
+     *
+     * @param msg_type - type du message 
+     * @param type - type de communication du message
     **/
     private ClassicMessage(CLASSIC_MESSAGE_TYPE msg_type, final String type) {
         this.CLASSICMESSAGE_type = msg_type;
         setTypeString(type);
     }
-
+    /**
+     * Constructeur de l'objet ClassicMessage à partie de données
+     *
+     * @param data - données du message 
+     *@throws InvalidMessageException peut être renvoyé si le message n'est pas valide au format JSON (voir isValidJSON)
+    **/
     public ClassicMessage(String data) throws InvalidMessageException {
 
         if (data == null || !isValidJSON(data)) {
@@ -99,7 +107,13 @@ public class ClassicMessage extends CommunicationMessage {
 
         CLASSICMESSAGE_type = guessType();
     }
-
+    
+    /**
+     * methode créant un message NACK 
+     *
+     * @param reason - information sur l'erreur
+     * @return message créé
+    **/
     public static ClassicMessage createNack(final String reason) {
         ClassicMessage result = new ClassicMessage(CLASSIC_MESSAGE_TYPE.RESPONSE, TYPE_RESPONSE);
 
@@ -108,7 +122,11 @@ public class ClassicMessage extends CommunicationMessage {
 
         return result;
     }
-
+    /**
+     * Methode créant un message d'acquitement
+     *
+     *@return message créé
+    **/
     public static ClassicMessage createAck() {
         ClassicMessage result = new ClassicMessage(CLASSIC_MESSAGE_TYPE.RESPONSE, TYPE_RESPONSE);
 
@@ -116,7 +134,14 @@ public class ClassicMessage extends CommunicationMessage {
 
         return result;
     }
-
+    
+    /**
+     * methode créant un message de connexion au client 
+     *
+     * @param ine - Identifiant national d'étudiant 
+     * @param password - mot de passe de celui se connectant
+     * @return message de connexion créé
+    **/
     public static ClassicMessage createConnection(final String ine, final String password) {
         ClassicMessage classicMessage = new ClassicMessage(CLASSIC_MESSAGE_TYPE.CONNECTION, TYPE_CONNECTION);
 
@@ -125,7 +150,15 @@ public class ClassicMessage extends CommunicationMessage {
 
         return classicMessage;
     }
-
+    
+    /**
+     * methode créant un message de création de ticket
+     *
+     * @param ticketTitle - titre du ticket à créer 
+     * @param ticketGroup - Groupe auquel est rattaché le ticket
+     * @param content - contenu du message de création
+     * @return message de création de ticket créé
+    **/
     public static ClassicMessage createTicket(final String ticketTitle, final String ticketGroup,
                                               final String contents) {
 
@@ -137,7 +170,14 @@ public class ClassicMessage extends CommunicationMessage {
 
         return classicMessage;
     }
-
+    
+    /**
+     * methode créant un message de création de message
+     *
+     * @param ticketID - ticket sur lequel sera posté le message
+     * @param content - contenu du message posté
+     * @return message de création de message créé
+    **/
     public static ClassicMessage createMessage(final Long ticketID, final String contents) {
         ClassicMessage classicMessage = new ClassicMessage(CLASSIC_MESSAGE_TYPE.MESSAGE, TYPE_MESSAGE);
 
@@ -147,7 +187,12 @@ public class ClassicMessage extends CommunicationMessage {
         return classicMessage;
     }
 
-
+    /**
+     * methode créant un message de demande de mis à jour par le client
+     *
+     * @param from - date de l'emission de la demande
+     * @return message de demande de mise à jour créé
+    **/
     public static ClassicMessage createLocalUpdate(final Date from) {
         ClassicMessage classicMessage = new ClassicMessage(CLASSIC_MESSAGE_TYPE.LOCAL_UPDATE, TYPE_LOCAL_UPDATE);
 
@@ -155,7 +200,15 @@ public class ClassicMessage extends CommunicationMessage {
 
         return classicMessage;
     }
-
+    
+    /**
+     * methode créant un message en réponse à une demande de mise à jour
+     *
+     * @param relatedGroups - groupes liés au client ayant fait la demande
+     * @param allGroups - tous les groupes de la base de données
+     * @users - tous les utilisateurs 
+     * @return message de réponse crée
+    **/
     public static ClassicMessage createLocalUpdateResponse(
             TreeSet<Groupe> relatedGroups, TreeSet<String> allGroups, TreeSet<Utilisateur> users) {
         ClassicMessage classicMessage = new ClassicMessage(CLASSIC_MESSAGE_TYPE.LOCAL_UPDATE_RESPONSE, TYPE_LOCAL_UPDATE_RESPONSE);
@@ -183,7 +236,12 @@ public class ClassicMessage extends CommunicationMessage {
         return classicMessage;
     }
 
-
+    /**
+     * methode créant un message d'indication de ticket séléctionné
+     *
+     * @param ticket selectionné 
+     * @return message créé
+    **/
     public static ClassicMessage createTicketClicked(Ticket ticket) {
 
         ClassicMessage classicMessage = new ClassicMessage(CLASSIC_MESSAGE_TYPE.TICKET_CLICKED, TYPE_TICKET_CLICKED);
@@ -194,7 +252,11 @@ public class ClassicMessage extends CommunicationMessage {
 
     }
 
-
+    /**
+     * methode de création de message de signalement de suppression d'entrée 
+     * 
+     * @param table 
+    **/
     public static ClassicMessage createEntryDeletedMessage(final String table, ProjectTable entry) {
 
         ClassicMessage classicMessage = new ClassicMessage(CLASSIC_MESSAGE_TYPE.ENTRY_DELETED, TYPE_ENTRY_DELETED);
