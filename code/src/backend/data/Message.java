@@ -61,7 +61,12 @@ public class Message extends ProjectTable implements Comparable<Message> {
         mHaveToRead = haveToRead;
         mHaveToReceive = haveToReceive;
     }
-
+    
+    /**
+     * Constructeur de l'objet Message à partir d'un objet au fromat JSON
+     *
+     * @param json - objet au format json contenant les informations du message 
+    **/
     public Message(JSONObject json) {
         mID = json.getLong(MESSAGE_ID);
         mUtilisateurID = json.getLong(MESSAGE_UTILISATEUR_ID);
@@ -81,7 +86,11 @@ public class Message extends ProjectTable implements Comparable<Message> {
             mHaveToReceive.add(array.getString(i));
         }
     }
-
+    /**
+     * Methode encodant un objet Message au format json
+     *
+     * @return un objet au format json contenant toutes les information du message
+    **/
     public JSONObject toJSON() {
         JSONObject json = new JSONObject();
 
@@ -106,27 +115,56 @@ public class Message extends ProjectTable implements Comparable<Message> {
 
         return json;
     }
-
+    /**
+     * Accesseur sur l'identifiant du message
+     *
+     * @return l'identifiant unique du message
+    **/
     public Long getID() {
         return mID;
     }
-
+    
+    /**
+     * Accesseur sur l'identifiant de l'utilisateur ayant posté le message
+     *
+     * @return l'identifiant unique de l'utilisateur ayant posté le message
+    **/
     public Long getUtilisateurID() {
         return mUtilisateurID;
     }
-
+    
+    /**
+     * Accesseur sur l'identifiant du ticket sur lequel est posté le message
+     *
+     * @return l'identifiant unique du ticket sue lequel est posté le message
+    **/
     public Long getTicketID() {
         return mTicketID;
     }
-
+    
+    /**
+     * Accesseur sur l'heure d'envoi du message sur le ticket
+     *
+     * @return heur d'envoi du message sur le ticket
+    **/
     public Date getHeureEnvoie() {
         return mHeureEnvoie;
     }
-
+    
+    /**
+     * Accesseur sur le contenu du message
+     *
+     * @return corps du message
+    **/
     public String getContenu() {
         return mContenu;
     }
-
+    
+    /**
+     * methode verifiant le status du message 
+     *
+     * @return un int représentant l'etat du message : 1 -> pas envoyé; 2 -> pas reçu par tous; 3 -> pas lu par tous; 4 -> reçu et lu par tous
+    **/
     public int state() {
         if (mHaveToRead == null || mHaveToReceive == null) {
             return 1;
@@ -138,7 +176,12 @@ public class Message extends ProjectTable implements Comparable<Message> {
             return 4;
         }
     }
-
+    
+    /**
+     * methode renvoyant le status sous forme de string
+     *
+     * @return une chaine de caractère indiquant le status du message 
+    **/
     public String getFormattedState() {
         Debugger.logMessage("Utilisateur", "Non recus : " + mHaveToReceive + "\n" +
                 "Non vus : " + mHaveToRead);
