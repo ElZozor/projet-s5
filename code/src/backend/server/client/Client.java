@@ -135,6 +135,11 @@ public class Client extends Thread implements Server {
     }
 
     @Override
+    /**
+     * methode bouclant à l'infini tant qu'il n'y a pas de fermeture de l'application,
+     * cette methode attend la reception d'un message et le transmet à handleMessage pour le traiter.
+     * En cas de perte de connexion il y'a tentative de reconnection jusqu'a reussite ou fermeture de l'application
+    **/
     public void run() {
 
         try {
@@ -165,7 +170,11 @@ public class Client extends Thread implements Server {
 
     }
 
-
+    /**
+     * Methode recevant un message et le redirigeant vers les fonction de traitement adaptées au type du message
+     * 
+     * @param message - objet ClassiqueMessage étant le message reçu
+    **/
     private void handleMessage(ClassicMessage message) {
 
         switch (message.getType()) {
@@ -191,7 +200,12 @@ public class Client extends Thread implements Server {
         }
 
     }
-
+    
+    /**
+     * Methode effectuant le traitement d'un message de type TABLE_MODEL
+     *
+     * @param message - message reçu de type TABLE_MODEL
+    **/
     private void handleTableModelMessage(ClassicMessage message) {
 
         if (ui instanceof ServerUI) {
