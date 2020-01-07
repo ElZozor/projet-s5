@@ -23,7 +23,7 @@ public class Host extends Thread {
     public static final int PORT = 6666;
     public static Boolean isRunning = false;
     private static HashMap<String, HashSet<Server>> clientsByGroups = new HashMap<>();
-    private static HashMap<Long, Server> clientsByID = new HashMap<>();
+    private static HashMap<Long, HashSet<Server>> clientsByID = new HashMap<>();
     private static ArrayList<Server> admins = new ArrayList<>();
     private SSLServerSocket mServerSocket;
 
@@ -39,15 +39,23 @@ public class Host extends Thread {
             clientSet.add(client);
         }
 
-        clientsByID.put(clientID, client);
+        if (!clientsByID.containsKey(clientID)) {
+            clientsByID.put(clientID, new HashSet<>());
+        }
+
+        clientsByID.get(clientID).add(client);
     }
 
     public static void removeClient(Collection<String> groups, Long clientID, Server client) {
         for (String group : groups) {
-            clientsByGroups.get(group).remove(client);
+            HashSet<Server> set = clientsByGroups.get(group);
+            if (set != null) {
+                set.remove(client);
+            }
         }
 
-        clientsByID.remove(clientID);
+        HashSet<Server> set = clientsByID.get(clientID);
+        set.remove(client);
         admins.remove(client);
     }
 
@@ -74,12 +82,15 @@ public class Host extends Thread {
     }
 
     public static void broadcast(final ClassicMessage message) {
-        Collection<Server> clients = clientsByID.values();
-        for (Server s : clients) {
-            try {
-                s.sendData(message);
-            } catch (IOException e) {
-                e.printStackTrace();
+        Collection<HashSet<Server>> clients = clientsByID.values();
+        System.out.println(clientsByID.values());
+        for (HashSet<Server> clientList : clients) {
+            for (Server s : clientList) {
+                try {
+                    s.sendData(message);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
         }
 
@@ -101,13 +112,16 @@ public class Host extends Thread {
     }
 
     public static void sendToClient(Long userID, ClassicMessage message) {
-        Server client = clientsByID.get(userID);
+        HashSet<Server> client = clientsByID.get(userID);
         if (client != null) {
-            try {
-                client.sendData(message);
-            } catch (IOException e) {
-                e.printStackTrace();
+            for (Server s : client) {
+                try {
+                    s.sendData(message);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
+
         }
     }
 

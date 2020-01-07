@@ -12,10 +12,12 @@ import debug.Debugger;
 import ui.InteractiveUI;
 import ui.Server.ServerUI;
 
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 import javax.swing.*;
 import java.io.*;
 import java.net.SocketException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.TreeSet;
@@ -24,17 +26,16 @@ import static backend.database.Keys.*;
 
 public class Client extends Thread implements Server {
 
-    private final static String DBG_COLOR = Debugger.YELLOW;
     private final static int SOCKET_TIMEOUT = 5000;
 
-    private final SSLSocket mSocket;
-    boolean isRunning = true;
+    private SSLSocket mSocket;
 
     private BufferedWriter mWriteStream;
     private BufferedReader mReadStream;
 
     private InteractiveUI ui;
     private Boolean running = false;
+    private Boolean connected = true;
 
     private Utilisateur myUser;
 
@@ -83,10 +84,8 @@ public class Client extends Thread implements Server {
 
             return null;
         } catch (SocketDisconnectedException e) {
-            isRunning = false;
+            return null;
         }
-
-        return null;
     }
 
 
@@ -109,6 +108,7 @@ public class Client extends Thread implements Server {
 
             if (returnedData != null && returnedData.isAck()) {
                 myUser = new Utilisateur(0L, "", "", INE, "");
+                myUser.setPassword(password);
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -156,7 +156,30 @@ public class Client extends Thread implements Server {
                 handleMessage(message);
 
             } catch (SocketDisconnectedException e) {
-                running = false;
+                connected = false;
+                System.out.println("Entering socket reconnection");
+                while (running && !connected) {
+                    try {
+                        mSocket = (SSLSocket) SSLContext.getDefault().getSocketFactory().createSocket("localhost", 6666);
+                        mSocket.setSoTimeout(SOCKET_TIMEOUT);
+
+                        mWriteStream = new BufferedWriter(new OutputStreamWriter(mSocket.getOutputStream()));
+                        mReadStream = new BufferedReader(new InputStreamReader(mSocket.getInputStream()));
+
+                        ClassicMessage message = sendConnectionMessage(myUser.getINE(), myUser.getPassword());
+                        connected = (message != null && message.isAck());
+
+                        mSocket.setSoTimeout(0);
+                    } catch (IOException | NoSuchAlgorithmException ex) {
+                        try {
+                            sleep(1000);
+                        } catch (InterruptedException exception) {
+                            exception.printStackTrace();
+                        }
+                    }
+
+                    System.out.println("CONNECTED: " + connected);
+                }
             } catch (IOException | ClassicMessage.InvalidMessageException e) {
                 e.printStackTrace();
             }
@@ -199,7 +222,9 @@ public class Client extends Thread implements Server {
             ServerUI serverUI = (ServerUI) ui;
 
             final UserModel userModel = message.getTableModelUserModel();
+            final String password = myUser.getPassword();
             myUser = userModel.getReferenceTo(myUser.getINE());
+            myUser.setPassword(password);
 
             serverUI.setAllModels(
                     message.getTableModelUserModel(),
@@ -219,7 +244,9 @@ public class Client extends Thread implements Server {
 
         for (Utilisateur user : users) {
             if (user.getINE().equals(myUser.getINE())) {
+                final String password = myUser.getPassword();
                 myUser = user;
+                myUser.setPassword(password);
                 break;
             }
         }
@@ -370,29 +397,6 @@ public class Client extends Thread implements Server {
                 e.printStackTrace();
             }
         }
-    }
-
-
-    /**
-     * This function is used to create a new ticket.
-     * Will return the message received from the host.
-     *
-     * @param title          The ticket title
-     * @param messageContent The message contents
-     * @param group          The concerned group
-     * @return The message received from the host
-     */
-    public Boolean createANewTicket(String title, String messageContent, String group) {
-
-
-        try {
-            sendData(ClassicMessage.createTicket(title, group, messageContent));
-            return true;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
-        }
-
     }
 
 

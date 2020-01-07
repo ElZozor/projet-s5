@@ -39,6 +39,9 @@ public class TicketDisplayer extends JPanel {
     }
 
     private void initMessagePanel() {
+        if (messagePanel != null) {
+            remove(messagePanel);
+        }
         messagePanel = new JPanel();
         messagePanel.setLayout(new GridBagLayout());
 
@@ -100,6 +103,12 @@ public class TicketDisplayer extends JPanel {
 
     public void setMessageSendDemandListener(OnMessageSendRequest listener) {
         this.sendDemandListener = listener;
+    }
+
+    public void updateContents(Ticket selectedTicket) {
+        Debugger.logMessage("TicketDisplayer", "updating contents");
+        ticket = selectedTicket;
+        initMessagePanel();
     }
 
     public interface OnMessageSendRequest {

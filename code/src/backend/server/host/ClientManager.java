@@ -346,13 +346,17 @@ public class ClientManager extends Thread implements Server {
         try {
 
             DatabaseManager manager = DatabaseManager.getInstance();
+
             manager.setMessagesFromTicketRead(classicMessage.getTicketClickedID(), user.getID());
             Ticket ticket = manager.getTicket(classicMessage.getTicketClickedID());
-            Groupe groupe = manager.relatedTicketGroup(ticket.getID());
-            ClassicMessage message = ClassicMessage.createTicketUpdatedMessage(TABLE_NAME_TICKET, ticket, groupe);
-            sendData(message);
-            Host.broadcastToGroup(message, groupe.getLabel());
-
+            if (ticket != null) {
+                Groupe groupe = manager.relatedTicketGroup(ticket.getID());
+                if (groupe != null) {
+                    ClassicMessage message = ClassicMessage.createTicketUpdatedMessage(TABLE_NAME_TICKET, ticket, groupe);
+                    sendData(message);
+                    Host.broadcastToGroup(message, groupe.getLabel());
+                }
+            }
         } catch (SQLException | IOException e) {
             e.printStackTrace();
         }
@@ -531,8 +535,6 @@ public class ClientManager extends Thread implements Server {
 
                     if (set.next()) {
                         user.setID(set.getLong(1));
-
-                        relatedGroup = DatabaseManager.getInstance().relatedUserGroup(INE);
                     }
 
                     break;
@@ -556,7 +558,11 @@ public class ClientManager extends Thread implements Server {
 
 
         if (success) {
-            Host.broadcastToGroup(ClassicMessage.createEntryAddedMessage(classicMessage.getTable(), entry), relatedGroup);
+            if (relatedGroup != null) {
+                Host.broadcastToGroup(ClassicMessage.createEntryAddedMessage(classicMessage.getTable(), entry), relatedGroup);
+            } else {
+                Host.broadcast(ClassicMessage.createEntryAddedMessage(classicMessage.getTable(), entry));
+            }
         }
 
 
