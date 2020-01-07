@@ -72,7 +72,10 @@ public class ClassicMessage extends CommunicationMessage {
 
 
     private final CLASSIC_MESSAGE_TYPE CLASSICMESSAGE_type;
-
+    
+    /**
+     * Constructeur de l'objet Message à partir d'un type de message et 
+    **/
     private ClassicMessage(CLASSIC_MESSAGE_TYPE msg_type, final String type) {
         this.CLASSICMESSAGE_type = msg_type;
         setTypeString(type);
