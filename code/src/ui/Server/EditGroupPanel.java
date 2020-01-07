@@ -5,7 +5,6 @@ import backend.server.communication.classic.ClassicMessage;
 
 import javax.swing.*;
 import java.awt.*;
-import java.io.IOException;
 import java.sql.ResultSet;
 
 import static backend.database.Keys.TABLE_NAME_GROUPE;
@@ -123,13 +122,9 @@ public class EditGroupPanel extends JPanel {
 
         boolean success = false;
         ResultSet result;
-        try {
-            parent.client.sendData(ClassicMessage.createAddMessage(
-                    TABLE_NAME_GROUPE, new Groupe(0L, label)
-            ));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        parent.client.sendData(ClassicMessage.createAddMessage(
+                TABLE_NAME_GROUPE, new Groupe(0L, label)
+        ));
 
         parent.setMainPanel();
     }
@@ -138,15 +133,11 @@ public class EditGroupPanel extends JPanel {
     private void updateExistingGroup() {
         final String label = labelField.getText();
 
-        try {
-            parent.client.sendData(
-                    ClassicMessage.createUpdateMessage(
-                            TABLE_NAME_GROUPE, new Groupe(group.getID(), label)
-                    )
-            );
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        parent.client.sendData(
+                ClassicMessage.createUpdateMessage(
+                        TABLE_NAME_GROUPE, new Groupe(group.getID(), label)
+                )
+        );
 
         parent.setMainPanel();
     }

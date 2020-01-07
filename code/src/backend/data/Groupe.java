@@ -116,4 +116,8 @@ public class Groupe extends ProjectTable implements Comparable<Groupe> {
 
         return false;
     }
+
+    public void updateTickets() {
+        mTickets = new TreeSet<>(mTickets);
+    }
 }

@@ -129,7 +129,7 @@ public class Message extends ProjectTable implements Comparable<Message> {
 
         if (mHaveToReceive != null) {
             if (mHaveToReceive.isEmpty()) {
-                builder.append("Tous les utilisateurs ont reçu ce message.\n");
+                builder.append("Tous les utilisateurs ont reçu ce message");
             } else {
                 builder.append("Doit être reçu par:\n");
                 for (String s : mHaveToReceive) {
@@ -140,7 +140,7 @@ public class Message extends ProjectTable implements Comparable<Message> {
 
         if (mHaveToRead != null) {
             if (mHaveToRead.isEmpty()) {
-                builder.append("Tous les utilisateurs ont vus ce message.\n");
+                builder.append("Tous les utilisateurs ont vus ce message.");
             } else {
                 builder.append("Doit être lu par:\n");
                 for (String s : mHaveToRead) {

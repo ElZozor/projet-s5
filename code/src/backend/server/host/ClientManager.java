@@ -3,6 +3,7 @@ package backend.server.host;
 import backend.data.*;
 import backend.database.DatabaseManager;
 import backend.server.Server;
+import backend.server.communication.CommunicationMessage;
 import backend.server.communication.classic.ClassicMessage;
 import debug.Debugger;
 
@@ -49,6 +50,9 @@ public class ClientManager extends Thread implements Server {
 
     }
 
+    /**
+     * @return - Si le client a les droits administrateurs ou non
+     */
     private boolean isAdminOrStaff() {
         if (user == null) {
             return false;
@@ -58,12 +62,8 @@ public class ClientManager extends Thread implements Server {
     }
 
     /**
-     * Main function overridden from the parent class "Thread".
-     * It will run in background until the Host.running value became "false"
-     * or the main program stop.
-     * <p>
-     * It handle the client message including connection, disconnection,
-     * and all actions that the client can perform.
+     * Boucle principale du client manager
+     * Tourne en fond et traite les messages reçus du client.
      */
     @Override
     public void run() {
@@ -108,16 +108,10 @@ public class ClientManager extends Thread implements Server {
 
 
     /**
-     * Handle a message sent by the client.
-     * You must check that the message contains the key "type"
-     * before send it to this function.
-     * <p>
-     * Otherwise, the function will crash..
-     * <p>
-     * It will check the message "type" value and redirect it
-     * to the proper function that must handle the action.
+     * Traite un message envoyé par le client et le dispache
+     * dans les différentes fonctions appropriés
      *
-     * @param classicMessage The message to handle
+     * @param classicMessage Le message à traiter
      */
     private void handleMessage(ClassicMessage classicMessage) {
 
@@ -136,7 +130,7 @@ public class ClientManager extends Thread implements Server {
                 break;
 
             case LOCAL_UPDATE:
-                handleLocalUpdateMessage(classicMessage);
+                handleLocalUpdateMessage();
                 break;
 
             case TICKET_CLICKED:
@@ -172,10 +166,9 @@ public class ClientManager extends Thread implements Server {
 
 
     /**
-     * Function that handles a client connection when a client send his
-     * credential ( not when the socket connection begins ).
+     * Fonction qui traite une connexion.
      *
-     * @param classicMessage The connection message
+     * @param classicMessage Le message de connexion
      */
     private void handleConnection(ClassicMessage classicMessage) {
 
@@ -213,24 +206,19 @@ public class ClientManager extends Thread implements Server {
         }
 
 
-        try {
-            if (queryResult) {
-                sendData(ClassicMessage.createAck());
-            } else {
-                sendData(ClassicMessage.createNack(fail_reason));
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
+        if (queryResult) {
+            sendData(ClassicMessage.createAck());
+        } else {
+            sendData(ClassicMessage.createNack(fail_reason));
         }
 
     }
 
 
     /**
-     * Function that handles a ticket message.
-     * Used to create a new ticket.
+     * Fonction qui traite la création d'un ticket
      *
-     * @param classicMessage The message that contains the ticket informations
+     * @param classicMessage Le message qui contient le ticket
      */
     private void handleTicketCreation(ClassicMessage classicMessage) {
 
@@ -267,7 +255,7 @@ public class ClientManager extends Thread implements Server {
                 }
             }
 
-        } catch (SQLException | IOException e) {
+        } catch (SQLException e) {
             e.printStackTrace();
         }
 
@@ -275,9 +263,9 @@ public class ClientManager extends Thread implements Server {
 
 
     /**
-     * Used to handle a classic message.
+     * Fonction qui traite le post d'un message.
      *
-     * @param classicMessage The message data.
+     * @param classicMessage Le message à ajouter.
      */
     private void handleClassicMessage(ClassicMessage classicMessage) {
         Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Classic message: \n" + classicMessage.toString());
@@ -325,7 +313,10 @@ public class ClientManager extends Thread implements Server {
     }
 
 
-    private void handleLocalUpdateMessage(ClassicMessage classicMessage) {
+    /**
+     * Fonction qui traite une demande de maj locale.
+     */
+    private void handleLocalUpdateMessage() {
 
         Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Handling a local update message");
 
@@ -335,12 +326,17 @@ public class ClientManager extends Thread implements Server {
             TreeSet<Utilisateur> users = DatabaseManager.getInstance().getAllUsers();
 
             sendData(ClassicMessage.createLocalUpdateResponse(relatedGroups, allGroups, users));
-        } catch (SQLException | IOException e) {
+        } catch (SQLException e) {
             e.printStackTrace();
         }
 
     }
 
+    /**
+     * Fonction qui traite un click sur un ticket
+     *
+     * @param classicMessage Le ticket
+     */
     private void handleTicketClickedMessage(ClassicMessage classicMessage) {
 
         try {
@@ -357,13 +353,17 @@ public class ClientManager extends Thread implements Server {
                     Host.broadcastToGroup(message, groupe.getLabel());
                 }
             }
-        } catch (SQLException | IOException e) {
+        } catch (SQLException e) {
             e.printStackTrace();
         }
 
     }
 
-
+    /**
+     * Fonction qui traite la suppression d'une entrée ( uniquement admin )
+     *
+     * @param classicMessage L'entrée à supprimer et sa table
+     */
     private void handleDeleteMessage(ClassicMessage classicMessage) {
 
         if (!isAdminOrStaff()) {
@@ -441,6 +441,12 @@ public class ClientManager extends Thread implements Server {
         }
     }
 
+
+    /**
+     * Fonction qui traite la mise à jour d'une entrée ( admin uniquement )
+     *
+     * @param classicMessage L'entrée et sa table
+     */
     private void handleUpdateMessage(ClassicMessage classicMessage) {
 
         if (!isAdminOrStaff()) {
@@ -503,6 +509,12 @@ public class ClientManager extends Thread implements Server {
 
     }
 
+
+    /**
+     * Fonction qui traite l'ajout d'une entrée ( admin uniquement )
+     *
+     * @param classicMessage L'entrée et sa table
+     */
     private void handleAddMessage(ClassicMessage classicMessage) {
 
         if (!isAdminOrStaff()) {
@@ -543,11 +555,13 @@ public class ClientManager extends Thread implements Server {
 
                 case TABLE_NAME_GROUPE:
                     Groupe groupe = (Groupe) entry;
-                    success = DatabaseManager.getInstance().createNewGroup(
+                    entry = DatabaseManager.getInstance().createNewGroup(
                             groupe.getLabel()
-                    ).next();
+                    );
 
-                    relatedGroup = ((Groupe) entry).getLabel();
+                    success = entry != null;
+
+                    if (success) relatedGroup = groupe.getLabel();
 
                     break;
             }
@@ -568,6 +582,9 @@ public class ClientManager extends Thread implements Server {
 
     }
 
+    /**
+     * Fonction qui traite la demande des table de modèle
+     */
     private void handleTableModelRequestMessage() {
 
         Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Table request received");
@@ -594,12 +611,16 @@ public class ClientManager extends Thread implements Server {
                     messages
             ));
 
-        } catch (SQLException | IOException e) {
+        } catch (SQLException e) {
             e.printStackTrace();
         }
 
     }
 
+    /**
+     * Fonction qui traite le fait qu'un client doit
+     * recevoir tous les messages sortant du serveur
+     */
     private void handleRequestEverythingMessage() {
 
         if (!isAdminOrStaff()) {
@@ -610,6 +631,12 @@ public class ClientManager extends Thread implements Server {
 
     }
 
+
+    /**
+     * Fonction qui traite le fait qu'un message soit lu par un utilisateur
+     *
+     * @param classicMessage - Le message et l'utilisateur
+     */
     private void handleMessageSeenMessage(ClassicMessage classicMessage) {
 
         DatabaseManager database = DatabaseManager.getInstance();
@@ -633,5 +660,18 @@ public class ClientManager extends Thread implements Server {
     @Override
     public BufferedReader getSocketReader() {
         return mReadStream;
+    }
+
+    /**
+     * Ici nous ne faisons rien, en effet, lorsque le client
+     * se reconnecte, le serveur crée un nouveau socket et
+     * récupère de nouveau toutes les données qui lui sont
+     * destinées.
+     *
+     * @param message - Un message
+     */
+    @Override
+    public void addPendingMessage(CommunicationMessage message) {
+
     }
 }

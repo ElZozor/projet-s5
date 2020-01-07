@@ -7,6 +7,7 @@ import backend.data.Ticket;
 import backend.data.Utilisateur;
 import backend.modele.UserModel;
 import backend.server.Server;
+import backend.server.communication.CommunicationMessage;
 import backend.server.communication.classic.ClassicMessage;
 import debug.Debugger;
 import ui.InteractiveUI;
@@ -20,6 +21,7 @@ import java.net.SocketException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Stack;
 import java.util.TreeSet;
 
 import static backend.database.Keys.*;
@@ -36,8 +38,11 @@ public class Client extends Thread implements Server {
     private InteractiveUI ui;
     private Boolean running = false;
     private Boolean connected = true;
+    private Boolean requestEverything = false;
 
     private Utilisateur myUser;
+
+    private Stack<CommunicationMessage> pendingMessages = new Stack<>();
 
     /**
      * This class is used on the client side.
@@ -156,36 +161,55 @@ public class Client extends Thread implements Server {
                 handleMessage(message);
 
             } catch (SocketDisconnectedException e) {
-                connected = false;
-                System.out.println("Entering socket reconnection");
-                while (running && !connected) {
-                    try {
-                        mSocket = (SSLSocket) SSLContext.getDefault().getSocketFactory().createSocket("localhost", 6666);
-                        mSocket.setSoTimeout(SOCKET_TIMEOUT);
-
-                        mWriteStream = new BufferedWriter(new OutputStreamWriter(mSocket.getOutputStream()));
-                        mReadStream = new BufferedReader(new InputStreamReader(mSocket.getInputStream()));
-
-                        ClassicMessage message = sendConnectionMessage(myUser.getINE(), myUser.getPassword());
-                        connected = (message != null && message.isAck());
-
-                        mSocket.setSoTimeout(0);
-                    } catch (IOException | NoSuchAlgorithmException ex) {
-                        try {
-                            sleep(1000);
-                        } catch (InterruptedException exception) {
-                            exception.printStackTrace();
-                        }
-                    }
-
-                    System.out.println("CONNECTED: " + connected);
-                }
+                reconnect();
             } catch (IOException | ClassicMessage.InvalidMessageException e) {
                 e.printStackTrace();
             }
 
         }
 
+    }
+
+
+    private void reconnect() {
+        connected = false;
+        System.out.println("Entering socket reconnection");
+        while (running && !connected) {
+            try {
+                mSocket = (SSLSocket) SSLContext.getDefault().getSocketFactory().createSocket("localhost", 6666);
+                mSocket.setSoTimeout(SOCKET_TIMEOUT);
+
+                mWriteStream = new BufferedWriter(new OutputStreamWriter(mSocket.getOutputStream()));
+                mReadStream = new BufferedReader(new InputStreamReader(mSocket.getInputStream()));
+
+                ClassicMessage message = sendConnectionMessage(myUser.getINE(), myUser.getPassword());
+                connected = (message != null && message.isAck());
+
+                mSocket.setSoTimeout(0);
+            } catch (IOException | NoSuchAlgorithmException ex) {
+                try {
+                    sleep(1000);
+                } catch (InterruptedException exception) {
+                    exception.printStackTrace();
+                }
+            }
+        }
+
+        if (connected) {
+            setRequestEverything(requestEverything);
+            sendPendingMessages();
+        }
+    }
+
+    private void sendPendingMessages() {
+        CommunicationMessage[] pending = new CommunicationMessage[pendingMessages.size()];
+        for (int i = 0; i < pending.length; ++i) {
+            pending[i] = pendingMessages.pop();
+        }
+
+        for (CommunicationMessage message : pending) {
+            sendData(message);
+        }
     }
 
 
@@ -267,11 +291,7 @@ public class Client extends Thread implements Server {
             }
         }
 
-        try {
-            sendData(ClassicMessage.createMessageReceived(received));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        sendData(ClassicMessage.createMessageReceived(received));
     }
 
 
@@ -310,11 +330,7 @@ public class Client extends Thread implements Server {
 
 
         if (!received.isEmpty()) {
-            try {
-                sendData(ClassicMessage.createMessageReceived(received));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            sendData(ClassicMessage.createMessageReceived(received));
         }
     }
 
@@ -391,11 +407,7 @@ public class Client extends Thread implements Server {
         }
 
         if (!received.isEmpty()) {
-            try {
-                sendData(ClassicMessage.createMessageReceived(received));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            sendData(ClassicMessage.createMessageReceived(received));
         }
     }
 
@@ -409,15 +421,7 @@ public class Client extends Thread implements Server {
      * @return The data retrieved by the host.
      */
     public Boolean postAMessage(Long ticketid, String contents) {
-
-        try {
-            sendData(ClassicMessage.createMessage(ticketid, contents));
-            return true;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
-        }
-
+        return sendData(ClassicMessage.createMessage(ticketid, contents));
     }
 
 
@@ -432,39 +436,16 @@ public class Client extends Thread implements Server {
      * @return The data retrieved by the server.
      */
     public Boolean updateLocalDatabase() {
-
-        try {
-            sendData(ClassicMessage.createLocalUpdate(new Date(0)));
-            return true;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
-        }
-
+        return sendData(ClassicMessage.createLocalUpdate(new Date(0)));
     }
 
     public Boolean sendNotificationTicketClicked(Ticket ticket) {
-
-        try {
-            sendData(ClassicMessage.createTicketClicked(ticket));
-            return true;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
-        }
-
+        return sendData(ClassicMessage.createTicketClicked(ticket));
     }
 
 
     public Boolean retrieveAllModels() {
-
-        try {
-            sendData(ClassicMessage.createTableModelRequest());
-            return true;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
-        }
+        return sendData(ClassicMessage.createTableModelRequest());
     }
 
     @Override
@@ -475,5 +456,18 @@ public class Client extends Thread implements Server {
     @Override
     public BufferedReader getSocketReader() {
         return mReadStream;
+    }
+
+    @Override
+    public void addPendingMessage(CommunicationMessage message) {
+        pendingMessages.push(message);
+    }
+
+    public void setRequestEverything(boolean b) {
+        requestEverything = b;
+
+        if (requestEverything) {
+            sendData(ClassicMessage.createRequestEverything());
+        }
     }
 }

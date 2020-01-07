@@ -64,20 +64,12 @@ public class Host extends Thread {
 
         if (clients != null) {
             for (Server cm : clients) {
-                try {
-                    cm.sendData(message);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                cm.sendData(message);
             }
         }
 
         for (Server server : admins) {
-            try {
-                server.sendData(message);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            server.sendData(message);
         }
     }
 
@@ -86,20 +78,12 @@ public class Host extends Thread {
         System.out.println(clientsByID.values());
         for (HashSet<Server> clientList : clients) {
             for (Server s : clientList) {
-                try {
-                    s.sendData(message);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                s.sendData(message);
             }
         }
 
         for (Server server : admins) {
-            try {
-                server.sendData(message);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            server.sendData(message);
         }
     }
 
@@ -115,11 +99,7 @@ public class Host extends Thread {
         HashSet<Server> client = clientsByID.get(userID);
         if (client != null) {
             for (Server s : client) {
-                try {
-                    s.sendData(message);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                s.sendData(message);
             }
 
         }

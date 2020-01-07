@@ -30,7 +30,7 @@ public class MessagePanel extends JPanel {
     private void initPanel(Message message) {
         this.setLayout(new BorderLayout());
 
-        infos.setLayout(new FlowLayout(FlowLayout.LEFT, 5, 5));
+        infos.setLayout(new FlowLayout(FlowLayout.LEFT, 8, 8));
         add(infos, BorderLayout.NORTH);
 
         author = new JLabel();
@@ -46,6 +46,7 @@ public class MessagePanel extends JPanel {
         date.setText(new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(message.getHeureEnvoie()));
         infos.add(date);
 
+        text.setMargin(new Insets(8, 8, 8, 8));
         text.setText(message.getContenu());
         text.setEditable(false);
         this.add(text, BorderLayout.CENTER);

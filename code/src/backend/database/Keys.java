@@ -22,7 +22,6 @@ public class Keys {
     public static final String MESSAGE_HEURE_ENVOIE = "heure_envoi";
     public static final String MESSAGE_UTILISATEUR_ID = "id_util";
     public static final String MESSAGE_TICKET_ID = "id_ticket";
-    public static final String MESSAGE_STATE = "state";
 
 
     public static final String TABLE_NAME_GROUPE = "GROUPE";

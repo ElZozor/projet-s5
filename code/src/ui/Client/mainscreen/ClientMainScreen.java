@@ -13,6 +13,8 @@ import ui.Client.ticketcreation.TicketCreationScreen;
 import ui.InteractiveUI;
 
 import javax.swing.*;
+import javax.swing.plaf.basic.BasicSplitPaneDivider;
+import javax.swing.plaf.basic.BasicSplitPaneUI;
 import java.awt.*;
 import java.io.IOException;
 import java.util.Set;
@@ -54,8 +56,15 @@ public class ClientMainScreen extends InteractiveUI {
         setContentPane(mainPanel);
         mainPanel.setOrientation(JSplitPane.HORIZONTAL_SPLIT);
 
+        setDividerStyle();
         initLeftSidePanel();
         initRightSidePanel();
+    }
+
+    private void setDividerStyle() {
+        BasicSplitPaneDivider divider = ((BasicSplitPaneUI) mainPanel.getUI()).getDivider();
+        divider.setBackground(Color.black);
+        divider.setDividerSize(2);
     }
 
     private void initLeftSidePanel() {
@@ -73,11 +82,7 @@ public class ClientMainScreen extends InteractiveUI {
     private void createTicket() {
         TicketCreationScreen ticketCreationScreen = new TicketCreationScreen(allGroups);
         ticketCreationScreen.setTicketCreationListener((title, group, contents) -> {
-            try {
-                client.sendData(ClassicMessage.createTicket(title, group, contents));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            client.sendData(ClassicMessage.createTicket(title, group, contents));
         });
     }
 
@@ -117,6 +122,10 @@ public class ClientMainScreen extends InteractiveUI {
             leftPanel.remove(ticketTree);
         }
 
+        for (Groupe groupe : relatedGroups) {
+            groupe.updateTickets();
+        }
+
         System.out.println(relatedGroups);
         ticketTree = new TicketTree(relatedGroups);
         ticketTree.addTreeSelectionListener(this::elementSelectedOnTree);
@@ -126,6 +135,10 @@ public class ClientMainScreen extends InteractiveUI {
     }
 
     private void updateTree() {
+        for (Groupe groupe : relatedGroups) {
+            groupe.updateTickets();
+        }
+
         ticketTree.updateTree(relatedGroups);
     }
 
