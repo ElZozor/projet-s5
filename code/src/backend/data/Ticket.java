@@ -4,6 +4,7 @@ import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.NoSuchElementException;
 import java.util.TreeSet;
 
@@ -13,15 +14,18 @@ import static backend.database.Keys.TICKET_TITRE;
 public class Ticket extends ProjectTable implements Comparable<Ticket> {
 
     private static final String KEY_MESSAGES = "messages";
+
+    private Long mID;
     private String mTitre;
     private TreeSet<Message> mMessages = new TreeSet<>();
-    private Long mID;
-    
+    private ArrayList<Message> pendingMessages = new ArrayList<>();
+
+
     /**
      * Constructeur de l'objet Ticket à partir d'un message au format json
      *
      * @param ticket objet au format json contenant les informations du ticket
-    **/
+     **/
     public Ticket(JSONObject ticket) {
         mID = ticket.getLong(TICKET_ID);
         mTitre = ticket.getString(TICKET_TITRE);
@@ -219,5 +223,38 @@ public class Ticket extends ProjectTable implements Comparable<Ticket> {
 
     public boolean containsUnreadOrUnreceivedMessages() {
         return containsUnreceivedMessages() || containsUnreadMessages();
+    }
+
+    public void addPendingMessage(Message message) {
+        pendingMessages.add(message);
+    }
+
+    public void merge(Ticket ticket) {
+        mMessages = ticket.getMessages();
+
+        if (!pendingMessages.isEmpty()) {
+            for (Message message : mMessages) {
+                removeUselessMessage(message);
+            }
+        }
+    }
+
+    public void merge(Message entryAsMessage) {
+        mMessages.remove(entryAsMessage);
+        mMessages.add(entryAsMessage);
+
+        removeUselessMessage(entryAsMessage);
+    }
+
+    private void removeUselessMessage(Message message) {
+        if (!pendingMessages.isEmpty()) {
+            for (int i = 0; i < pendingMessages.size(); ++i) {
+                if (message.getUtilisateurID().equals(pendingMessages.get(i).getUtilisateurID())
+                        && pendingMessages.get(i).getContenu().equals(message.getContenu())) {
+                    pendingMessages.remove(i);
+                    break;
+                }
+            }
+        }
     }
 }

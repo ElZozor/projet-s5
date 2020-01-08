@@ -18,7 +18,7 @@ import javax.swing.plaf.basic.BasicSplitPaneDivider;
 import javax.swing.plaf.basic.BasicSplitPaneUI;
 import java.awt.*;
 import java.io.IOException;
-import java.util.Set;
+import java.util.Date;
 import java.util.TreeSet;
 
 public class ClientMainScreen extends InteractiveUI {
@@ -34,6 +34,8 @@ public class ClientMainScreen extends InteractiveUI {
     private Ticket selectedTicket;
 
     public ClientMainScreen(Client client, TreeSet<Groupe> groups) {
+        super();
+
         if (groups == null) {
             relatedGroups = new TreeSet<>();
         } else {
@@ -55,7 +57,7 @@ public class ClientMainScreen extends InteractiveUI {
     }
 
     private void initPanel() {
-        setContentPane(mainPanel);
+        getContentPane().add(mainPanel, BorderLayout.CENTER);
         mainPanel.setOrientation(JSplitPane.HORIZONTAL_SPLIT);
 
         setDividerStyle();
@@ -120,10 +122,21 @@ public class ClientMainScreen extends InteractiveUI {
         ticketDisplayer.setViewToBottom();
 
 
-        ticketDisplayer.setMessageSendDemandListener((ticketClicked, text) -> {
-            if (ticketClicked != null && text != null && !text.isEmpty()) {
-                client.postAMessage(ticketClicked.getID(), text);
+        ticketDisplayer.setMessageSendDemandListener((affiliatedTicket, text) -> {
+            if (affiliatedTicket != null && text != null && !text.isEmpty()) {
+                client.postAMessage(affiliatedTicket.getID(), text);
                 MessageEditor.oldText = null;
+                affiliatedTicket.addPendingMessage(
+                        new Message(
+                                0L,
+                                client.getMyUser().getID(),
+                                affiliatedTicket.getID(),
+                                new Date(),
+                                text,
+                                null,
+                                null
+                        )
+                );
             }
         });
     }
@@ -202,14 +215,19 @@ public class ClientMainScreen extends InteractiveUI {
                 if (groupe.equals(entryRelatedGroup)) {
                     if (entryAsTicket.equals(selectedTicket)) {
                         updateTicketDisplayer(entryAsTicket);
+                        selectedTicket.merge(entryAsTicket);
 
                         if (entryAsTicket.containsUnreadOrUnreceivedMessages()) {
                             client.sendNotificationTicketClicked(entryAsTicket);
                         }
+                    } else {
+                        for (Ticket ticket : groupe.getTickets()) {
+                            if (ticket.equals(entryAsTicket)) {
+                                ticket.merge(entryAsTicket);
+                                break;
+                            }
+                        }
                     }
-
-                    groupe.getTickets().remove(entryAsTicket);
-                    groupe.getTickets().add(entryAsTicket);
 
 
                     updateTree();
@@ -234,12 +252,9 @@ public class ClientMainScreen extends InteractiveUI {
                     if (tickets.contains(entryRelatedTicket)) {
                         for (Ticket ticket : tickets) {
                             if (ticket.equals(entryRelatedTicket)) {
-                                Set<Message> messages = ticket.getMessages();
-                                messages.remove(entryAsMessage);
-                                messages.add(entryAsMessage);
+                                ticket.merge(entryAsMessage);
 
                                 if (ticket.equals(selectedTicket)) {
-                                    System.out.println("Updating ticket");
                                     updateTicketDisplayer(selectedTicket);
                                     if (entryRelatedTicket.containsUnreadOrUnreceivedMessages()) {
                                         client.sendNotificationTicketClicked(entryRelatedTicket);
@@ -351,7 +366,7 @@ public class ClientMainScreen extends InteractiveUI {
             if (groupe.equals(entryRelatedGroup)) {
                 for (Ticket ticket : groupe.getTickets()) {
                     if (ticket.equals(entryRelatedTicket)) {
-                        ticket.addMessage(entryAsMessage);
+                        ticket.merge(entryAsMessage);
                         if (ticket.equals(selectedTicket)) {
                             updateTicketDisplayer(ticket);
                         }

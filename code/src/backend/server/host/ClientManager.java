@@ -76,8 +76,6 @@ public class ClientManager extends Thread implements Server {
                 if (classicMessage == null) {
                     continue;
                 }
-                System.out.println("Received: " + classicMessage.toString());
-
 
                 handleMessage(classicMessage);
 
@@ -99,6 +97,12 @@ public class ClientManager extends Thread implements Server {
             } catch (SQLException e) {
                 e.printStackTrace();
             }
+        }
+
+        try {
+            mSocket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 
     }
@@ -185,8 +189,7 @@ public class ClientManager extends Thread implements Server {
 
                     String groups = database.relatedUserGroup(user.getINE());
                     Debugger.logColorMessage(DBG_COLOR, "Client Manager", "Affiliated groupe for " + user.getINE() + ": " + groups);
-                    Host.addClient(new ArrayList<>(Arrays.asList(groups.split(";"))), user.getID(), this);
-
+                    Host.addClient(new ArrayList<>(Arrays.asList(groups.split(";"))), user, this);
                 } else {
                     fail_reason = "Erreur nom utilisateur / mot de passe";
                 }

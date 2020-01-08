@@ -25,11 +25,10 @@ import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 import static backend.database.Keys.*;
+import static utils.Utils.HOST;
+import static utils.Utils.PORT;
 
 public class Client extends Thread implements Server {
-
-    public static final String ADDRESS = "localhost";
-    public static final Integer PORT = 3000;
 
     private final static String GROUPS_FILE = "groups";
     private final static String RELATED_GROUPS_FILE = "related_groups";
@@ -74,11 +73,19 @@ public class Client extends Thread implements Server {
         }
     }
 
+    /**
+     * Charge les contenus sauvegardés sur le disque
+     */
     public void loadContents() {
         loadLocalData();
         loadPendingMessages();
     }
 
+
+    /**
+     * Charge les groupes, utilisateurs, et groupes affiliés
+     * sauvegardés sur le disque
+     */
     private void loadLocalData() {
         TreeSet<String> groups = loadGroups();
         TreeSet<Utilisateur> users = loadUsers();
@@ -90,6 +97,11 @@ public class Client extends Thread implements Server {
         ui.updateRelatedGroups(relatedGroups);
     }
 
+    /**
+     * Charge les groupes sauvegardés sur le disque
+     *
+     * @return - Les groupes sauvegardés
+     */
     private TreeSet<String> loadGroups() {
         TreeSet<String> groups = new TreeSet<>();
 
@@ -110,6 +122,11 @@ public class Client extends Thread implements Server {
         return groups;
     }
 
+    /**
+     * Charge les utilisateurs sauvegardés sur le disque
+     *
+     * @return - Les utilisateurs sauvegardés
+     */
     private TreeSet<Utilisateur> loadUsers() {
         TreeSet<Utilisateur> users = new TreeSet<>();
 
@@ -130,6 +147,11 @@ public class Client extends Thread implements Server {
         return users;
     }
 
+    /**
+     * Charge les groupes affiliés sur le disque
+     *
+     * @return - Les groupes affiliés
+     */
     private TreeSet<Groupe> loadRelatedGroups() {
         TreeSet<Groupe> groupes = new TreeSet<>();
 
@@ -150,6 +172,11 @@ public class Client extends Thread implements Server {
         return groupes;
     }
 
+    /**
+     * Charge les message en attente sauvegardés sur le disque
+     *
+     * @return - Les messages en attente
+     */
     private void loadPendingMessages() {
         try {
             JSONArray savedPendingMessages = new JSONArray(Utils.loadFromFile(PENDING_MESSAGES_FILE));
@@ -169,12 +196,24 @@ public class Client extends Thread implements Server {
         sendPendingMessages();
     }
 
+    /**
+     * Sauvegarde les données locales sur le disque
+     *
+     * @param groups        - Les groupes
+     * @param relatedGroups - Les groupes affiliés
+     */
     public void saveContents(TreeSet<String> groups, TreeSet<Groupe> relatedGroups) {
         saveLocalData(groups, relatedGroups);
 
         savePendingMessages();
     }
 
+    /**
+     * Sauvegarde les groupes et groupes affiliés sur le disque
+     *
+     * @param groups        - Les groupes
+     * @param relatedGroups - Les groupes affiliés
+     */
     private void saveLocalData(TreeSet<String> groups, TreeSet<Groupe> relatedGroups) {
         if (groups != null || relatedGroups != null) {
             if (groups != null) {
@@ -189,6 +228,11 @@ public class Client extends Thread implements Server {
         }
     }
 
+    /**
+     * Sauvegarde les groupes sur le disque
+     *
+     * @param groups - Les groupes
+     */
     private void saveGroups(TreeSet<String> groups) {
         JSONArray array = new JSONArray();
         for (String groupe : groups) {
@@ -198,6 +242,11 @@ public class Client extends Thread implements Server {
         Utils.saveToFile(GROUPS_FILE, array.toString());
     }
 
+    /**
+     * Sauvegarde les groupes affiliés sur le disque
+     *
+     * @param relatedGroups - Les groupes affiliés
+     */
     private void saveRelatedGroups(TreeSet<Groupe> relatedGroups) {
         JSONArray array = new JSONArray();
         for (Groupe groupe : relatedGroups) {
@@ -207,15 +256,23 @@ public class Client extends Thread implements Server {
         Utils.saveToFile(RELATED_GROUPS_FILE, array.toString());
     }
 
-    private void saveUsers(Collection<Utilisateur> allInstances) {
+    /**
+     * Sauvegarde les utilisateurs sur le disque
+     *
+     * @param users - Les utilisateurs
+     */
+    private void saveUsers(Collection<Utilisateur> users) {
         JSONArray array = new JSONArray();
-        for (Utilisateur users : allInstances) {
-            array.put(users.toJSON());
+        for (Utilisateur user : users) {
+            array.put(user.toJSON());
         }
 
         Utils.saveToFile(USERS_FILE, array.toString());
     }
 
+    /**
+     * Sauvegarde les messages en attente sur le disque
+     */
     private void savePendingMessages() {
         JSONArray array = new JSONArray();
         pendingMessages.toArray();
@@ -229,21 +286,24 @@ public class Client extends Thread implements Server {
         Utils.saveToFile(PENDING_MESSAGES_FILE, array.toString());
     }
 
+    /**
+     * Permet d'attribuer une interface graphique au client
+     *
+     * @param ui
+     */
     public void setUI(InteractiveUI ui) {
         this.ui = ui;
-    }
-
-    public Utilisateur getUser() {
-        return myUser;
+        ui.setConnectionStatus(connected);
     }
 
 
     /**
-     * A synchronized function that send a message and wait for the return value.
+     * Envoie des données et attend le retour de l'hôte.
+     * S'arrête en cas de timeout.
      *
-     * @param classicMessage The message you want to send
-     * @return The data send by the host
-     * @throws IOException Can be thrown while writing/reading into the fd
+     * @param classicMessage Le message à envoyer
+     * @return Le message retourné par l'hôte
+     * @throws IOException -
      */
     public ClassicMessage sendAndWaitForReturn(ClassicMessage classicMessage) throws IOException {
         sendData(classicMessage);
@@ -257,12 +317,12 @@ public class Client extends Thread implements Server {
 
 
     /**
-     * Function used to send a connection message to the host.
-     * Will return the message received from the host.
+     * Fonction utilisée pour se conncter à l'hôte.
+     * Bloquante.
      *
-     * @param INE      The user INE
-     * @param password The user password
-     * @return
+     * @param INE - L'ine
+     * @param password - Le mot de passe
+     * @return Si la connection est un succès ou non
      */
     public ClassicMessage sendConnectionMessage(String INE, String password) {
 
@@ -287,10 +347,8 @@ public class Client extends Thread implements Server {
 
 
     /**
-     * This function is used when the user want end the communication.
-     * Will return the message received from the host.
-     *
-     * @throws IOException Can be thrown while closing the socket.
+     * Cette fonction est utilsée pour se déconnecter de l'hôte.
+     * @throws IOException -
      */
     public void disconnect(TreeSet<String> groups, TreeSet<Groupe> relatedGroups) throws IOException {
 
@@ -339,12 +397,18 @@ public class Client extends Thread implements Server {
     }
 
 
+    /**
+     * Reconnecte l'utilisateur au serveur
+     */
     private void reconnect() {
         connected = false;
-        System.out.println("Entering socket reconnection");
+        if (ui != null) {
+            ui.setConnectionStatus(false);
+        }
+
         while (running && !connected) {
             try {
-                mSocket = (SSLSocket) SSLContext.getDefault().getSocketFactory().createSocket(ADDRESS, PORT);
+                mSocket = (SSLSocket) SSLContext.getDefault().getSocketFactory().createSocket(HOST, PORT);
                 mSocket.setSoTimeout(SOCKET_TIMEOUT);
 
                 mWriteStream = new BufferedWriter(new OutputStreamWriter(mSocket.getOutputStream()));
@@ -363,12 +427,19 @@ public class Client extends Thread implements Server {
             }
         }
 
-        if (connected) {
+        if (running && connected) {
             setRequestEverything(requestEverything);
             sendPendingMessages();
+
+            if (ui != null) {
+                ui.setConnectionStatus(true);
+            }
         }
     }
 
+    /**
+     * Renvoie tous les messages en attente stockés en mémoire
+     */
     private void sendPendingMessages() {
         CommunicationMessage[] pending = new CommunicationMessage[pendingMessages.size()];
         for (int i = 0; i < pending.length; ++i) {
@@ -383,7 +454,6 @@ public class Client extends Thread implements Server {
 
     /**
      * Methode recevant un message et le redirigeant vers les fonction de traitement adaptées au type du message
-     *
      * @param message - objet ClassiqueMessage étant le message reçu
     **/
     private void handleMessage(ClassicMessage message) {
@@ -412,6 +482,11 @@ public class Client extends Thread implements Server {
 
     }
 
+    /**
+     * Traite un message de type "tablemodel", utilisée par l'UI serveur.
+     *
+     * @param message - Le message envoyé par l'hôte
+     */
     private void handleTableModelMessage(ClassicMessage message) {
 
         if (ui instanceof ServerUI) {
@@ -436,6 +511,11 @@ public class Client extends Thread implements Server {
     }
 
 
+    /**
+     * Traite un message de type local update.
+     *
+     * @param message - Le message envoyé par l'hôte.
+     */
     private void handleLocalUpdate(ClassicMessage message) {
         TreeSet<Groupe> relatedGroups = message.getLocalUpdateResponseRelatedGroups();
         TreeSet<String> allGroups = message.getLocalUpdateResponseAllGroups();
@@ -472,6 +552,11 @@ public class Client extends Thread implements Server {
     }
 
 
+    /**
+     * Traite un message quand un entrée est ajoutée.
+     *
+     * @param message - Le message envoyé par l'hôte.
+     */
     private void handleEntryAdded(ClassicMessage message) {
         ArrayList<Message> received = new ArrayList<>();
 
@@ -511,7 +596,11 @@ public class Client extends Thread implements Server {
         }
     }
 
-
+    /**
+     * Traite une entrée supprimée.
+     *
+     * @param message - Le message envoyé par l'hôte.
+     */
     private void handleEntryDeleted(ClassicMessage message) {
         switch (message.getTable()) {
             case TABLE_NAME_UTILISATEUR:
@@ -546,6 +635,11 @@ public class Client extends Thread implements Server {
     }
 
 
+    /**
+     * Traite une entrée maj.
+     *
+     * @param message - Le message envoyé par l'hôte.
+     */
     private void handleEntryUpdated(ClassicMessage message) {
         ArrayList<Message> received = new ArrayList<>();
 
@@ -596,53 +690,58 @@ public class Client extends Thread implements Server {
 
 
     /**
-     * This function is used to create a new ticket.
-     * Will return the message received from the host.
+     * Utilisée pour poster un nouveau message.
+     * Non bloquante.
      *
-     * @param title          The ticket title
-     * @param messageContent The message contents
-     * @param group          The concerned group
-     * @return The message received from the host
+     * @param ticketid - Le ticket en question
+     * @param contents - Le contenu du message.
      */
-    public Boolean createANewTicket(String title, String messageContent, String group) {
-        return sendData(ClassicMessage.createTicket(title, group, messageContent));
+    public void postAMessage(Long ticketid, String contents) {
+        sendData(ClassicMessage.createMessage(ticketid, contents));
     }
 
 
     /**
-     * Used to post a message into a ticket.
-     * Will return the data retrieved by the host.
-     *
-     * @param ticketid The ticket id.
-     * @param contents The contents;
-     * @return The data retrieved by the host.
+     * Envoie un message pour demander la maj des données
+     * locale au serveur.
+     * Non bloquante.
      */
-    public Boolean postAMessage(Long ticketid, String contents) {
-        return sendData(ClassicMessage.createMessage(ticketid, contents));
+    public void updateLocalDatabase() {
+        sendData(ClassicMessage.createLocalUpdate(new Date(0)));
+    }
+
+    /**
+     * Envoie une nofitication pour dire que l'on a
+     * cliqué sur un ticket.
+     *
+     * @param ticket - Le ticket en question
+     */
+    public void sendNotificationTicketClicked(Ticket ticket) {
+        sendData(ClassicMessage.createTicketClicked(ticket));
     }
 
 
     /**
-     * This function is used to update the local database
-     * from the host database.
-     * It will send an "udpateMessage" to the host with
-     * the last update date and the host will retrieve
-     * all the messages / tickets that are newer than the
-     * given date.
-     *
-     * @return The data retrieved by the server.
+     * Utilisée par l'ui serveur pour demander
+     * toutes les tables au serveur.
      */
-    public Boolean updateLocalDatabase() {
-        return sendData(ClassicMessage.createLocalUpdate(new Date(0)));
+    public void retrieveAllModels() {
+        sendData(ClassicMessage.createTableModelRequest());
     }
 
-    public Boolean sendNotificationTicketClicked(Ticket ticket) {
-        return sendData(ClassicMessage.createTicketClicked(ticket));
-    }
+    /**
+     * Utilisée par l'UI serveur pour demander au
+     * serveur de nous envoyer toutes les mises à jour
+     * disponibles.
+     *
+     * @param b - Si on veut tout récuprérer
+     */
+    public void setRequestEverything(boolean b) {
+        requestEverything = b;
 
-
-    public Boolean retrieveAllModels() {
-        return sendData(ClassicMessage.createTableModelRequest());
+        if (requestEverything) {
+            sendData(ClassicMessage.createRequestEverything());
+        }
     }
 
     @Override
@@ -660,11 +759,7 @@ public class Client extends Thread implements Server {
         pendingMessages.push(message);
     }
 
-    public void setRequestEverything(boolean b) {
-        requestEverything = b;
-
-        if (requestEverything) {
-            sendData(ClassicMessage.createRequestEverything());
-        }
+    public Utilisateur getMyUser() {
+        return myUser;
     }
 }

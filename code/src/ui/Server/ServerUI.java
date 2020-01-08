@@ -8,18 +8,13 @@ import backend.modele.GroupModel;
 import backend.modele.MessageModel;
 import backend.modele.TicketModel;
 import backend.modele.UserModel;
-import backend.server.Server;
 import backend.server.client.Client;
 import debug.Debugger;
-import ui.Client.ConnexionScreen;
 import ui.InteractiveUI;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSocket;
 import javax.swing.*;
 import java.awt.*;
 import java.io.IOException;
-import java.security.NoSuchAlgorithmException;
 import java.util.TreeSet;
 
 public class ServerUI extends InteractiveUI {
@@ -36,49 +31,37 @@ public class ServerUI extends InteractiveUI {
     private MessageModel messageModel;
 
     public ServerUI(Client client) {
+        super();
+
         setTitle(SERVER_FRAME_TITLE);
         this.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         this.setMinimumSize(new Dimension(800, 600));
         this.setLocationRelativeTo(null);
 
-        mainPanel = this.getContentPane();
+        mainPanel = new JPanel();
         initPanel();
 
         this.setVisible(true);
 
-        client.setRequestEverything(true);
-
 
         this.client = client;
+        client.setRequestEverything(true);
         client.setUI(this);
         client.retrieveAllModels();
         client.start();
     }
 
-    public static void main(String[] args) {
-        System.setProperty("javax.net.ssl.keyStore", "res/keystore");
-        System.setProperty("javax.net.ssl.trustStore", "res/keystore");
-        System.setProperty("javax.net.ssl.keyStorePassword", "passphrase");
-        System.setProperty("javax.net.ssl.trustStorePassword", "passphrase");
-
-        Debugger.isDebugging = true;
-
-        try {
-            Client client = new Client((SSLSocket) SSLContext.getDefault().getSocketFactory().createSocket("localhost", 6666));
-            SwingUtilities.invokeLater(() -> new ConnexionScreen(client, true));
-        } catch (IOException | Server.ServerInitializationFailedException | NoSuchAlgorithmException e) {
-            // Do something on client connection refused
-            JOptionPane.showMessageDialog(null, "Connexion au serveur impossible !", "Erreur", JOptionPane.ERROR_MESSAGE);
-            e.printStackTrace();
-        }
-    }
-
 
     public void setMainPanel() {
-        this.setContentPane(mainPanel);
-        secondPanel = null;
+        if (secondPanel != null) {
+            getContentPane().remove(secondPanel);
+            getContentPane().add(mainPanel, BorderLayout.CENTER);
+            secondPanel = null;
 
-        this.pack();
+            getContentPane().revalidate();
+            getContentPane().repaint();
+            pack();
+        }
     }
 
 
@@ -99,28 +82,26 @@ public class ServerUI extends InteractiveUI {
 
 
     void editUserPanel(Utilisateur arg) {
-        mainPanel = this.getContentPane();
-
+        getContentPane().remove(mainPanel);
         secondPanel = new EditUserPanel(this, arg);
-        this.setContentPane(secondPanel);
+        getContentPane().add(secondPanel, BorderLayout.CENTER);
 
         this.pack();
     }
 
 
     void editGroupPanel(Groupe arg) {
-        mainPanel = this.getContentPane();
-
+        getContentPane().remove(mainPanel);
         secondPanel = new EditGroupPanel(this, arg);
-        this.setContentPane(secondPanel);
+        getContentPane().add(secondPanel, BorderLayout.CENTER);
 
         this.pack();
     }
 
     private void initPanel() {
-        Container pane = this.getContentPane();
         uiPanel = new ServerUIPanel(this);
-        pane.add(uiPanel, BorderLayout.CENTER);
+        getContentPane().add(uiPanel, BorderLayout.CENTER);
+        mainPanel = uiPanel;
     }
 
 

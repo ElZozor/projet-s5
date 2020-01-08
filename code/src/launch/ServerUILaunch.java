@@ -14,23 +14,20 @@ import java.security.NoSuchAlgorithmException;
 import static utils.Utils.HOST;
 import static utils.Utils.PORT;
 
-public class ClientLaunch {
-
-    public static Client client;
+public class ServerUILaunch {
 
     public static void main(String[] args) {
         Utils.setSystemProperties();
 //        Debugger.isDebugging = true;
 
         try {
-            client = new Client((SSLSocket) SSLContext.getDefault().getSocketFactory().createSocket(HOST, PORT));
-            SwingUtilities.invokeLater(() -> new ConnexionScreen(client, false));
+            Client client = new Client((SSLSocket) SSLContext.getDefault().getSocketFactory().createSocket(HOST, PORT));
+            SwingUtilities.invokeLater(() -> new ConnexionScreen(client, true));
         } catch (IOException | Server.ServerInitializationFailedException | NoSuchAlgorithmException e) {
             // Do something on client connection refused
             JOptionPane.showMessageDialog(null, "Connexion au serveur impossible !", "Erreur", JOptionPane.ERROR_MESSAGE);
             e.printStackTrace();
         }
-
     }
 
 }

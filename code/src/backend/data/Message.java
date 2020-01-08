@@ -25,15 +25,15 @@ public class Message extends ProjectTable implements Comparable<Message> {
 
     /**
      * Constructeur de l'objet Message
-     * 
-     * @param id - identifiant unique du message
+     *
+     * @param id            - identifiant unique du message
      * @param utilisateurID - identifiant unique de l'utilisateur qui a posté le message
-     * @param ticketID - identifiant unique du groupe sur lequel est posté le message
-     * @param date - heure d'envoi du message 
-     * @param contenu - texte représentant le corps du message
-     * @param haveToRead - liste de personnes (nom prenom) n'ayant pas lu le message
-     * @param haveToRecieve - liste de personnes (nom prenom) n'ayant  pas reçu le message
-    **/
+     * @param ticketID      - identifiant unique du groupe sur lequel est posté le message
+     * @param date          - heure d'envoi du message
+     * @param contenu       - texte représentant le corps du message
+     * @param haveToRead    - liste de personnes (nom prenom) n'ayant pas lu le message
+     * @param haveToReceive - liste de personnes (nom prenom) n'ayant  pas reçu le message
+     **/
     public Message(Long id, Long utilisateurID, Long ticketID, Date date, String contenu, ArrayList<String> haveToRead, ArrayList<String> haveToReceive) {
         mID = id;
         mUtilisateurID = utilisateurID;
@@ -49,7 +49,7 @@ public class Message extends ProjectTable implements Comparable<Message> {
      *
      * @param set - ensemble contenant les données stockées sur la base de donnée du message
      * @param haveToRead - liste de personnes (nom prenom) n'ayant pas lu le message
-     * @param haveToRecieve - liste de personnes (nom prenom) n'ayant  pas reçu le message
+     * @param haveToReceive - liste de personnes (nom prenom) n'ayant  pas reçu le message
      * @throws SQLException - renvoyé si l'entrée n'est pas dans le ResultSet
     **/
     public Message(ResultSet set, ArrayList<String> haveToRead, ArrayList<String> haveToReceive) throws SQLException {

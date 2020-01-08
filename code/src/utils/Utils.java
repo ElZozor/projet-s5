@@ -1,5 +1,6 @@
 package utils;
 
+import debug.Debugger;
 import launch.ClientLaunch;
 
 import java.io.*;
@@ -7,6 +8,25 @@ import java.net.URISyntaxException;
 import java.nio.file.Paths;
 
 public class Utils {
+
+    public static String HOST = "localhost";
+    public static int PORT = 3000;
+
+
+    public static void setSystemProperties() {
+        String keyStore;
+        if (Debugger.isDebugging) {
+            keyStore = "res/keystore";
+        } else {
+            keyStore = Utils.getPathOfFile("res/keystore");
+        }
+
+        System.setProperty("javax.net.ssl.keyStore", keyStore);
+        System.setProperty("javax.net.ssl.trustStore", keyStore);
+        System.setProperty("javax.net.ssl.keyStorePassword", "passphrase");
+        System.setProperty("javax.net.ssl.trustStorePassword", "passphrase");
+    }
+
 
     public static String getCurrentPath() {
         String path = "/";

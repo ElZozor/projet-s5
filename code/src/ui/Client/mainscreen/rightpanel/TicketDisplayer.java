@@ -42,6 +42,7 @@ public class TicketDisplayer extends JPanel {
         if (messagePanel != null) {
             remove(messagePanel);
         }
+
         messagePanel = new JPanel();
         messagePanel.setLayout(new GridBagLayout());
 
@@ -52,8 +53,8 @@ public class TicketDisplayer extends JPanel {
 
     }
 
-    private void addMessageToPanel(Message message) {
-        ticket.addMessage(message);
+    private void addPendingMessage(Message message) {
+        ticket.addPendingMessage(message);
         initMessagePanel();
     }
 

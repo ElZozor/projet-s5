@@ -2,8 +2,9 @@ package launch;
 
 import backend.database.DatabaseManager;
 import backend.server.host.Host;
-import debug.Debugger;
+import utils.Utils;
 
+import javax.swing.*;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.sql.SQLException;
@@ -11,16 +12,10 @@ import java.sql.SQLException;
 public class ServerLaunch {
 
     public static void main(String[] args) {
-        final String keypass = "https://www.youtube.com/watch?v=l4_JIIrMhIQ";
+        Utils.setSystemProperties();
+//        Debugger.isDebugging = true;
 
-        System.setProperty("javax.net.ssl.keyStore", "res/keystore");
-        System.setProperty("javax.net.ssl.trustStore", "res/keystore");
-        System.setProperty("javax.net.ssl.keyStorePassword", "passphrase");
-        System.setProperty("javax.net.ssl.trustStorePassword", "passphrase");
-
-        //Enter in debugging mode
-        Debugger.isDebugging = true;
-
+        boolean successfulyLaunched = false;
         try {
             DatabaseManager.initDatabaseConnection();
             DatabaseManager manager = DatabaseManager.getInstance();
@@ -29,14 +24,23 @@ public class ServerLaunch {
             }
 
             try {
-                Host host = new Host();
+                final Host host = new Host();
                 host.start();
+                successfulyLaunched = true;
             } catch (IOException e) {
                 e.printStackTrace();
             }
 
         } catch (SQLException | NoSuchAlgorithmException | IOException e) {
             e.printStackTrace();
+        }
+
+        if (!successfulyLaunched) {
+            JOptionPane.showMessageDialog(null,
+                    "Impossible de lancer le serveur",
+                    "Erreur",
+                    JOptionPane.ERROR_MESSAGE
+            );
         }
     }
 

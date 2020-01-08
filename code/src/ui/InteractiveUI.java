@@ -6,9 +6,33 @@ import backend.data.Ticket;
 import backend.data.Utilisateur;
 
 import javax.swing.*;
+import java.awt.*;
 import java.util.TreeSet;
 
 public abstract class InteractiveUI extends JFrame {
+
+    private final static String CONNECTED_STATUS = "Status : Connecté";
+    private final static String RECONNECTION_STATUS = "Status : Reconnection..";
+
+    private JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+    private JLabel statusLabel = new JLabel();
+    private JPanel panel = new JPanel(new BorderLayout());
+
+    public InteractiveUI() {
+        super();
+
+        statusPanel.add(statusLabel);
+        panel.add(statusPanel, BorderLayout.SOUTH);
+
+        setContentPane(panel);
+    }
+
+    public void setConnectionStatus(boolean connected) {
+        statusLabel.setText(connected ? CONNECTED_STATUS : RECONNECTION_STATUS);
+        statusLabel.revalidate();
+        statusLabel.repaint();
+    }
+
     public abstract void updateRelatedGroups(TreeSet<Groupe> relatedGroups);
 
     public abstract void updateGroupsList(TreeSet<String> allGroups);
