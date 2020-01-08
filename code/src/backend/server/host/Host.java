@@ -22,7 +22,7 @@ public class Host extends Thread {
 
     public static final String DBG_COLOR = Debugger.RED;
 
-    public static final int PORT = 6666;
+    public static final int PORT = 3000;
     public static Boolean isRunning = false;
     private static HashMap<String, HashSet<Server>> clientsByGroups = new HashMap<>();
     private static HashMap<Long, HashSet<Server>> clientsByID = new HashMap<>();

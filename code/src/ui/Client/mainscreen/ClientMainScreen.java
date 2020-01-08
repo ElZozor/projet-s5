@@ -50,6 +50,7 @@ public class ClientMainScreen extends InteractiveUI {
 
         this.client = client;
         client.setUI(this);
+        client.loadContents();
         client.start();
     }
 
@@ -367,7 +368,7 @@ public class ClientMainScreen extends InteractiveUI {
         super.dispose();
 
         try {
-            client.disconnect();
+            client.disconnect(allGroups, relatedGroups);
         } catch (IOException e) {
             e.printStackTrace();
         }

@@ -10,8 +10,11 @@ import backend.server.Server;
 import backend.server.communication.CommunicationMessage;
 import backend.server.communication.classic.ClassicMessage;
 import debug.Debugger;
+import org.json.JSONArray;
+import org.json.JSONException;
 import ui.InteractiveUI;
 import ui.Server.ServerUI;
+import utils.Utils;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
@@ -19,14 +22,19 @@ import javax.swing.*;
 import java.io.*;
 import java.net.SocketException;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.Stack;
-import java.util.TreeSet;
+import java.util.*;
 
 import static backend.database.Keys.*;
 
 public class Client extends Thread implements Server {
+
+    public static final String ADDRESS = "localhost";
+    public static final Integer PORT = 3000;
+
+    private final static String GROUPS_FILE = "groups";
+    private final static String RELATED_GROUPS_FILE = "related_groups";
+    private final static String USERS_FILE = "users";
+    private final static String PENDING_MESSAGES_FILE = "pending_messages";
 
     private final static String DBG_COLOR = Debugger.YELLOW;
     private final static int SOCKET_TIMEOUT = 5000;
@@ -60,12 +68,165 @@ public class Client extends Thread implements Server {
 
             mWriteStream = new BufferedWriter(new OutputStreamWriter(mSocket.getOutputStream()));
             mReadStream = new BufferedReader(new InputStreamReader(mSocket.getInputStream()));
-
-
         } catch (IOException e) {
             e.printStackTrace();
             throw new ServerInitializationFailedException("Something went wrong while initializing connexion");
         }
+    }
+
+    public void loadContents() {
+        loadLocalData();
+        loadPendingMessages();
+    }
+
+    private void loadLocalData() {
+        TreeSet<String> groups = loadGroups();
+        TreeSet<Utilisateur> users = loadUsers();
+        TreeSet<Groupe> relatedGroups = loadRelatedGroups();
+
+        Utilisateur.setInstances(users);
+
+        ui.updateGroupsList(groups);
+        ui.updateRelatedGroups(relatedGroups);
+    }
+
+    private TreeSet<String> loadGroups() {
+        TreeSet<String> groups = new TreeSet<>();
+
+        try {
+            JSONArray localData = new JSONArray(Utils.loadFromFile(GROUPS_FILE));
+
+            for (int i = 0; i < localData.length(); ++i) {
+                try {
+                    groups.add(localData.getString(i));
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        } catch (JSONException e) {
+            Debugger.logColorMessage(Debugger.RED, "Client", "Unable to load groups");
+        }
+
+        return groups;
+    }
+
+    private TreeSet<Utilisateur> loadUsers() {
+        TreeSet<Utilisateur> users = new TreeSet<>();
+
+        try {
+            JSONArray localData = new JSONArray(Utils.loadFromFile(USERS_FILE));
+
+            for (int i = 0; i < localData.length(); ++i) {
+                try {
+                    users.add(new Utilisateur(localData.getJSONObject(i)));
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        } catch (JSONException e) {
+            Debugger.logColorMessage(Debugger.RED, "Client", "Unable to load users");
+        }
+
+        return users;
+    }
+
+    private TreeSet<Groupe> loadRelatedGroups() {
+        TreeSet<Groupe> groupes = new TreeSet<>();
+
+        try {
+            JSONArray localData = new JSONArray(Utils.loadFromFile(RELATED_GROUPS_FILE));
+
+            for (int i = 0; i < localData.length(); ++i) {
+                try {
+                    groupes.add(new Groupe(localData.getJSONObject(i)));
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        } catch (JSONException e) {
+            Debugger.logColorMessage(Debugger.RED, "Client", "Unable to load related groups");
+        }
+
+        return groupes;
+    }
+
+    private void loadPendingMessages() {
+        try {
+            JSONArray savedPendingMessages = new JSONArray(Utils.loadFromFile(PENDING_MESSAGES_FILE));
+
+            for (int i = 0; i < savedPendingMessages.length(); ++i) {
+                try {
+                    pendingMessages.push(new ClassicMessage(savedPendingMessages.getString(i)));
+                } catch (CommunicationMessage.InvalidMessageException e) {
+                    e.printStackTrace();
+                }
+            }
+        } catch (JSONException e) {
+            Debugger.logColorMessage(Debugger.RED, "Client", "Unable to load pending messages");
+        }
+
+
+        sendPendingMessages();
+    }
+
+    public void saveContents(TreeSet<String> groups, TreeSet<Groupe> relatedGroups) {
+        saveLocalData(groups, relatedGroups);
+
+        savePendingMessages();
+    }
+
+    private void saveLocalData(TreeSet<String> groups, TreeSet<Groupe> relatedGroups) {
+        if (groups != null || relatedGroups != null) {
+            if (groups != null) {
+                saveGroups(groups);
+            }
+
+            if (relatedGroups != null) {
+                saveRelatedGroups(relatedGroups);
+            }
+
+            saveUsers(Utilisateur.getAllInstances());
+        }
+    }
+
+    private void saveGroups(TreeSet<String> groups) {
+        JSONArray array = new JSONArray();
+        for (String groupe : groups) {
+            array.put(groupe);
+        }
+
+        Utils.saveToFile(GROUPS_FILE, array.toString());
+    }
+
+    private void saveRelatedGroups(TreeSet<Groupe> relatedGroups) {
+        JSONArray array = new JSONArray();
+        for (Groupe groupe : relatedGroups) {
+            array.put(groupe.toJSON());
+        }
+
+        Utils.saveToFile(RELATED_GROUPS_FILE, array.toString());
+    }
+
+    private void saveUsers(Collection<Utilisateur> allInstances) {
+        JSONArray array = new JSONArray();
+        for (Utilisateur users : allInstances) {
+            array.put(users.toJSON());
+        }
+
+        Utils.saveToFile(USERS_FILE, array.toString());
+    }
+
+    private void savePendingMessages() {
+        JSONArray array = new JSONArray();
+        pendingMessages.toArray();
+
+        CommunicationMessage[] pending = new CommunicationMessage[pendingMessages.size()];
+        for (int i = 0; i < pending.length; ++i) {
+            String message = pendingMessages.elementAt(i).toString();
+            array.put(message.substring(0, message.lastIndexOf("\n")));
+        }
+
+        Utils.saveToFile(PENDING_MESSAGES_FILE, array.toString());
     }
 
     public void setUI(InteractiveUI ui) {
@@ -131,12 +292,12 @@ public class Client extends Thread implements Server {
      *
      * @throws IOException Can be thrown while closing the socket.
      */
-    public void disconnect() throws IOException {
+    public void disconnect(TreeSet<String> groups, TreeSet<Groupe> relatedGroups) throws IOException {
 
-        mWriteStream.close();
-        mReadStream.close();
         mSocket.close();
         running = false;
+
+        saveContents(groups, relatedGroups);
 
     }
 
@@ -183,7 +344,7 @@ public class Client extends Thread implements Server {
         System.out.println("Entering socket reconnection");
         while (running && !connected) {
             try {
-                mSocket = (SSLSocket) SSLContext.getDefault().getSocketFactory().createSocket("localhost", 6666);
+                mSocket = (SSLSocket) SSLContext.getDefault().getSocketFactory().createSocket(ADDRESS, PORT);
                 mSocket.setSoTimeout(SOCKET_TIMEOUT);
 
                 mWriteStream = new BufferedWriter(new OutputStreamWriter(mSocket.getOutputStream()));

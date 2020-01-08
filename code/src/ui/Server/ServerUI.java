@@ -216,7 +216,7 @@ public class ServerUI extends InteractiveUI {
         super.dispose();
 
         try {
-            client.disconnect();
+            client.disconnect(null, null);
         } catch (IOException e) {
             e.printStackTrace();
         }

@@ -8,9 +8,9 @@ import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeNode;
 import java.util.TreeSet;
 
-public class TicketTreeObject extends DefaultTreeModel {
+public class TicketTreeModel extends DefaultTreeModel {
 
-    public TicketTreeObject(TreeNode root) {
+    public TicketTreeModel(TreeNode root) {
         super(root);
     }
 

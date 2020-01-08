@@ -25,7 +25,7 @@ public class TicketTree extends JPanel {
 
     private void initPanel(TreeSet<Groupe> groupes) {
         groupeModel = new GroupeTreeModel(groupes);
-        ticketTree = new JTree(new TicketTreeObject(new DefaultMutableTreeNode(groupes)));
+        ticketTree = new JTree(new TicketTreeModel(new DefaultMutableTreeNode(groupes)));
         ticketTree.setCellRenderer(new TicketTreeRenderer());
 
         scrollPane = new JScrollPane();

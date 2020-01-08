@@ -2,6 +2,7 @@ package ui.Client.mainscreen.leftpanel;
 
 import backend.data.Groupe;
 import backend.data.Ticket;
+import utils.Utils;
 
 import javax.swing.*;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -16,10 +17,10 @@ public class TicketTreeRenderer extends DefaultTreeCellRenderer {
     private final ImageIcon ticketSeenIcon;
 
     public TicketTreeRenderer() {
-        baseIcon = new ImageIcon("res/base.png");
-        groupIcon = new ImageIcon("res/group.png");
-        ticketIcon = new ImageIcon("res/ticket.png");
-        ticketSeenIcon = new ImageIcon("res/ticket_seen.png");
+        baseIcon = new ImageIcon(Utils.getPathOfFile("res/base.png"));
+        groupIcon = new ImageIcon(Utils.getPathOfFile("res/group.png"));
+        ticketIcon = new ImageIcon(Utils.getPathOfFile("res/ticket.png"));
+        ticketSeenIcon = new ImageIcon(Utils.getPathOfFile("res/ticket_seen.png"));
     }
 
     @Override

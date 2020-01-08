@@ -167,4 +167,11 @@ public class ConnexionScreen extends JFrame {
     private void sendUpdateMessage() {
         client.updateLocalDatabase();
     }
+
+    @Override
+    public void dispose() {
+        super.dispose();
+
+//        client.stopConnection();
+    }
 }

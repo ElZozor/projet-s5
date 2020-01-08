@@ -9,7 +9,6 @@ import debug.Debugger;
 
 import javax.net.ssl.SSLSocket;
 import java.io.*;
-import java.security.PublicKey;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -26,8 +25,6 @@ public class ClientManager extends Thread implements Server {
     private final SSLSocket mSocket;
     private BufferedWriter mWriteStream;
     private BufferedReader mReadStream;
-
-    private PublicKey mOtherPublicKey;
 
     private Utilisateur user;
 

@@ -6,6 +6,7 @@ import org.json.JSONObject;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.TreeSet;
 
@@ -132,19 +133,28 @@ public class Utilisateur extends ProjectTable implements Comparable<Utilisateur>
      * Mutateur sur l'ensemble des utilisateurs (instances)
      *
      * @param users - un ensemble trié d'utilisateurs
-    **/
+     **/
     public static void setInstances(TreeSet<Utilisateur> users) {
         instances = new HashMap<>();
         for (Utilisateur user : users) {
             instances.put(user.getID(), user);
         }
     }
-    
+
+    /**
+     * Accesseur sur l'ensemble des utilisateurs
+     *
+     * @return - Toutes les instances d'utilisateur sous forme de collection
+     */
+    public static Collection<Utilisateur> getAllInstances() {
+        return instances.values();
+    }
+
     /**
      * Accesseur sur le nom d'un utilisateur
      *
      * @return le nom de l'utilisateur
-    **/
+     **/
     public String getNom() {
         return mNom;
     }
