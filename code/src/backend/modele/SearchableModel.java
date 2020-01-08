@@ -8,7 +8,7 @@ import java.util.ListIterator;
 
 public abstract class SearchableModel<T extends ProjectTable> implements TableModel {
 
-    protected ArrayList<T> elements = new ArrayList<>();
+    protected ArrayList<T> elements = new ArrayList<T>();
 
     public abstract SearchableModel<T> retrieveSearchModel(final String searched);
 
@@ -51,7 +51,7 @@ public abstract class SearchableModel<T extends ProjectTable> implements TableMo
 
     public void updateEntry(T updatedEntry) {
         removeEntry(updatedEntry.getID());
-        elements.add(updatedEntry);
+        addRow(updatedEntry);
     }
 
     public void addRow(T ts) {

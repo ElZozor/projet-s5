@@ -1,5 +1,6 @@
 package backend.server.host;
 
+import backend.database.DatabaseManager;
 import backend.server.Server;
 import backend.server.communication.classic.ClassicMessage;
 import debug.Debugger;
@@ -11,6 +12,7 @@ import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -20,10 +22,10 @@ public class Host extends Thread {
 
     public static final String DBG_COLOR = Debugger.RED;
 
-    public static final int PORT = 6666;
+    public static final int PORT = 3000;
     public static Boolean isRunning = false;
     private static HashMap<String, HashSet<Server>> clientsByGroups = new HashMap<>();
-    private static HashMap<Long, Server> clientsByID = new HashMap<>();
+    private static HashMap<Long, HashSet<Server>> clientsByID = new HashMap<>();
     private static ArrayList<Server> admins = new ArrayList<>();
     private SSLServerSocket mServerSocket;
 
@@ -32,67 +34,63 @@ public class Host extends Thread {
         mServerSocket = (SSLServerSocket) factory.createServerSocket(PORT);
     }
 
-    public static void addClient(Collection<String> groups, Long clientID, ClientManager client) {
+    public synchronized static void addClient(Collection<String> groups, Long clientID, ClientManager client) {
         for (String group : groups) {
             HashSet<Server> clientSet = clientsByGroups.computeIfAbsent(group, k -> new HashSet<>());
 
             clientSet.add(client);
         }
 
-        clientsByID.put(clientID, client);
-    }
-
-    public static void removeClient(Collection<String> groups, Long clientID, Server client) {
-        for (String group : groups) {
-            clientsByGroups.get(group).remove(client);
+        if (!clientsByID.containsKey(clientID)) {
+            clientsByID.put(clientID, new HashSet<>());
         }
 
-        clientsByID.remove(clientID);
+        clientsByID.get(clientID).add(client);
+    }
+
+
+    public synchronized static void removeClient(Collection<String> groups, Long clientID, Server client) {
+        for (String group : groups) {
+            HashSet<Server> set = clientsByGroups.get(group);
+            if (set != null) {
+                set.remove(client);
+            }
+        }
+
+        HashSet<Server> set = clientsByID.get(clientID);
+        set.remove(client);
         admins.remove(client);
     }
 
-    public static void broadcastToGroup(final ClassicMessage message, final String group) {
+    public synchronized static void broadcastToGroup(final ClassicMessage message, final String group) {
         HashSet<Server> clients = clientsByGroups.get(group);
 
         if (clients != null) {
             for (Server cm : clients) {
-                try {
-                    cm.sendData(message);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+                cm.sendData(message);
             }
         }
 
         for (Server server : admins) {
-            try {
-                server.sendData(message);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            server.sendData(message);
         }
     }
 
-    public static void broadcast(final ClassicMessage message) {
-        Collection<Server> clients = clientsByID.values();
-        for (Server s : clients) {
-            try {
+    public synchronized static void broadcast(final ClassicMessage message) {
+        Collection<HashSet<Server>> clients = clientsByID.values();
+        System.out.println(clientsByID.values());
+        for (HashSet<Server> clientList : clients) {
+            for (Server s : clientList) {
                 s.sendData(message);
-            } catch (IOException e) {
-                e.printStackTrace();
             }
         }
 
         for (Server server : admins) {
-            try {
-                server.sendData(message);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            server.sendData(message);
         }
     }
 
-    public static void changeGroupName(String relatedGroup, String label) {
+    public synchronized static void changeGroupName(String relatedGroup, String label) {
         HashSet<Server> servers = clientsByGroups.get(relatedGroup);
         if (servers != null) {
             clientsByGroups.remove(relatedGroup);
@@ -100,22 +98,21 @@ public class Host extends Thread {
         }
     }
 
-    public static void sendToClient(Long userID, ClassicMessage message) {
-        Server client = clientsByID.get(userID);
+    public synchronized static void sendToClient(Long userID, ClassicMessage message) {
+        HashSet<Server> client = clientsByID.get(userID);
         if (client != null) {
-            try {
-                client.sendData(message);
-            } catch (IOException e) {
-                e.printStackTrace();
+            for (Server s : client) {
+                s.sendData(message);
             }
+
         }
     }
 
-    public static void addAdmin(Server server) {
+    public synchronized static void addAdmin(Server server) {
         admins.add(server);
     }
 
-    public static void removeAdmin(Server server) {
+    public synchronized static void removeAdmin(Server server) {
         admins.remove(server);
     }
 
@@ -146,6 +143,12 @@ public class Host extends Thread {
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
             System.exit(1);
+        }
+
+        try {
+            DatabaseManager.getInstance().closeConnection();
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
     }
 }

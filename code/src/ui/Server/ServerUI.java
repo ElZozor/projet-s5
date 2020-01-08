@@ -10,7 +10,6 @@ import backend.modele.TicketModel;
 import backend.modele.UserModel;
 import backend.server.Server;
 import backend.server.client.Client;
-import backend.server.communication.classic.ClassicMessage;
 import debug.Debugger;
 import ui.Client.ConnexionScreen;
 import ui.InteractiveUI;
@@ -47,11 +46,8 @@ public class ServerUI extends InteractiveUI {
 
         this.setVisible(true);
 
-        try {
-            client.sendData(ClassicMessage.createRequestEverything());
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        client.setRequestEverything(true);
+
 
         this.client = client;
         client.setUI(this);
@@ -220,7 +216,7 @@ public class ServerUI extends InteractiveUI {
         super.dispose();
 
         try {
-            client.disconnect();
+            client.disconnect(null, null);
         } catch (IOException e) {
             e.printStackTrace();
         }

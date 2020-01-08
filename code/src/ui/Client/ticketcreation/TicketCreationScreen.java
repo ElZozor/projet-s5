@@ -4,16 +4,21 @@ import com.mysql.jdbc.StringUtils;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
 import java.util.TreeSet;
 
 public class TicketCreationScreen extends JFrame {
+
+    public final static String TITLE_HINT = "Titre du ticket";
+    public final static String TEXT_HINT = "Votre message de haine";
 
     JScrollPane textcontainer = new JScrollPane();
     TicketCreationListener listener;
     private JButton createTicket = new JButton("Créer le ticket");
     private JButton abort = new JButton("Annuler");
-    private JTextArea text = new JTextArea("Contenu du message");
-    private JTextField title = new JTextField("Titre du ticket");
+    private JTextField title = new JTextField(TITLE_HINT);
+    private JTextArea text = new JTextArea(TEXT_HINT);
     private JComboBox<String> groups;
 
     public TicketCreationScreen(TreeSet<String> availableGroups) {
@@ -118,6 +123,39 @@ public class TicketCreationScreen extends JFrame {
 
         abort.addActionListener(actionEvent -> {
             dispose();
+        });
+
+        title.addFocusListener(new FocusListener() {
+            @Override
+            public void focusGained(FocusEvent focusEvent) {
+                if (title.getText().equals(TITLE_HINT)) {
+                    title.setText("");
+                }
+            }
+
+            @Override
+            public void focusLost(FocusEvent focusEvent) {
+                if (StringUtils.isEmptyOrWhitespaceOnly(title.getText())) {
+                    title.setText(TITLE_HINT);
+                }
+            }
+        });
+
+
+        text.addFocusListener(new FocusListener() {
+            @Override
+            public void focusGained(FocusEvent focusEvent) {
+                if (text.getText().equals(TEXT_HINT)) {
+                    text.setText("");
+                }
+            }
+
+            @Override
+            public void focusLost(FocusEvent focusEvent) {
+                if (StringUtils.isEmptyOrWhitespaceOnly(text.getText())) {
+                    text.setText(TEXT_HINT);
+                }
+            }
         });
     }
 

@@ -5,6 +5,7 @@ import backend.modele.GroupeTreeModel;
 
 import javax.swing.*;
 import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.DefaultTreeModel;
 import java.awt.*;
 import java.util.TreeSet;
 
@@ -24,7 +25,7 @@ public class TicketTree extends JPanel {
 
     private void initPanel(TreeSet<Groupe> groupes) {
         groupeModel = new GroupeTreeModel(groupes);
-        ticketTree = new JTree(new TicketTreeObject(new DefaultMutableTreeNode(groupes)));
+        ticketTree = new JTree(new TicketTreeModel(new DefaultMutableTreeNode(groupes)));
         ticketTree.setCellRenderer(new TicketTreeRenderer());
 
         scrollPane = new JScrollPane();
@@ -47,7 +48,7 @@ public class TicketTree extends JPanel {
     }
 
     public void updateTree(TreeSet<Groupe> groupes) {
-        ((TicketTreeObject) ticketTree.getModel()).reload();
+        ((DefaultTreeModel) ticketTree.getModel()).setRoot((DefaultMutableTreeNode) ticketTree.getModel().getRoot());
     }
 
     public void addTreeSelectionListener(TreeItemSelectedListener isl) {

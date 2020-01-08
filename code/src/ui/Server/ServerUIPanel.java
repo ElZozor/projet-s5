@@ -11,7 +11,6 @@ import java.awt.*;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
 import java.awt.event.ItemEvent;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.TreeSet;
@@ -125,10 +124,6 @@ public class ServerUIPanel extends JPanel {
                     searchModel = null;
                 }
             }
-        });
-
-        edit_button.addActionListener(action -> {
-
         });
 
         del_button.addActionListener(action -> {
@@ -247,7 +242,7 @@ public class ServerUIPanel extends JPanel {
         constraints.fill = GridBagConstraints.HORIZONTAL;
         upside_options.add(table_selector, constraints);
 
-        search_bar = new JTextField();
+        search_bar = new JTextField(HINT_SEARCH_BAR);
         constraints = new GridBagConstraints();
         constraints.gridx = 1;
         constraints.gridy = 0;
@@ -286,19 +281,31 @@ public class ServerUIPanel extends JPanel {
 
     private void setUserModel() {
         setModel(userTableModel);
+        add_button.setEnabled(true);
+        edit_button.setEnabled(true);
+        del_button.setEnabled(true);
     }
 
     private void setGroupModel() {
         setModel(groupTableModel);
+        add_button.setEnabled(true);
+        edit_button.setEnabled(true);
+        del_button.setEnabled(true);
     }
 
 
     private void setTicketModel() {
         setModel(ticketTableModel);
+        add_button.setEnabled(false);
+        edit_button.setEnabled(false);
+        del_button.setEnabled(true);
     }
 
     private void setMessageModel() {
         setModel(messageTableModel);
+        add_button.setEnabled(false);
+        edit_button.setEnabled(false);
+        del_button.setEnabled(true);
     }
 
 
@@ -316,55 +323,39 @@ public class ServerUIPanel extends JPanel {
 
 
     private void delUser(Long id) {
-        try {
-            parent.client.sendData(
-                    ClassicMessage.createDeleteMessage(
-                            TABLE_NAME_UTILISATEUR,
-                            new Utilisateur(id, "", "", "", "")
-                    )
-            );
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        parent.client.sendData(
+                ClassicMessage.createDeleteMessage(
+                        TABLE_NAME_UTILISATEUR,
+                        new Utilisateur(id, "", "", "", "")
+                )
+        );
     }
 
     private void delGroup(Long id) {
-        try {
-            parent.client.sendData(
-                    ClassicMessage.createDeleteMessage(
-                            TABLE_NAME_GROUPE,
-                            new Groupe(id, "")
-                    )
-            );
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        parent.client.sendData(
+                ClassicMessage.createDeleteMessage(
+                        TABLE_NAME_GROUPE,
+                        new Groupe(id, "")
+                )
+        );
     }
 
     private void delTicket(Long id) {
-        try {
-            parent.client.sendData(
-                    ClassicMessage.createDeleteMessage(
-                            TABLE_NAME_TICKET,
-                            new Ticket(id, "", new TreeSet<>())
-                    )
-            );
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        parent.client.sendData(
+                ClassicMessage.createDeleteMessage(
+                        TABLE_NAME_TICKET,
+                        new Ticket(id, "", new TreeSet<>())
+                )
+        );
     }
 
     private void delMessage(Long id) {
-        try {
-            parent.client.sendData(
-                    ClassicMessage.createDeleteMessage(
-                            TABLE_NAME_MESSAGE,
-                            new Message(id, 0L, 0L, new Date(0), "", new ArrayList<>(), new ArrayList<>())
-                    )
-            );
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        parent.client.sendData(
+                ClassicMessage.createDeleteMessage(
+                        TABLE_NAME_MESSAGE,
+                        new Message(id, 0L, 0L, new Date(0), "", new ArrayList<>(), new ArrayList<>())
+                )
+        );
     }
 
 

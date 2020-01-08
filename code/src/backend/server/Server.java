@@ -21,21 +21,32 @@ public interface Server {
 
     BufferedReader getSocketReader();
 
+    void addPendingMessage(CommunicationMessage message);
+
     /**
      * Used to send data through a socket.
      *
      * @param classicMessage The message to send
-     * @throws IOException Exception if write has failed
      */
-    default void sendData(CommunicationMessage classicMessage) throws IOException {
-        BufferedWriter socketWriter = getSocketWriter();
-        if (socketWriter == null) {
-            throw new IOException();
+    default boolean sendData(CommunicationMessage classicMessage) {
+        try {
+
+            BufferedWriter socketWriter = getSocketWriter();
+            if (socketWriter == null) {
+                throw new IOException();
+            }
+
+            Debugger.logMessage("Server sendData", "Sending following data: " + classicMessage.toFormattedString());
+            socketWriter.write(classicMessage.toString());
+            socketWriter.flush();
+
+            return true;
+
+        } catch (IOException e) {
+            addPendingMessage(classicMessage);
+            return false;
         }
 
-        Debugger.logMessage("Server sendData", "Sending following data: " + classicMessage.toFormattedString());
-        socketWriter.write(classicMessage.toString());
-        socketWriter.flush();
     }
 
 

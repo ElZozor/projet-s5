@@ -4,13 +4,14 @@ import backend.data.Groupe;
 import backend.data.Message;
 import backend.data.Ticket;
 import backend.data.Utilisateur;
-import backend.modele.GroupModel;
-import backend.modele.MessageModel;
-import backend.modele.TicketModel;
 import com.mysql.jdbc.StringUtils;
 import debug.Debugger;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -31,52 +32,110 @@ public class DatabaseManager {
     private Connection databaseConnection;
     private MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
-    private DatabaseManager() throws SQLException, NoSuchAlgorithmException {
+
+    /**
+     * Constructeur de DatabaseManager, privé car c'est un singleton.
+     *
+     * @throws SQLException             - Peut être jetée si la connection à la database échoue
+     * @throws NoSuchAlgorithmException - Ne devrait normalement pas être jetée
+     */
+    private DatabaseManager() throws SQLException, NoSuchAlgorithmException, IOException {
         try {
             Class.forName("com.mysql.jdbc.Driver");
+
         } catch (ClassNotFoundException e) {
             System.err.println("Cannot launch the database driver");
             e.printStackTrace();
         }
 
         databaseConnection = DriverManager.getConnection(DB_URL, username, password);
+
+        checkTableExistance();
     }
 
-    public static void initDatabaseConnection() throws SQLException, NoSuchAlgorithmException {
+    /**
+     * Initialise le singleton. Comme le constructeur jète des exceptions, pour éviter celles-ci
+     * partout dans le code, il a été préférable d'initialiser la database de cette manière
+     *
+     * @throws SQLException             - Peut être jeté si la connection à la bdd échoue
+     * @throws NoSuchAlgorithmException - Ne devrait normalement pas être jetée
+     */
+    public static void initDatabaseConnection() throws SQLException, NoSuchAlgorithmException, IOException {
         mDatabase = new DatabaseManager();
     }
 
     /**
-     * As this class is a Singleton, this function returns
-     * the unique instance of this class.
+     * Teste si les tables existent et dans le cas contraire, les initialises.
      *
-     * @return An instance of DataBaseManager
-     * @throws SQLException Can throw an exception if the database can't be reached
+     * @throws SQLException
+     * @throws IOException
+     */
+    private void checkTableExistance() throws SQLException, IOException {
+        boolean found = false;
+        ResultSet set = databaseConnection.getMetaData().getTables(null, null, null,
+                new String[]{"TABLE"});
+
+        for (; set.next() && !found; ) {
+            if (set.getString("TABLE_NAME").equals("UTILISATEUR")) {
+                found = true;
+            }
+        }
+
+        if (!found) {
+            File file = new File("res/database.sql");
+            BufferedReader reader = new BufferedReader(new FileReader(file));
+
+            String line;
+            StringBuilder builder = new StringBuilder();
+            for (; (line = reader.readLine()) != null; ) {
+                builder.append(line);
+                if (line.contains("--")) {
+                    builder = new StringBuilder();
+                } else if (line.contains(";")) {
+                    String query = builder.toString();
+                    query = query.replaceAll("\\s", " ");
+                    System.out.println("Exécution de la requête: " + query);
+                    Statement statement = databaseConnection.createStatement();
+                    statement.executeUpdate(query);
+
+                    builder = new StringBuilder();
+                }
+            }
+        }
+    }
+
+    public void closeConnection() throws SQLException {
+        databaseConnection.close();
+    }
+
+    /**
+     * Comme cette classe est un singleton, cette fonction retourne
+     * l'unique instance de "DatabaseManager"
+     *
+     * @return - L'instance de DatabaseManager
      */
     public static DatabaseManager getInstance() {
         return mDatabase;
     }
 
     /**
-     * Used to hash a password
-     *
-     * @param password The password to hash
-     * @return The hashed password converted into base64
+     * Utilisé pour hasher un mot de passe
+     * @param password - Le mot de passe à hasher
+     * @return - Le mot de passe hashé puis encodé en b64
      */
     public String hashPassword(@NotNull String password) {
         return Base64.getEncoder().encodeToString(digest.digest(password.getBytes(StandardCharsets.UTF_8)));
     }
 
     /**
-     * Variadic function that test if an given
-     * bunch of String contains an empty or null String
-     *
-     * @param args The bunch of string
-     * @return true if there is an empty string false otherwise
+     * Fonction variadique qui teste si une chaine de caractère parmis
+     * celles données à la fonction est vide ou bien nulle
+     * @param args - Le groupe de String
+     * @return - true si une chaine est vide ou nulle, false sinon
      */
     private Boolean containsNullOrEmpty(String... args) {
         for (String s : args) {
-            if (StringUtils.isNullOrEmpty(s)) {
+            if (s == null || StringUtils.isEmptyOrWhitespaceOnly(s)) {
                 return true;
             }
         }
@@ -86,11 +145,10 @@ public class DatabaseManager {
 
 
     /**
-     * Check whether an user is present into the database
-     *
-     * @param ine the user ine
-     * @return true if present false otherwise
-     * @throws SQLException Can throw an exception if the database can't be reached
+     * Teste si un utilisateur est présent dans la bdd
+     * @param ine - L'ine de l'utilisateur
+     * @return - Vrai si il est présent , faux sinon
+     * @throws SQLException - Peut être lancée en cas d'erreur sql
      */
     public Boolean userExists(String ine) throws SQLException {
         if (containsNullOrEmpty(ine)) {
@@ -110,12 +168,11 @@ public class DatabaseManager {
 
 
     /**
-     * Check if the user credentials are valid or not.
-     *
-     * @param ine      The user ine
-     * @param password The user password
-     * @return A boolean
-     * @throws SQLException Can be thrown during request
+     * Teste si les identifiants d'un utilisateur sont valides ou non
+     * @param ine - L'ine de l'utilisateur
+     * @param password - Le mot de passe
+     * @return - Un booléen
+     * @throws SQLException - Peut être lancée en cas de requête invalide
      */
     public ResultSet credentialsAreValid(String ine, String password) throws SQLException {
         if (ine == null || password == null) {
@@ -136,6 +193,14 @@ public class DatabaseManager {
     }
 
 
+    /**
+     * Ajoute la relation entre un groupe et un utilisateur ( appartient )
+     *
+     * @param ine         - l'ine de l'utilisateur
+     * @param group_label - Le label du groupe
+     * @return - Si la requête à fonctionnée
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     private Boolean addUserGroupRelation(String ine, String group_label) throws SQLException {
         String request = String.format(
                 "INSERT INTO %s (%s, %s) " +
@@ -155,15 +220,14 @@ public class DatabaseManager {
     }
 
     /**
-     * Register a new user in the user database
-     *
-     * @param ine      the user ine
-     * @param password the user password
-     * @param name     the user name
-     * @param surname  the user surname
-     * @param type     the user type
-     * @return whether the request is successful
-     * @throws SQLException Can throw an exception if the database can't be reached
+     * Enregistre un nouvel utilisateur sur la bdd
+     * @param ine - L'ine de l'utilisateur
+     * @param password - Le mot de passe
+     * @param name - Son nom
+     * @param surname - Son prénom
+     * @param type - Son type
+     * @return - Si la requête à réussi ou non
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
      */
     public ResultSet registerNewUser(String ine, String password, String name, String surname, String type, String groups) throws SQLException {
         if (containsNullOrEmpty(ine, password, name, surname, type, groups)) {
@@ -213,7 +277,14 @@ public class DatabaseManager {
     }
 
 
-    public ResultSet createNewGroup(String label) throws SQLException {
+    /**
+     * Crée un nouveau groupe
+     *
+     * @param label - Le nom du groupe
+     * @return - Le groupe résultant
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
+    public Groupe createNewGroup(String label) throws SQLException {
         if (containsNullOrEmpty(label)) {
             return null;
         }
@@ -230,14 +301,24 @@ public class DatabaseManager {
         Debugger.logMessage("DataBaseManager", "Executing following request: " + request);
 
         if (statement.executeUpdate() == 1) {
-            return statement.getGeneratedKeys();
+            ResultSet set = statement.getGeneratedKeys();
+            if (set.next()) {
+                return new Groupe(set.getLong(1), label);
+            }
         }
 
         return null;
     }
 
 
-    private Boolean addMessageVuRelation(long message_id, long ticketID) throws SQLException {
+    /**
+     * Ajoute la relation entre un message et un utilisateur pour la table VU
+     *
+     * @param message_id - Le message correspondant
+     * @param ticketID   - Le ticket correspondant
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
+    private void addMessageVuRelation(long message_id, long ticketID) throws SQLException {
         String request = String.format(
                 "INSERT INTO %s(%s, %s) " +
                         "SELECT %s, %s.%s " +
@@ -255,10 +336,18 @@ public class DatabaseManager {
 
         PreparedStatement statement = databaseConnection.prepareStatement(request);
 
-        return statement.executeUpdate() > 0;
+        statement.executeUpdate();
     }
 
-    private boolean addMessageRecuRelation(long id, long ticketid) throws SQLException {
+
+    /**
+     * Ajouter la relation entre un message et un utilisateur pour la table RECU
+     *
+     * @param id       - L'id du message
+     * @param ticketid - Le ticket correspondant
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
+    private void addMessageRecuRelation(long id, long ticketid) throws SQLException {
 
         String request = String.format(
                 "INSERT INTO %s(%s, %s) " +
@@ -277,10 +366,17 @@ public class DatabaseManager {
 
         PreparedStatement statement = databaseConnection.prepareStatement(request);
 
-        return statement.executeUpdate() > 0;
+        statement.executeUpdate();
 
     }
 
+    /**
+     * Renvoie tous les utilisateur qui doivent lire le message en question
+     *
+     * @param id - L'id du message
+     * @return - Les utilisateur qui doivent lire le message
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public ArrayList<String> getRemainingReadUsernames(Long id) throws SQLException {
         ArrayList<String> result = new ArrayList<>();
 
@@ -306,6 +402,13 @@ public class DatabaseManager {
     }
 
 
+    /**
+     * Renvoie tous les utilisateurs qui doivent recevoir ce message
+     *
+     * @param id - L'id du message
+     * @return - Les utilisateurs qui doivent le recevoir
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public ArrayList<String> getRemainingReceiveUsernames(Long id) throws SQLException {
         ArrayList<String> result = new ArrayList<>();
 
@@ -331,6 +434,15 @@ public class DatabaseManager {
     }
 
 
+    /**
+     * Insère un nouveau message dans la base de donnée
+     *
+     * @param contenu  - Le contenu du message
+     * @param ticketid - Le ticket correspondant
+     * @param userID   - L'utilisateur qui a posté le message
+     * @return - Le message résultant
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public Message insertNewMessage(final String contenu, final long ticketid, final long userID) throws SQLException {
         // Message creation in the "message" table
         final String messageRequest = String.format(
@@ -362,7 +474,6 @@ public class DatabaseManager {
 
         result.next();
         final Date postDate = result.getTimestamp(MESSAGE_HEURE_ENVOIE);
-        final int state = result.getInt(MESSAGE_STATE);
 
         Message resultingMessage = new Message(id, userID, ticketid, postDate, contenu, getRemainingReadUsernames(id), getRemainingReceiveUsernames(id));
         Debugger.logMessage("DatabaseManager", "Resulting message: " + resultingMessage.toJSON());
@@ -370,6 +481,15 @@ public class DatabaseManager {
         return resultingMessage;
     }
 
+    /**
+     * Insère un nouveau ticket dans la base de donnée
+     *
+     * @param userID      - L'utilisateur qui a créé le ticket
+     * @param title       - Le titre du ticket
+     * @param group_label - Le nom du groupe affilié
+     * @return - Les clés générés par la requête
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     private ResultSet insertNewTicket(long userID, String title, String group_label) throws SQLException {
         // Ticket creation in the "ticket" table
         final String ticketRequest = String.format(
@@ -390,54 +510,15 @@ public class DatabaseManager {
         return statement.getGeneratedKeys();
     }
 
-    private ResultSet createUserMessageLink(final String userID, final String messageID) throws SQLException {
-        Statement statement = databaseConnection.createStatement();
-
-        final String linkRequest = String.format(
-                "INSERT INTO %s (%s, %s) VALUES ('%s', '%s')",
-                TABLE_NAME_VU, VU_UTILISATEUR_ID, VU_MESSAGE_ID,
-                userID, messageID
-        );
-
-        statement.executeUpdate(linkRequest);
-
-        return statement.getGeneratedKeys();
-    }
-
-
-    private ResultSet insertTicketMessageUserRelation(long ticketID, long groupID, long messageID) throws SQLException {
-
-        final String query = String.format(
-                "INSERT INTO %s (%s, %s) " +
-                        "SELECT '%s', %s.%s " +
-                        "from %s, %s " +
-                        "WHERE %s.%s = %s " +
-                        "AND %s.%s = %s.%s",
-                TABLE_NAME_VU, VU_MESSAGE_ID, VU_UTILISATEUR_ID,
-                messageID, TABLE_NAME_UTILISATEUR, UTILISATEUR_ID,
-                TABLE_NAME_UTILISATEUR, TABLE_NAME_APPARTENIR,
-                TABLE_NAME_APPARTENIR, APPARTENIR_GROUPE_ID, groupID,
-                TABLE_NAME_UTILISATEUR, UTILISATEUR_ID, TABLE_NAME_APPARTENIR, APPARTENIR_UTILISATEUR_ID
-        );
-        System.out.println(query);
-
-        PreparedStatement statement = databaseConnection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
-        statement.executeUpdate();
-
-
-        return statement.getGeneratedKeys();
-    }
-
 
     /**
-     * Create a new ticket into the database
-     *
-     * @param userID     The user who creates the ticket
-     * @param title      The ticket title
-     * @param message    The main message of the ticket
-     * @param groupLabel The concerned groups
-     * @return Whether the creation is successful
-     * @throws SQLException Can throw an exception if the database can't be reached
+     * Crée un nouveau ticket dans la base de donnée
+     * @param userID - L'id de l'utilisateur qui crée le ticket
+     * @param title - Le titre du ticket
+     * @param message - Le premier message du ticket
+     * @param groupLabel - Le groupe concerné
+     * @return - Si la création est un succès ou non
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
      */
     public Ticket createNewTicket(long userID, String title, String message, String groupLabel) throws SQLException {
 
@@ -467,13 +548,12 @@ public class DatabaseManager {
 
 
     /**
-     * Insert a new message into the database
-     *
-     * @param ine      The used id
-     * @param ticketid The ticket id
-     * @param contents The message contents
-     * @return Whether the request is a success
-     * @throws SQLException Can thow an exception if the database can't be reached
+     * Insère un nouveau message dans la base de donnée
+     * @param ine - L'ine de l'utilisateur
+     * @param ticketid - L'id du ticket concerné
+     * @param contents - Le contenu du message
+     * @return - Si la requête est un succès ou non
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
      */
     public Boolean addNewMessage(String ine, String ticketid, String contents) throws SQLException {
 
@@ -503,6 +583,12 @@ public class DatabaseManager {
     }
 
 
+    /**
+     * Retourne tous les utilisateurs de la base de donnée
+     *
+     * @return - Tous les utilisateur de la base de donnée
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public ArrayList<Utilisateur> retrieveAllUsers() throws SQLException {
         Statement statement = databaseConnection.createStatement();
         String request = String.format(
@@ -519,6 +605,12 @@ public class DatabaseManager {
         return result;
     }
 
+    /**
+     * Retourne tous les groupes de la base de donnée
+     *
+     * @return - Tous les groupes de la base de donnée
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public ArrayList<Groupe> retrieveAllGroups() throws SQLException {
         Statement statement = databaseConnection.createStatement();
 
@@ -536,6 +628,13 @@ public class DatabaseManager {
         return result;
     }
 
+
+    /**
+     * Retourne tous les ticket de la base de donnée
+     *
+     * @return - Tous les ticket de la base de donnée
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public ArrayList<Ticket> retrieveAllTickets() throws SQLException {
         Statement statement = databaseConnection.createStatement();
 
@@ -553,6 +652,12 @@ public class DatabaseManager {
         return result;
     }
 
+    /**
+     * Retourne tous les messages de la base de donnée
+     *
+     * @return Tous les messages de la base de donnée
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public ArrayList<Message> retrieveAllMessages() throws SQLException {
         Statement statement = databaseConnection.createStatement();
 
@@ -571,37 +676,14 @@ public class DatabaseManager {
         return result;
     }
 
-    public GroupModel retrieveGroupModel() throws SQLException {
-        Statement statement = databaseConnection.createStatement();
-        String request = String.format(
-                "SELECT * FROM %s",
-                TABLE_NAME_GROUPE
-        );
 
-        return new GroupModel(statement.executeQuery(request));
-    }
-
-
-    public MessageModel retrieveMessageModel() throws SQLException {
-        Statement statement = databaseConnection.createStatement();
-        String request = String.format(
-                "SELECT * FROM %s",
-                TABLE_NAME_MESSAGE
-        );
-
-        return new MessageModel(statement.executeQuery(request));
-    }
-
-    public TicketModel retrieveTicketModel() throws SQLException {
-        Statement statement = databaseConnection.createStatement();
-        String request = String.format(
-                "SELECT * FROM %s",
-                TABLE_NAME_TICKET
-        );
-
-        return new TicketModel(statement.executeQuery(request));
-    }
-
+    /**
+     * Supprime un utilisateur de la base de donnée
+     *
+     * @param id - L'id de l'utilisateur
+     * @return Si l'utilisateur a bien été supprimé
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public Boolean deleteUser(Long id) throws SQLException {
         Statement statement = databaseConnection.createStatement();
         String request = String.format(
@@ -614,6 +696,13 @@ public class DatabaseManager {
         return statement.executeUpdate(request) == 1;
     }
 
+    /**
+     * Supprime un groupe de la base de donnée
+     *
+     * @param id - L'id du groupe
+     * @return - Si le groupe a bien été supprimé
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public Boolean deleteGroup(Long id) throws SQLException {
         Statement statement = databaseConnection.createStatement();
         String request = String.format(
@@ -626,6 +715,13 @@ public class DatabaseManager {
         return statement.executeUpdate(request) == 1;
     }
 
+    /**
+     * Supprime un ticket de la base de donnée
+     *
+     * @param id - L'id du ticket
+     * @return - Si le ticket a bien été supprimé
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public Boolean deleteTicket(Long id) throws SQLException {
         Statement statement = databaseConnection.createStatement();
         String request = String.format(
@@ -638,6 +734,13 @@ public class DatabaseManager {
         return statement.executeUpdate(request) == 1;
     }
 
+    /**
+     * Supprime un message de la base de donnée
+     *
+     * @param id - L'id du message
+     * @return - Si le message a bien été supprimé
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public Boolean deleteMessage(Long id) throws SQLException {
         Statement statement = databaseConnection.createStatement();
         String request = String.format(
@@ -650,6 +753,14 @@ public class DatabaseManager {
         return statement.executeUpdate(request) == 1;
     }
 
+    /**
+     * Edite un groupe existant
+     *
+     * @param id    - L'id du groupe
+     * @param label - Le nom du groupe
+     * @return - Si le groupe a bien été edité
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public Boolean editExistingGroup(long id, String label) throws SQLException {
         Statement statement = databaseConnection.createStatement();
         String request = String.format(
@@ -663,6 +774,13 @@ public class DatabaseManager {
     }
 
 
+    /**
+     * Edite les groupes d'un utilisateur existant
+     *
+     * @param id     - L'id de l'uilisateur
+     * @param ine    - Son ine
+     * @param groups - Les nouveaux groupes
+     */
     private void updateExistingUserGroups(long id, String ine, String groups) {
         try {
             Statement statement = databaseConnection.createStatement();
@@ -692,6 +810,19 @@ public class DatabaseManager {
         }
     }
 
+
+    /**
+     * Edite un utilisateur existant
+     *
+     * @param id      - L'id de l'utilisateur
+     * @param ine     - Son ine
+     * @param name    - Son nom
+     * @param surname - Son prenom
+     * @param type    - Son type
+     * @param groups  - Ses groupes
+     * @return Si l'utilisateur a bien été édité
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public Boolean editExistingUser(long id, String ine, String name, String surname, String type, String groups) throws SQLException {
         Statement statement = databaseConnection.createStatement();
         String request = String.format(
@@ -717,6 +848,21 @@ public class DatabaseManager {
     }
 
 
+    /**
+     * Edite un utilisateur existant change sont mot de passe
+     * si il n'est pas vide ou null sinon appeles l'autre fonction pour éditer
+     * les utilisateurs
+     *
+     * @param id       - L'id de l'utilisateur
+     * @param ine      - Son ine
+     * @param name     - Son nom
+     * @param surname  - Son prenom
+     * @param type     - Son type
+     * @param groups   - Ses groupes
+     * @param password - Son mot de passe
+     * @return Si l'utilisateur a bien été édité
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public Boolean editExistingUser(long id, String ine, String name, String surname, String type, String groups, String password) throws SQLException {
         if (containsNullOrEmpty(password)) {
             Debugger.logMessage("DatabaseManager", "password is null or empty edditing the classic way");
@@ -749,6 +895,13 @@ public class DatabaseManager {
         return result;
     }
 
+    /**
+     * Retourne tous les groupe relié à un utilisateur
+     *
+     * @param ine - L'ine de l'utilisateur
+     * @return Tous les groupe liés à l'utilisateur
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public String relatedUserGroup(String ine) throws SQLException {
         Statement statement = databaseConnection.createStatement();
         String request = String.format(
@@ -778,7 +931,13 @@ public class DatabaseManager {
         }
     }
 
-
+    /**
+     * Retourne tous les messages liés à un ticket
+     *
+     * @param ticketid - L'id du ticket
+     * @return Tous les messages liés à ce ticket
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public TreeSet<Message> getAllMessagesForGivenTicket(long ticketid) throws SQLException {
 
         final String messageRequest = String.format(
@@ -800,6 +959,13 @@ public class DatabaseManager {
     }
 
 
+    /**
+     * Retourne tous les tickets liés à un groupe
+     *
+     * @param groupid - L'id du groupe
+     * @return - Tous les tickets liés à un groupe
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public TreeSet<Ticket> getAllTicketForGivenGroup(long groupid) throws SQLException {
 
         final String ticketRequest = String.format(
@@ -823,6 +989,13 @@ public class DatabaseManager {
         return tickets;
     }
 
+    /**
+     * Retourne tous les groupes liés à un utilisateur + tous les tickets liés à cet utilisateur
+     *
+     * @param user - L'utilisateur en question
+     * @return - Tous les groupes liés à un utilisateur + tous les tickets liés à cet utilisateur
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public TreeSet<Groupe> getRelatedGroups(Utilisateur user) throws SQLException {
 
         TreeSet<Groupe> groupes = new TreeSet<>();
@@ -854,6 +1027,13 @@ public class DatabaseManager {
 
     }
 
+    /**
+     * Retourne tous les ticket reliés à un utilisateur
+     *
+     * @param user - L'utilisateur en question
+     * @return - Tous les tickets reliés à un utilisateur
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     private TreeSet<Groupe> getRelatedTickets(Utilisateur user) throws SQLException {
 
         HashMap<Long, Groupe> groupes = new HashMap<>();
@@ -884,10 +1064,23 @@ public class DatabaseManager {
         return new TreeSet<>(groupes.values());
     }
 
+    /**
+     * Traite une mise à jour locale
+     *
+     * @param user - L'utilisateur qui en fait la demande
+     * @return - Toutes les données liés à l'utilisateur
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public TreeSet<Groupe> treatLocalUpdateMessage(Utilisateur user) throws SQLException {
         return getRelatedGroups(user);
     }
 
+    /**
+     * Retourne tous les noms des groupes
+     *
+     * @return - Tous les noms des groupes
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public TreeSet<String> getAllGroups() throws SQLException {
 
         TreeSet<String> groups = new TreeSet<>();
@@ -908,6 +1101,13 @@ public class DatabaseManager {
 
     }
 
+    /**
+     * Retourne tous les groupes reliés à un ticket
+     *
+     * @param ticketID - Le ticket en question
+     * @return - Tous les groupes reliés à ce ticket
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public Groupe relatedTicketGroup(long ticketID) throws SQLException {
         final String query = String.format(
                 "SELECT DISTINCT %s.* " +
@@ -933,6 +1133,13 @@ public class DatabaseManager {
     }
 
 
+    /**
+     * Retoure un ticket pour un certain id
+     *
+     * @param ticketid - L'id
+     * @return - Le ticket si dispo sinon null
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public Ticket getTicket(long ticketid) throws SQLException {
         final Statement statement = databaseConnection.createStatement();
         final String query = String.format(
@@ -949,6 +1156,13 @@ public class DatabaseManager {
         return null;
     }
 
+    /**
+     * Retourne un groupe pour un id donné
+     *
+     * @param id - L'id
+     * @return - Le groupe si dispo sinon null
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public Groupe retrieveGroupForGivenID(Long id) throws SQLException {
         final Statement statement = databaseConnection.createStatement();
         final String query = String.format(
@@ -964,6 +1178,13 @@ public class DatabaseManager {
         return null;
     }
 
+    /**
+     * Retourne l'id du créateur d'un ticket
+     *
+     * @param ticketID - Le ticket en question
+     * @return - L'id du créateur, 0 si non trouvé
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public Long ticketCreator(Long ticketID) throws SQLException {
         Statement statement = databaseConnection.createStatement();
         final String query = String.format(
@@ -985,7 +1206,14 @@ public class DatabaseManager {
         return 0L;
     }
 
-    public void setMessagesFromTicketRead(Long ticketID, Long userID) throws SQLException {
+    /**
+     * Mets tous les message d'un ticket à LU pour un utilisateur donné
+     *
+     * @param ticketID - L'id du ticket
+     * @param userID   - L'id de l'utilisateur
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
+    public int setMessagesFromTicketRead(Long ticketID, Long userID) throws SQLException {
 
         Statement statement = databaseConnection.createStatement();
 
@@ -1000,10 +1228,9 @@ public class DatabaseManager {
                 TABLE_NAME_VU, UTILISATEUR_ID, userID
         );
 
-        System.out.println(query);
-
         ResultSet set = statement.executeQuery(query);
         Statement other = databaseConnection.createStatement();
+        int result = 0;
         while (set.next()) {
             Long messageID = set.getLong(VU_MESSAGE_ID);
             final String update = String.format(
@@ -1012,11 +1239,19 @@ public class DatabaseManager {
                     TABLE_NAME_VU, VU_UTILISATEUR_ID, userID
             );
 
-            other.execute(update);
+            result += other.executeUpdate(update);
         }
+
+        return result;
 
     }
 
+    /**
+     * Retourne tous les utilisateurs
+     *
+     * @return Tous les utilisateurs
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public TreeSet<Utilisateur> getAllUsers() throws SQLException {
         final TreeSet<Utilisateur> users = new TreeSet<>();
         final String query = String.format(
@@ -1034,6 +1269,13 @@ public class DatabaseManager {
         return users;
     }
 
+    /**
+     * Le ticket lié à un message
+     *
+     * @param id - L'id du message
+     * @return - Le ticket lié à ce message
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
     public Ticket relatedMessageTicket(Long id) throws SQLException {
 
         final String query = String.format(
@@ -1049,14 +1291,24 @@ public class DatabaseManager {
 
         ResultSet set = databaseConnection.createStatement().executeQuery(query);
         if (set.next()) {
-            return new Ticket(set.getLong(TICKET_ID), set.getString(TICKET_TITRE), new TreeSet<>());
+            final long ticketid = set.getLong(TICKET_ID);
+            final String title = set.getString(TICKET_TITRE);
+
+            return new Ticket(ticketid, title, getAllMessagesForGivenTicket(ticketid));
         }
 
         return null;
 
     }
 
-    public void setMessageReceived(Message message, Utilisateur user) throws SQLException {
+    /**
+     * Marque un message comme reçu
+     *
+     * @param message - Le message en question
+     * @param user    - L'utilisateur en question
+     * @throws SQLException - Peut être lancée en cas d'erreur sur la requête
+     */
+    public int setMessageReceived(Message message, Utilisateur user) throws SQLException {
 
         String request = String.format(
                 "DELETE FROM %s " +
@@ -1068,7 +1320,25 @@ public class DatabaseManager {
         );
 
         Statement statement = databaseConnection.createStatement();
-        statement.executeUpdate(request);
+        return statement.executeUpdate(request);
+
+    }
+
+    public Message getMessage(Long id) throws SQLException {
+
+        final String query = String.format(
+                "SELECT * FROM %s WHERE %s.%s = '%s'",
+                TABLE_NAME_MESSAGE, TABLE_NAME_MESSAGE, MESSAGE_ID, id
+        );
+
+        Statement statement = databaseConnection.createStatement();
+        ResultSet set = statement.executeQuery(query);
+
+        if (set.next()) {
+            return new Message(set, getRemainingReadUsernames(id), getRemainingReceiveUsernames(id));
+        }
+
+        return null;
 
     }
 }

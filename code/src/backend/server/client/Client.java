@@ -7,36 +7,51 @@ import backend.data.Ticket;
 import backend.data.Utilisateur;
 import backend.modele.UserModel;
 import backend.server.Server;
+import backend.server.communication.CommunicationMessage;
 import backend.server.communication.classic.ClassicMessage;
 import debug.Debugger;
+import org.json.JSONArray;
+import org.json.JSONException;
 import ui.InteractiveUI;
 import ui.Server.ServerUI;
+import utils.Utils;
 
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 import javax.swing.*;
 import java.io.*;
 import java.net.SocketException;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.TreeSet;
+import java.security.NoSuchAlgorithmException;
+import java.util.*;
 
 import static backend.database.Keys.*;
 
 public class Client extends Thread implements Server {
 
+    public static final String ADDRESS = "localhost";
+    public static final Integer PORT = 3000;
+
+    private final static String GROUPS_FILE = "groups";
+    private final static String RELATED_GROUPS_FILE = "related_groups";
+    private final static String USERS_FILE = "users";
+    private final static String PENDING_MESSAGES_FILE = "pending_messages";
+
     private final static String DBG_COLOR = Debugger.YELLOW;
     private final static int SOCKET_TIMEOUT = 5000;
 
-    private final SSLSocket mSocket;
-    boolean isRunning = true;
+    private SSLSocket mSocket;
 
     private BufferedWriter mWriteStream;
     private BufferedReader mReadStream;
 
     private InteractiveUI ui;
     private Boolean running = false;
+    private Boolean connected = true;
+    private Boolean requestEverything = false;
 
     private Utilisateur myUser;
+
+    private Stack<CommunicationMessage> pendingMessages = new Stack<>();
 
     /**
      * This class is used on the client side.
@@ -53,16 +68,173 @@ public class Client extends Thread implements Server {
 
             mWriteStream = new BufferedWriter(new OutputStreamWriter(mSocket.getOutputStream()));
             mReadStream = new BufferedReader(new InputStreamReader(mSocket.getInputStream()));
-
-
         } catch (IOException e) {
             e.printStackTrace();
             throw new ServerInitializationFailedException("Something went wrong while initializing connexion");
         }
     }
 
+    public void loadContents() {
+        loadLocalData();
+        loadPendingMessages();
+    }
+
+    private void loadLocalData() {
+        TreeSet<String> groups = loadGroups();
+        TreeSet<Utilisateur> users = loadUsers();
+        TreeSet<Groupe> relatedGroups = loadRelatedGroups();
+
+        Utilisateur.setInstances(users);
+
+        ui.updateGroupsList(groups);
+        ui.updateRelatedGroups(relatedGroups);
+    }
+
+    private TreeSet<String> loadGroups() {
+        TreeSet<String> groups = new TreeSet<>();
+
+        try {
+            JSONArray localData = new JSONArray(Utils.loadFromFile(GROUPS_FILE));
+
+            for (int i = 0; i < localData.length(); ++i) {
+                try {
+                    groups.add(localData.getString(i));
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        } catch (JSONException e) {
+            Debugger.logColorMessage(Debugger.RED, "Client", "Unable to load groups");
+        }
+
+        return groups;
+    }
+
+    private TreeSet<Utilisateur> loadUsers() {
+        TreeSet<Utilisateur> users = new TreeSet<>();
+
+        try {
+            JSONArray localData = new JSONArray(Utils.loadFromFile(USERS_FILE));
+
+            for (int i = 0; i < localData.length(); ++i) {
+                try {
+                    users.add(new Utilisateur(localData.getJSONObject(i)));
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        } catch (JSONException e) {
+            Debugger.logColorMessage(Debugger.RED, "Client", "Unable to load users");
+        }
+
+        return users;
+    }
+
+    private TreeSet<Groupe> loadRelatedGroups() {
+        TreeSet<Groupe> groupes = new TreeSet<>();
+
+        try {
+            JSONArray localData = new JSONArray(Utils.loadFromFile(RELATED_GROUPS_FILE));
+
+            for (int i = 0; i < localData.length(); ++i) {
+                try {
+                    groupes.add(new Groupe(localData.getJSONObject(i)));
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        } catch (JSONException e) {
+            Debugger.logColorMessage(Debugger.RED, "Client", "Unable to load related groups");
+        }
+
+        return groupes;
+    }
+
+    private void loadPendingMessages() {
+        try {
+            JSONArray savedPendingMessages = new JSONArray(Utils.loadFromFile(PENDING_MESSAGES_FILE));
+
+            for (int i = 0; i < savedPendingMessages.length(); ++i) {
+                try {
+                    pendingMessages.push(new ClassicMessage(savedPendingMessages.getString(i)));
+                } catch (CommunicationMessage.InvalidMessageException e) {
+                    e.printStackTrace();
+                }
+            }
+        } catch (JSONException e) {
+            Debugger.logColorMessage(Debugger.RED, "Client", "Unable to load pending messages");
+        }
+
+
+        sendPendingMessages();
+    }
+
+    public void saveContents(TreeSet<String> groups, TreeSet<Groupe> relatedGroups) {
+        saveLocalData(groups, relatedGroups);
+
+        savePendingMessages();
+    }
+
+    private void saveLocalData(TreeSet<String> groups, TreeSet<Groupe> relatedGroups) {
+        if (groups != null || relatedGroups != null) {
+            if (groups != null) {
+                saveGroups(groups);
+            }
+
+            if (relatedGroups != null) {
+                saveRelatedGroups(relatedGroups);
+            }
+
+            saveUsers(Utilisateur.getAllInstances());
+        }
+    }
+
+    private void saveGroups(TreeSet<String> groups) {
+        JSONArray array = new JSONArray();
+        for (String groupe : groups) {
+            array.put(groupe);
+        }
+
+        Utils.saveToFile(GROUPS_FILE, array.toString());
+    }
+
+    private void saveRelatedGroups(TreeSet<Groupe> relatedGroups) {
+        JSONArray array = new JSONArray();
+        for (Groupe groupe : relatedGroups) {
+            array.put(groupe.toJSON());
+        }
+
+        Utils.saveToFile(RELATED_GROUPS_FILE, array.toString());
+    }
+
+    private void saveUsers(Collection<Utilisateur> allInstances) {
+        JSONArray array = new JSONArray();
+        for (Utilisateur users : allInstances) {
+            array.put(users.toJSON());
+        }
+
+        Utils.saveToFile(USERS_FILE, array.toString());
+    }
+
+    private void savePendingMessages() {
+        JSONArray array = new JSONArray();
+        pendingMessages.toArray();
+
+        CommunicationMessage[] pending = new CommunicationMessage[pendingMessages.size()];
+        for (int i = 0; i < pending.length; ++i) {
+            String message = pendingMessages.elementAt(i).toString();
+            array.put(message.substring(0, message.lastIndexOf("\n")));
+        }
+
+        Utils.saveToFile(PENDING_MESSAGES_FILE, array.toString());
+    }
+
     public void setUI(InteractiveUI ui) {
         this.ui = ui;
+    }
+
+    public Utilisateur getUser() {
+        return myUser;
     }
 
 
@@ -78,15 +250,9 @@ public class Client extends Thread implements Server {
 
         try {
             return readData();
-        } catch (IOException | ClassicMessage.InvalidMessageException e) {
-            e.printStackTrace();
-
+        } catch (IOException | ClassicMessage.InvalidMessageException | SocketDisconnectedException e) {
             return null;
-        } catch (SocketDisconnectedException e) {
-            isRunning = false;
         }
-
-        return null;
     }
 
 
@@ -109,6 +275,7 @@ public class Client extends Thread implements Server {
 
             if (returnedData != null && returnedData.isAck()) {
                 myUser = new Utilisateur(0L, "", "", INE, "");
+                myUser.setPassword(password);
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -125,21 +292,22 @@ public class Client extends Thread implements Server {
      *
      * @throws IOException Can be thrown while closing the socket.
      */
-    public void disconnect() throws IOException {
+    public void disconnect(TreeSet<String> groups, TreeSet<Groupe> relatedGroups) throws IOException {
 
-        mWriteStream.close();
-        mReadStream.close();
         mSocket.close();
         running = false;
 
+        saveContents(groups, relatedGroups);
+
     }
 
-    @Override
+
     /**
      * methode bouclant à l'infini tant qu'il n'y a pas de fermeture de l'application,
      * cette methode attend la reception d'un message et le transmet à handleMessage pour le traiter.
-     * En cas de perte de connexion il y'a tentative de reconnection jusqu'a reussite ou fermeture de l'application
-    **/
+     * En cas de perte de connexion il y'a tentative de reconnexion jusqu'a reussite ou fermeture de l'application
+     */
+    @Override
     public void run() {
 
         try {
@@ -161,7 +329,7 @@ public class Client extends Thread implements Server {
                 handleMessage(message);
 
             } catch (SocketDisconnectedException e) {
-                running = false;
+                reconnect();
             } catch (IOException | ClassicMessage.InvalidMessageException e) {
                 e.printStackTrace();
             }
@@ -170,9 +338,52 @@ public class Client extends Thread implements Server {
 
     }
 
+
+    private void reconnect() {
+        connected = false;
+        System.out.println("Entering socket reconnection");
+        while (running && !connected) {
+            try {
+                mSocket = (SSLSocket) SSLContext.getDefault().getSocketFactory().createSocket(ADDRESS, PORT);
+                mSocket.setSoTimeout(SOCKET_TIMEOUT);
+
+                mWriteStream = new BufferedWriter(new OutputStreamWriter(mSocket.getOutputStream()));
+                mReadStream = new BufferedReader(new InputStreamReader(mSocket.getInputStream()));
+
+                ClassicMessage message = sendConnectionMessage(myUser.getINE(), myUser.getPassword());
+                connected = (message != null && message.isAck());
+
+                mSocket.setSoTimeout(0);
+            } catch (IOException | NoSuchAlgorithmException ex) {
+                try {
+                    sleep(1000);
+                } catch (InterruptedException exception) {
+                    exception.printStackTrace();
+                }
+            }
+        }
+
+        if (connected) {
+            setRequestEverything(requestEverything);
+            sendPendingMessages();
+        }
+    }
+
+    private void sendPendingMessages() {
+        CommunicationMessage[] pending = new CommunicationMessage[pendingMessages.size()];
+        for (int i = 0; i < pending.length; ++i) {
+            pending[i] = pendingMessages.pop();
+        }
+
+        for (CommunicationMessage message : pending) {
+            sendData(message);
+        }
+    }
+
+
     /**
      * Methode recevant un message et le redirigeant vers les fonction de traitement adaptées au type du message
-     * 
+     *
      * @param message - objet ClassiqueMessage étant le message reçu
     **/
     private void handleMessage(ClassicMessage message) {
@@ -200,12 +411,7 @@ public class Client extends Thread implements Server {
         }
 
     }
-    
-    /**
-     * Methode effectuant le traitement d'un message de type TABLE_MODEL
-     *
-     * @param message - message reçu de type TABLE_MODEL
-    **/
+
     private void handleTableModelMessage(ClassicMessage message) {
 
         if (ui instanceof ServerUI) {
@@ -213,7 +419,11 @@ public class Client extends Thread implements Server {
             ServerUI serverUI = (ServerUI) ui;
 
             final UserModel userModel = message.getTableModelUserModel();
+            final String password = myUser.getPassword();
             myUser = userModel.getReferenceTo(myUser.getINE());
+            myUser.setPassword(password);
+
+            ui.setTitle("Administration | Connecté en tant que : " + myUser.getNom() + " " + myUser.getPrenom());
 
             serverUI.setAllModels(
                     message.getTableModelUserModel(),
@@ -233,7 +443,11 @@ public class Client extends Thread implements Server {
 
         for (Utilisateur user : users) {
             if (user.getINE().equals(myUser.getINE())) {
+                final String password = myUser.getPassword();
                 myUser = user;
+                myUser.setPassword(password);
+
+                ui.setTitle("Connecté en tant que : " + myUser.getNom() + " " + myUser.getPrenom());
                 break;
             }
         }
@@ -254,11 +468,7 @@ public class Client extends Thread implements Server {
             }
         }
 
-        try {
-            sendData(ClassicMessage.createMessageReceived(received));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        sendData(ClassicMessage.createMessageReceived(received));
     }
 
 
@@ -297,11 +507,7 @@ public class Client extends Thread implements Server {
 
 
         if (!received.isEmpty()) {
-            try {
-                sendData(ClassicMessage.createMessageReceived(received));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            sendData(ClassicMessage.createMessageReceived(received));
         }
     }
 
@@ -365,24 +571,26 @@ public class Client extends Thread implements Server {
                 Ticket ticket = message.getEntryAsTicket();
                 ui.updateTicket(message.getEntryRelatedGroup(), ticket);
 
-                TreeSet<Message> messages = ticket.getMessages();
-                if (messages != null) {
-                    received.addAll(messages);
+                if (ticket.containsUnreceivedMessages()) {
+                    TreeSet<Message> messages = ticket.getMessages();
+                    if (messages != null) {
+                        received.addAll(messages);
+                    }
                 }
                 break;
 
             case TABLE_NAME_MESSAGE:
+                System.out.println("blblbl");
                 ui.updateMessage(message.getEntryRelatedGroup(), message.getEntryRelatedTicket(), message.getEntryAsMessage());
-                received.add(message.getEntryAsMessage());
+                if (message.getEntryAsMessage().state() < 3) {
+                    received.add(message.getEntryAsMessage());
+                }
+
                 break;
         }
 
         if (!received.isEmpty()) {
-            try {
-                sendData(ClassicMessage.createMessageReceived(received));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            sendData(ClassicMessage.createMessageReceived(received));
         }
     }
 
@@ -397,16 +605,7 @@ public class Client extends Thread implements Server {
      * @return The message received from the host
      */
     public Boolean createANewTicket(String title, String messageContent, String group) {
-
-
-        try {
-            sendData(ClassicMessage.createTicket(title, group, messageContent));
-            return true;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
-        }
-
+        return sendData(ClassicMessage.createTicket(title, group, messageContent));
     }
 
 
@@ -419,15 +618,7 @@ public class Client extends Thread implements Server {
      * @return The data retrieved by the host.
      */
     public Boolean postAMessage(Long ticketid, String contents) {
-
-        try {
-            sendData(ClassicMessage.createMessage(ticketid, contents));
-            return true;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
-        }
-
+        return sendData(ClassicMessage.createMessage(ticketid, contents));
     }
 
 
@@ -442,39 +633,16 @@ public class Client extends Thread implements Server {
      * @return The data retrieved by the server.
      */
     public Boolean updateLocalDatabase() {
-
-        try {
-            sendData(ClassicMessage.createLocalUpdate(new Date(0)));
-            return true;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
-        }
-
+        return sendData(ClassicMessage.createLocalUpdate(new Date(0)));
     }
 
     public Boolean sendNotificationTicketClicked(Ticket ticket) {
-
-        try {
-            sendData(ClassicMessage.createTicketClicked(ticket));
-            return true;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
-        }
-
+        return sendData(ClassicMessage.createTicketClicked(ticket));
     }
 
 
     public Boolean retrieveAllModels() {
-
-        try {
-            sendData(ClassicMessage.createTableModelRequest());
-            return true;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
-        }
+        return sendData(ClassicMessage.createTableModelRequest());
     }
 
     @Override
@@ -485,5 +653,18 @@ public class Client extends Thread implements Server {
     @Override
     public BufferedReader getSocketReader() {
         return mReadStream;
+    }
+
+    @Override
+    public void addPendingMessage(CommunicationMessage message) {
+        pendingMessages.push(message);
+    }
+
+    public void setRequestEverything(boolean b) {
+        requestEverything = b;
+
+        if (requestEverything) {
+            sendData(ClassicMessage.createRequestEverything());
+        }
     }
 }

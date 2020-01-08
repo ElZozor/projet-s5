@@ -48,11 +48,11 @@ public class Ticket extends ProjectTable implements Comparable<Ticket> {
     /**
      * Constructeur de l'objet Ticket à partir de son identifiant, de son titre et d'un ensemble de messages
      *
-     * @param id - identifiant unique du ticket
-     * @param titre - titre du ticket
-     * @param message - ensemble de messages triés postés sur le ticket
+     * @param id       - identifiant unique du ticket
+     * @param titre    - titre du ticket
+     * @param messages - ensemble de messages triés postés sur le ticket
      * @throws NoSuchElementException peut être renvoyé si message est vide
-    **/
+     **/
     public Ticket(Long id, String titre, TreeSet<Message> messages) throws NoSuchElementException {
         mID = id;
         mMessages = messages;
@@ -153,12 +153,15 @@ public class Ticket extends ProjectTable implements Comparable<Ticket> {
 
     @Override
     public int compareTo(@NotNull Ticket ticket) {
-        int titleComparison = this.getTitre().compareTo(ticket.getTitre());
-        if (titleComparison == 0) {
+        Message lastOther = ticket.dernierMessage();
+        Message lastThis = dernierMessage();
+
+        int messageComparison = lastOther.compareTo(lastThis);
+        if (messageComparison == 0) {
             return getID().compareTo(ticket.getID());
         }
 
-        return titleComparison;
+        return messageComparison;
     }
 
     @Override
@@ -195,5 +198,26 @@ public class Ticket extends ProjectTable implements Comparable<Ticket> {
         }
 
         return result;
+    }
+
+
+    public boolean containsUnreadMessages() {
+        return getNotSeenMessages() > 0;
+    }
+
+    public boolean containsUnreceivedMessages() {
+        if (mMessages != null) {
+            for (Message message : mMessages) {
+                if (message.state() < 3) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public boolean containsUnreadOrUnreceivedMessages() {
+        return containsUnreceivedMessages() || containsUnreadMessages();
     }
 }

@@ -5,11 +5,12 @@ import backend.server.communication.classic.ClassicMessage;
 
 import javax.swing.*;
 import java.awt.*;
-import java.io.IOException;
 
 import static backend.database.Keys.TABLE_NAME_UTILISATEUR;
 
 public class EditUserPanel extends JPanel {
+
+    private final static String[] types = {"admin", "staff", "other"};
 
     private static final Insets default_insets
             = new Insets(8, 8, 8, 8);
@@ -18,7 +19,7 @@ public class EditUserPanel extends JPanel {
     private JTextField prenomField = new JTextField();
     private JTextField groupField = new JTextField();
     private JPasswordField mdpField = new JPasswordField();
-    private JTextField typeField = new JTextField();
+    private JComboBox<String> typeField = new JComboBox<>(types);
     private JButton enregistrerButton = new JButton();
     private JButton annulerButton = new JButton();
     private ServerUI parent;
@@ -228,7 +229,6 @@ public class EditUserPanel extends JPanel {
         ineField.setText(user.getINE());
         prenomField.setText(user.getPrenom());
         nomField.setText(user.getNom());
-        typeField.setText(user.getType());
         groupField.setText(String.join(";", user.getGroups()));
     }
 
@@ -237,25 +237,25 @@ public class EditUserPanel extends JPanel {
         final String INE = ineField.getText();
         final String nom = nomField.getText();
         final String prenom = prenomField.getText();
-        final String type = typeField.getText();
         final String groups = groupField.getText();
         final String mdp = new String(mdpField.getPassword());
 
+        Object selectedItem = typeField.getSelectedItem();
+        if (selectedItem == null) {
+            return;
+        }
+        final String type = selectedItem.toString();
 
         Utilisateur user = new Utilisateur(0, nom, prenom, INE, type);
         user.setGroups(groups.split(";"));
         user.setPassword(mdp);
 
-        try {
-            parent.client.sendData(
-                    ClassicMessage.createAddMessage(
-                            TABLE_NAME_UTILISATEUR,
-                            user
-                    )
-            );
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        parent.client.sendData(
+                ClassicMessage.createAddMessage(
+                        TABLE_NAME_UTILISATEUR,
+                        user
+                )
+        );
 
         parent.setMainPanel();
     }
@@ -265,25 +265,26 @@ public class EditUserPanel extends JPanel {
         final String INE = ineField.getText();
         final String nom = nomField.getText();
         final String prenom = prenomField.getText();
-        final String type = typeField.getText();
         final String groups = groupField.getText();
         final String mdp = new String(mdpField.getPassword());
+
+        Object selectedItem = typeField.getSelectedItem();
+        if (selectedItem == null) {
+            return;
+        }
+        final String type = selectedItem.toString();
 
         if (user != null) {
             Utilisateur edittedUser = new Utilisateur(user.getID(), nom, prenom, INE, type);
             edittedUser.setGroups(groups.split(";"));
             edittedUser.setPassword(mdp);
 
-            try {
-                parent.client.sendData(
-                        ClassicMessage.createUpdateMessage(
-                                TABLE_NAME_UTILISATEUR,
-                                edittedUser
-                        )
-                );
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            parent.client.sendData(
+                    ClassicMessage.createUpdateMessage(
+                            TABLE_NAME_UTILISATEUR,
+                            edittedUser
+                    )
+            );
         }
 
         parent.setMainPanel();
