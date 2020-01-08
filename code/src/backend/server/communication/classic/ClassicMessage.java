@@ -249,9 +249,11 @@ public class ClassicMessage extends CommunicationMessage {
     }
 
     /**
-     * methode de création de message de signalement de suppression d'entrée 
+     * methode de création de message de signalement de signalement d'entrée supprimée
      * 
-     * @param table 
+     * @param table - table concernée
+     * @param entry - entree à supprimer
+     * @return un message créé
     **/
     public static ClassicMessage createEntryDeletedMessage(final String table, ProjectTable entry) {
 
@@ -263,7 +265,15 @@ public class ClassicMessage extends CommunicationMessage {
         return classicMessage;
 
     }
-
+    
+    /**
+     * methode de création de message de signalement de ticket supprimé
+     *
+     * @param table - table concernée
+     * @param entry - entrée à supprimer
+     * @param relatedGroup - groupe sur lequel se trouve le ticket
+     * @return le message créé
+    **/
     public static ClassicMessage createTicketDeletedMessage(final String table, Ticket entry, Groupe relatedGroup) {
 
         ClassicMessage classicMessage = new ClassicMessage(CLASSIC_MESSAGE_TYPE.ENTRY_DELETED, TYPE_ENTRY_DELETED);
@@ -276,6 +286,15 @@ public class ClassicMessage extends CommunicationMessage {
 
     }
 
+    /**
+     * methode créant un message de signalement de message supprimé
+     *
+     * @param table
+     * @param entry
+     * @param relatedGroup - groupe sur lequel le ticket comportant le message est lié
+     * @param relatedTicket - ticket sur lequel le message à été posté
+     * @return le message créé
+    **/
     public static ClassicMessage createMessageDeletedMessage
             (final String table, Message entry, Groupe relatedGroup, Ticket relatedTicket) {
 
@@ -289,7 +308,14 @@ public class ClassicMessage extends CommunicationMessage {
         return classicMessage;
 
     }
-
+    
+    /**
+     * methode créant un message de signalement d'entrée créée
+     *
+     * @param table - table concernée
+     * @param entry - entrée créée
+     * @return message créé
+    **/
     public static ClassicMessage createEntryAddedMessage(final String table, ProjectTable entry) {
 
         ClassicMessage classicMessage = new ClassicMessage(CLASSIC_MESSAGE_TYPE.ENTRY_ADDED, TYPE_ENTRY_ADDED);
@@ -300,7 +326,15 @@ public class ClassicMessage extends CommunicationMessage {
         return classicMessage;
 
     }
-
+    
+    /**
+    * methode créant un message designalement de ticket créé
+    *
+    * @param table - table concernée
+    * @param entry - entrée de table
+    * @param relatedGroup - groupe lié au ticket
+    * @return le message créé
+    **/
     public static ClassicMessage createTicketAddedMessage(final String table, Ticket entry, Groupe relatedGroup) {
 
         ClassicMessage classicMessage = new ClassicMessage(CLASSIC_MESSAGE_TYPE.ENTRY_ADDED, TYPE_ENTRY_ADDED);
@@ -312,7 +346,15 @@ public class ClassicMessage extends CommunicationMessage {
         return classicMessage;
 
     }
-
+    /**
+     * methode créant un message de signalement de message créé
+     *
+     * @param table
+     * @param entry
+     * @param relatedGroup - groupe contenant le ticket sur lequel le message sera créé
+     * @param relatedTicket - ticket sur lequel le message va être posté
+     * @return le message créé
+    **/
     public static ClassicMessage createMessageAddedMessage
             (final String table, Message entry, Groupe relatedGroup, Ticket relatedTicket) {
 
@@ -327,7 +369,13 @@ public class ClassicMessage extends CommunicationMessage {
 
     }
 
-
+    /**
+     * methode créant un message de signalement de mise à jour d'un entrée
+     * 
+     * @param table - table concernée
+     * @param entry - entrée modifiée
+     * @return le message créé
+    **/
     public static ClassicMessage createEntryUpdatedMessage(final String table, ProjectTable entry) {
 
         ClassicMessage classicMessage = new ClassicMessage(CLASSIC_MESSAGE_TYPE.ENTRY_UPDATED, TYPE_ENTRY_UPDATED);
@@ -339,6 +387,14 @@ public class ClassicMessage extends CommunicationMessage {
 
     }
 
+    /**
+     * methode créant un message de signalement de mise à jour d'un ticket
+     * 
+     * @param table - table concernée
+     * @param entry - ticket modifiée
+     * @param relatedGroup - groupe lié au ticket modifié
+     * @return le message créé
+    **/
     public static ClassicMessage createTicketUpdatedMessage(final String table, Ticket entry, Groupe relatedGroup) {
 
         ClassicMessage classicMessage = new ClassicMessage(CLASSIC_MESSAGE_TYPE.ENTRY_UPDATED, TYPE_ENTRY_UPDATED);
@@ -351,6 +407,15 @@ public class ClassicMessage extends CommunicationMessage {
 
     }
 
+    /**
+     * methode créant un message de signalement de mise à jour d'un message
+     * 
+     * @param table - table concernée
+     * @param entry - message modifé
+     * @param relatedGroup - groupe lié au ticket sur lequel le message est modifié
+     * @param ticket - ticket sur lequel le message est modifié
+     * @return le message créé
+    **/
     public static ClassicMessage createMessageUpdatedMessage(final String table, Message entry, Groupe relatedGroup, Ticket ticket) {
 
         ClassicMessage classicMessage = new ClassicMessage(CLASSIC_MESSAGE_TYPE.ENTRY_UPDATED, TYPE_ENTRY_UPDATED);
@@ -364,6 +429,13 @@ public class ClassicMessage extends CommunicationMessage {
 
     }
 
+    /**
+     * methode créant un message pour demander au serveur de supprimer une entrée
+     *
+     * @param table - table concernée
+     * @param entry - entrée supprimée
+     * @return le message créé
+    **/
     public static ClassicMessage createDeleteMessage(final String table, ProjectTable entry) {
 
         ClassicMessage message = new ClassicMessage(CLASSIC_MESSAGE_TYPE.DELETE, TYPE_DELETE);
@@ -374,7 +446,14 @@ public class ClassicMessage extends CommunicationMessage {
         return message;
 
     }
-
+    
+    /**
+     * methode créant un message pour demander au serveur de créér une entrée
+     *
+     * @param table - table concernée
+     * @param entry - entrée créée
+     * @return le message créé
+    **/
     public static ClassicMessage createAddMessage(final String table, ProjectTable entry) {
 
         ClassicMessage message = new ClassicMessage(CLASSIC_MESSAGE_TYPE.ADD, TYPE_ADD);
@@ -385,7 +464,14 @@ public class ClassicMessage extends CommunicationMessage {
         return message;
 
     }
-
+    
+    /**
+     * methode créant un message pour demander au serveur de modifier une entrée
+     *
+     * @param table - table concernée
+     * @param entry - entrée modifiée
+     * @return le message créé
+    **/
     public static ClassicMessage createUpdateMessage(final String table, ProjectTable entry) {
 
         ClassicMessage message = new ClassicMessage(CLASSIC_MESSAGE_TYPE.UPDATE, TYPE_UPDATE);
@@ -397,6 +483,11 @@ public class ClassicMessage extends CommunicationMessage {
 
     }
 
+    /**
+     * methode créant un message de demande des tables par un administrateur
+     *
+     * @return le message de demande
+    **/
     public static ClassicMessage createTableModelRequest() {
 
         ClassicMessage message = new ClassicMessage(CLASSIC_MESSAGE_TYPE.TABLE_MODEL_REQUEST, TYPE_TABLE_MODEL_REQUEST);
@@ -404,7 +495,12 @@ public class ClassicMessage extends CommunicationMessage {
         return message;
 
     }
-
+    
+    /**
+     * methode créant un message de demande au serveur de renvoi de tout ce qu'il reçoit à un administrateur
+     *
+     * @return le message de requète
+    **/
     public static ClassicMessage createRequestEverything() {
 
         ClassicMessage message = new ClassicMessage(CLASSIC_MESSAGE_TYPE.REQUEST_EVERYTHING, TYPE_REQUEST_EVERYTHING);
@@ -412,7 +508,13 @@ public class ClassicMessage extends CommunicationMessage {
         return message;
 
     }
-
+    
+    /**
+     * methode créant un message d'attestation de reception de messages
+     *
+     * @param recieved - liste de messages reçus
+     * @return le message d'acquittement
+    **/
     public static ClassicMessage createMessageReceived(ArrayList<Message> received) {
 
         ClassicMessage message = new ClassicMessage(CLASSIC_MESSAGE_TYPE.MESSAGE_RECEIVED, TYPE_MESSAGE_RECEIVED);
@@ -427,7 +529,16 @@ public class ClassicMessage extends CommunicationMessage {
         return message;
 
     }
-
+    
+    /**
+     * methode créant un message contenant les tables de la base de donnée (sauf les tables des associations)
+     *
+     * @param users - liste d'utilisateurs
+     * @param groups - liste de groupes
+     * @param tickets - liste de tickets
+     * @param messages - liste de messages
+     * @return le message contenant tout
+    **/
     public static ClassicMessage createTableModel
             (List<Utilisateur> users, List<Groupe> groups, List<Ticket> tickets, List<Message> messages) {
 
@@ -461,7 +572,13 @@ public class ClassicMessage extends CommunicationMessage {
 
     }
 
-
+    
+    /**
+     * methode appelant getTypeToString() et renvoyant le type d'un message
+     *
+     * @throws InvalidMessageException - peut être renvoyé si le message n'a pas de type connu
+     * @return le type du message 
+    **/
     private CLASSIC_MESSAGE_TYPE guessType() throws InvalidMessageException {
         switch (getTypeToString()) {
             case TYPE_KEY_XCHANGE:
@@ -537,63 +654,111 @@ public class ClassicMessage extends CommunicationMessage {
                 throw new InvalidMessageException("Message with invalid type: " + getTypeToString());
         }
     }
-
+    
+    /**
+     * methode de verification des tables dans la requête des tables
+     *
+     * @throws InvalidMessageException si les tables n'ont pas le bon nom (Message, utilisateur, Ticket ou Groupe)
+    **/
     private void checkForTableModelValidity() throws InvalidMessageException {
         if (!getData().has(TABLE_NAME_GROUPE) || !getData().has(TABLE_NAME_MESSAGE)
                 || !getData().has(TABLE_NAME_TICKET) || !getData().has(TABLE_NAME_UTILISATEUR)) {
             throw new InvalidMessageException("Missing field in table model request message");
         }
     }
-
+    
+    /**
+     * methode de verification des message de modification
+     *
+     * @throws InvalidMessageException si le message ne contient pas les champs Table ou Entry
+    **/
     private void checkForUpdateValidity() throws InvalidMessageException {
         if (!getData().has(TABLE) || !getData().has(ENTRY)) {
             throw new InvalidMessageException("Missing field in update message");
         }
     }
-
+    
+    /**
+     * methode de verification des messages d'ajout
+     *
+     * @throws InvalidMessageException si le message ne continent pas les champs Table ou Entry
+    **/
     private void checkForAddValidity() throws InvalidMessageException {
         if (!getData().has(TABLE) || !getData().has(ENTRY)) {
             throw new InvalidMessageException("Missing field in add message");
         }
     }
-
+    
+    /**
+     * methode de vérification des message de suppression 
+     *
+     * @throws InvalidMessageException si le message ne contient pas les champs Table ou Entry
+    **/
     private void checkForDeleteValidity() throws InvalidMessageException {
         if (!getData().has(TABLE) || !getData().has(ENTRY)) {
             throw new InvalidMessageException("Missing field in delete message");
         }
     }
-
+    
+    /**
+     * methode de verification des messages de signalement d'ajout
+     *
+     * @throws InvalidMessageException si le message ne contient pas les champs Table ou Entry
+    **/
     private void checkForEntryAddedValidity() throws InvalidMessageException {
         if (!getData().has(TABLE) || !getData().has(ENTRY)) {
             throw new InvalidMessageException("Missing field in added entry message");
         }
-    }
-
+    }   
+    
+    /**
+     * methode de vérification des messages de signalement de suppression 
+     *
+     * @throws InvalidMessageException si le message ne contient pas les champs Table ou Entry
+    **/
     private void checkForEntryDeletedValidity() throws InvalidMessageException {
         if (!getData().has(TABLE) || !getData().has(ENTRY)) {
             throw new InvalidMessageException("Missing field in deleted entry message");
         }
     }
-
+    
+    /** 
+     * methode de vérifcation des messages de signalement de modification 
+     *
+     * @throws InvalidMessageException si le message ne contient pas les champs Table ou Entry
+    **/
     private void checkForEntryUpdatedValidity() throws InvalidMessageException {
         if (!getData().has(TABLE) || !getData().has(ENTRY)) {
             throw new InvalidMessageException("Missing field in updated entry message");
         }
     }
 
-
+    /**
+     * methode de vérification des messages de connexion
+     *
+     * @throws InvalidMessageException si le message ne contient pas les champs Ine et Mot de passe 
+    **/
     private void checkForConnectionValidity() throws InvalidMessageException {
         if (!getData().has(CONNECTION_INE) || !getData().has(CONNECTION_PASSWORD)) {
             throw new InvalidMessageException("Missing field in connection Message : \n" + getData().toString() + "\n" + toFormattedString());
         }
     }
-
+    
+    /**
+     * methode de vérification des messages (Message)
+     *
+     * @throws InvalidMessageException si le message ne contient pas les champs ID_Ticket ou Contenu
+    **/
     private void checkForMessageValidity() throws InvalidMessageException {
         if (!getData().has(MESSAGE_TICKET_ID) || !getData().has(MESSAGE_CONTENTS)) {
             throw new InvalidMessageException("Missing field in message type Message");
         }
     }
-
+    /**
+     * methode de vérification des messages de réponse
+     *
+     * @throws InvalidMessageException si le message ne contient pas le champ response_value
+    **/
     private void checkForResponseValidity() throws InvalidMessageException {
         if (!getData().has(RESPONSE_VALUE)) {
             throw new InvalidMessageException("Missing field in response Message");
@@ -603,61 +768,122 @@ public class ClassicMessage extends CommunicationMessage {
             throw new InvalidMessageException("Missing reason in response Message");
         }
     }
-
+    
+    /**
+     * methode de vérification des messages (Ticket)
+     *
+     * @throws InvalidMessageException si le message ne contient pas les champs titre, groupe ou message
+    **/
     private void checkForTicketValidity() throws InvalidMessageException {
         if (!getData().has(TICKET_TITLE) || !getData().has(TICKET_GROUP) || !getData().has(TICKET_MESSAGE)) {
             throw new InvalidMessageException("Missing field in ticket Message");
         }
     }
-
+    
+    /**
+     * methode de vérification des message de demande de mise à jour
+     *
+     * @throws InvalidMessageException si le message ne contient pas le champ date de mise à jour
+    **/
     private void checkForLocalUpdateValidity() throws InvalidMessageException {
         if (!getData().has(LOCAL_UPDATE_DATE)) {
             throw new InvalidMessageException("Missing field in update message");
         }
     }
-
+    
+    /**
+     * methode de vérification des messages de retour de mise à jour
+     *
+     * @throws InvalidMessageException si le message ne contient pas les champs all_groups et related_groups
+    **/
     private void checkForLocalUpdateResponseValidity() throws InvalidMessageException {
         if (!getData().has(ALL_GROUPS) || !getData().has(RELATED_GROUPS)) {
             throw new InvalidMessageException("Missing field in update message");
         }
     }
-
+    
+    /**
+     * methode de vérification du message de signalement de ticket séléctionné
+     *
+     * @throws InvalidMessageException si le message ne contient pas l'id du ticket selectionné
+    **/
     private void checkForTicketClickedValidity() throws InvalidMessageException {
         if (!getData().has(TICKET_CLICKED_ID)) {
             throw new InvalidMessageException("Missing field in ticket clicked message");
         }
     }
-
+    
+    /**
+     * methode vérifiant si le message est un ACK
+     *
+     * @return true si le message est un ACK, false sinon 
+    **/
     public Boolean isAck() {
         return getType().equals(CLASSIC_MESSAGE_TYPE.RESPONSE) && getData().getString(RESPONSE_VALUE).equals(RESPONSE_SUCCESS);
     }
 
+     /**
+     * methode vérifiant si le message est un NACK
+     *
+     * @return true si le message est un NACK, false sinon 
+    **/
     public Boolean isNack() {
         return getType().equals(CLASSIC_MESSAGE_TYPE.RESPONSE) && getData().getString(RESPONSE_VALUE).equals(RESPONSE_ERROR);
     }
 
-
+    
+     /**
+     * methode vérifiant si le message est un message de connection
+     *
+     * @return true si le message est un message de connction, false sinon 
+    **/
     public Boolean isConnection() {
         return getType().equals(CLASSIC_MESSAGE_TYPE.CONNECTION);
     }
-
+    
+     /**
+     * methode vérifiant si le message a un type ticket
+     *
+     * @return true si le message a un type ticket, false sinon 
+    **/
     public Boolean isTicket() {
         return getType().equals(CLASSIC_MESSAGE_TYPE.TICKET);
     }
-
+    
+     /**
+     * methode vérifiant si le message a un type message
+     *
+     * @return true si le message a un type message , false sinon 
+    **/
     public Boolean isMessage() {
         return getType().equals(CLASSIC_MESSAGE_TYPE.MESSAGE);
     }
-
+    
+     /**
+     * methode vérifiant si le message est un message de retour sur mise à jour
+     *
+     * @return true si le message est un message de retour sur mise à jour, false sinon 
+    **/
     public Boolean isLocalUpdateResponse() {
         return getType().equals(CLASSIC_MESSAGE_TYPE.LOCAL_UPDATE_RESPONSE);
     }
-
+    
+    /**
+     * methode renvoyant le type d'un message
+     *
+     * @return le type du message
+    **/
     public CLASSIC_MESSAGE_TYPE getType() {
         return CLASSICMESSAGE_type;
     }
 
 
+    /**
+     * methode renvoyant la raison d'un Nack
+     *
+     * @throws WrongMessageTypeException peut être renvoyé si le message sur lequel on recupère le rapport de nack n'est pas un nack
+     * @return la raison du nack
+    **/
     public String getNackReason() throws WrongMessageTypeException {
         if (!isNack()) {
             throw new WrongMessageTypeException("Requiring Nack reason on a non-nack message");
@@ -666,39 +892,83 @@ public class ClassicMessage extends CommunicationMessage {
         return getData().getString(RESPONSE_REASON);
     }
 
-
+    /**
+     * accesseur sur l'INE d'un message de connection
+     *
+     * @return l'INE du message 
+    **/
     public String getConnectionINE() {
         return getData().getString(CONNECTION_INE);
     }
 
+    /**
+     * accesseur sur le mot de passe d'un message de connection
+     *
+     * @return le mot de passe du message 
+    **/
     public String getConnectionPassword() {
         return getData().getString(CONNECTION_PASSWORD);
     }
-
+    
+    /**
+     * accesseur sur le titre du ticket d'un message de type ticket 
+     *
+     * @return le titre du ticket du message 
+    **/
     public String getTicketTitle() {
         return getData().getString(TICKET_TITLE);
     }
-
+    
+    /**
+     * accesseur sur le groupe d'un message de type ticket
+     *
+     * @return le groupe du message 
+    **/
     public String getTicketGroup() {
         return getData().getString(TICKET_GROUP);
     }
-
+    
+    /**
+     * accesseur sur le ticket d'un message de type message
+     *
+     * @return le ticket sur le message 
+    **/
     public String getTicketMessage() {
         return getData().getString(TICKET_MESSAGE);
     }
-
+    
+    /**
+     * accesseur sur le contenu d'un message de type message
+     *
+     * @return le contenu du message sur le message 
+    **/
     public String getMessageContents() {
         return getData().getString(MESSAGE_CONTENTS);
     }
-
+    
+    /**
+     * accesseur sur l'ID du ticket d'un message 
+     *
+     * @return l'ID du ticket sur le message 
+    **/
     public Long getMessageTicketID() {
         return getData().getLong(MESSAGE_TICKET_ID);
     }
-
+    
+    /**
+     * accesseur sur l'id du ticket séléctionné d'un message type selected_ticket
+     *
+     * @retrun l'id du ticket
+    **/
     public Long getTicketClickedID() {
         return getData().getLong(TICKET_CLICKED_ID);
     }
-
+    
+    /**
+     * accesseur sur les groupes (liés à un utilisateur) d'un message de compte rendu de mise à jour
+     *
+     * @return un ensemble trié des groupes 
+    **/
     public TreeSet<Groupe> getLocalUpdateResponseRelatedGroups() {
         TreeSet<Groupe> groups = new TreeSet<>();
         JSONArray array = getData().getJSONArray(RELATED_GROUPS);
@@ -709,7 +979,12 @@ public class ClassicMessage extends CommunicationMessage {
         return groups;
     }
 
-
+    
+    /**
+     * accesseur sur les groupes (tous) d'un message de compte rendu de mise à jour
+     *
+     * @return un ensemble trié des groupes 
+    **/
     public TreeSet<String> getLocalUpdateResponseAllGroups() {
         TreeSet<String> groups = new TreeSet<>();
         JSONArray array = getData().getJSONArray(ALL_GROUPS);
@@ -719,7 +994,12 @@ public class ClassicMessage extends CommunicationMessage {
 
         return groups;
     }
-
+    
+    /**
+     * accesseur sur les utilisateurs (tous) d'un message de compte rendu de mise à jour
+     *
+     * @return un ensemble trié d'utilisateurs 
+    **/
     public TreeSet<Utilisateur> getLocalUpdateResponseUsers() {
         TreeSet<Utilisateur> users = new TreeSet<>();
         JSONArray array = getData().getJSONArray(USERS);
@@ -729,16 +1009,31 @@ public class ClassicMessage extends CommunicationMessage {
 
         return users;
     }
-
+    
+    /**
+     * accesseur sur le groupe lié à une entrée sur un message 
+     *
+     * @return le groupe lié
+    **/
     public Groupe getEntryRelatedGroup() {
         return new Groupe(new JSONObject(getData().getString(RELATED_GROUPS)));
     }
-
+    
+    /**
+     * accesseur sur le ticket lié à une entrée sur un message 
+     *
+     * @return le ticket lié
+    **/
     public Ticket getEntryRelatedTicket() {
         System.out.println(getData().getString(RELATED_TICKETS));
         return new Ticket(new JSONObject(getData().getString(RELATED_TICKETS)));
     }
-
+    
+    /**
+     * accesseur sur les utilisateurs d'un message contenant toutes les tables
+     *
+     * @return tous les utilisateurs 
+    **/
     public UserModel getTableModelUserModel() {
         JSONArray array = getData().getJSONArray(TABLE_NAME_UTILISATEUR);
         List<Utilisateur> users = new ArrayList<>();
@@ -749,6 +1044,11 @@ public class ClassicMessage extends CommunicationMessage {
         return new UserModel(users);
     }
 
+     /**
+     * accesseur sur les groupes d'un message contenant toutes les tables
+     *
+     * @return tous groupes 
+    **/
     public GroupModel getTableModelGroupModel() {
         JSONArray array = getData().getJSONArray(TABLE_NAME_GROUPE);
         List<Groupe> groups = new ArrayList<>();
@@ -758,7 +1058,12 @@ public class ClassicMessage extends CommunicationMessage {
 
         return new GroupModel(groups);
     }
-
+    
+     /**
+     * accesseur sur tickets d'un message contenant toutes les tables
+     *
+     * @return tous tickets 
+    **/
     public TicketModel getTableModelTicketModel() {
         JSONArray array = getData().getJSONArray(TABLE_NAME_TICKET);
         List<Ticket> tickets = new ArrayList<>();
@@ -768,7 +1073,12 @@ public class ClassicMessage extends CommunicationMessage {
 
         return new TicketModel(tickets);
     }
-
+    
+     /**
+     * accesseur sur les messages d'un message contenant toutes les tables
+     *
+     * @return tous les messages
+    **/
     public MessageModel getTableModelMessageModel() {
         JSONArray array = getData().getJSONArray(TABLE_NAME_MESSAGE);
         List<Message> messages = new ArrayList<>();
@@ -778,7 +1088,12 @@ public class ClassicMessage extends CommunicationMessage {
 
         return new MessageModel(messages);
     }
-
+    
+    /**
+     * accesseur sur la liste de messages reçus d'un message d'acquittement de reception
+     *
+     * @return la  liste de messages reçus
+    **/
     public ArrayList<Message> getMessagesReceived() {
         JSONArray array = getData().getJSONArray(MESSAGE_RECEIVED);
         ArrayList<Message> received = new ArrayList<>();
