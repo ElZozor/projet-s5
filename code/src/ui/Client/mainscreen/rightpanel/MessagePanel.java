@@ -49,6 +49,8 @@ public class MessagePanel extends JPanel {
         text.setMargin(new Insets(8, 8, 8, 8));
         text.setText(message.getContenu());
         text.setEditable(false);
+        text.setLineWrap(true);
+        text.setWrapStyleWord(true);
         this.add(text, BorderLayout.CENTER);
 
         this.message = message;

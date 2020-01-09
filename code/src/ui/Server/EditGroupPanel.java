@@ -1,7 +1,7 @@
 package ui.Server;
 
 import backend.data.Groupe;
-import backend.server.communication.classic.ClassicMessage;
+import backend.server.communication.CommunicationMessage;
 
 import javax.swing.*;
 import java.awt.*;
@@ -122,7 +122,7 @@ public class EditGroupPanel extends JPanel {
 
         boolean success = false;
         ResultSet result;
-        parent.client.sendData(ClassicMessage.createAddMessage(
+        parent.client.sendData(CommunicationMessage.createAddMessage(
                 TABLE_NAME_GROUPE, new Groupe(0L, label)
         ));
 
@@ -134,7 +134,7 @@ public class EditGroupPanel extends JPanel {
         final String label = labelField.getText();
 
         parent.client.sendData(
-                ClassicMessage.createUpdateMessage(
+                CommunicationMessage.createUpdateMessage(
                         TABLE_NAME_GROUPE, new Groupe(group.getID(), label)
                 )
         );

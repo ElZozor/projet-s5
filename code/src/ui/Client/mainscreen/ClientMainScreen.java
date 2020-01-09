@@ -5,7 +5,7 @@ import backend.data.Message;
 import backend.data.Ticket;
 import backend.data.Utilisateur;
 import backend.server.client.Client;
-import backend.server.communication.classic.ClassicMessage;
+import backend.server.communication.CommunicationMessage;
 import debug.Debugger;
 import ui.Client.mainscreen.leftpanel.TicketTree;
 import ui.Client.mainscreen.rightpanel.MessageEditor;
@@ -19,6 +19,7 @@ import javax.swing.plaf.basic.BasicSplitPaneUI;
 import java.awt.*;
 import java.io.IOException;
 import java.util.Date;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
 public class ClientMainScreen extends InteractiveUI {
@@ -77,9 +78,7 @@ public class ClientMainScreen extends InteractiveUI {
         leftPanel = new JPanel(new BorderLayout(8, 8));
         leftPanel.add(addTicketButton, BorderLayout.NORTH);
 
-        addTicketButton.addActionListener(action -> {
-            createTicket();
-        });
+        addTicketButton.addActionListener(actionEvent -> createTicket());
 
         updateTicketTree();
         mainPanel.setLeftComponent(leftPanel);
@@ -88,7 +87,7 @@ public class ClientMainScreen extends InteractiveUI {
     private void createTicket() {
         TicketCreationScreen ticketCreationScreen = new TicketCreationScreen(allGroups);
         ticketCreationScreen.setTicketCreationListener((title, group, contents) -> {
-            client.sendData(ClassicMessage.createTicket(title, group, contents));
+            client.sendData(CommunicationMessage.createTicket(title, group, contents));
         });
     }
 
@@ -118,14 +117,13 @@ public class ClientMainScreen extends InteractiveUI {
         selectedTicket = ticket;
         mainPanel.setRightComponent(ticketDisplayer);
 
-        revalidate();
+        ticketDisplayer.revalidate();
+        ticketDisplayer.repaint();
         ticketDisplayer.setViewToBottom();
 
 
         ticketDisplayer.setMessageSendDemandListener((affiliatedTicket, text) -> {
             if (affiliatedTicket != null && text != null && !text.isEmpty()) {
-                client.postAMessage(affiliatedTicket.getID(), text);
-                MessageEditor.oldText = null;
                 affiliatedTicket.addPendingMessage(
                         new Message(
                                 0L,
@@ -137,6 +135,10 @@ public class ClientMainScreen extends InteractiveUI {
                                 null
                         )
                 );
+                ticketDisplayer.updateContents();
+                MessageEditor.oldText = null;
+
+                client.postAMessage(affiliatedTicket.getID(), text);
             }
         });
     }
@@ -150,20 +152,23 @@ public class ClientMainScreen extends InteractiveUI {
             groupe.updateTickets();
         }
 
-        System.out.println(relatedGroups);
         ticketTree = new TicketTree(relatedGroups);
         ticketTree.addTreeSelectionListener(this::elementSelectedOnTree);
 
         leftPanel.add(ticketTree, BorderLayout.CENTER);
-        leftPanel.updateUI();
+        leftPanel.revalidate();
+        leftPanel.repaint();
     }
 
     private void updateTree() {
+        leftPanel.remove(ticketTree);
+        ticketTree = null;
+
         for (Groupe groupe : relatedGroups) {
             groupe.updateTickets();
         }
 
-        ticketTree.updateTree(relatedGroups);
+        updateTicketTree();
     }
 
     private void elementSelectedOnTree(Object object) {
@@ -183,8 +188,23 @@ public class ClientMainScreen extends InteractiveUI {
         }
     }
 
-    public void updateRelatedGroups(TreeSet<Groupe> relatedGroups) {
-        this.relatedGroups = relatedGroups;
+    public void updateRelatedGroups(TreeSet<Groupe> cRelatedGroups) {
+        TreeMap<Long, Groupe> updatedGroups = new TreeMap<>();
+
+        for (Groupe groupe : cRelatedGroups) {
+            updatedGroups.put(groupe.getID(), groupe);
+        }
+
+        for (Groupe groupe : relatedGroups) {
+            Groupe correspondingGroup = updatedGroups.get(groupe.getID());
+            if (correspondingGroup != null) {
+                groupe.merge(correspondingGroup);
+            }
+        }
+
+        relatedGroups.clear();
+        relatedGroups.addAll(updatedGroups.values());
+
         updateTicketTree();
     }
 
@@ -213,8 +233,9 @@ public class ClientMainScreen extends InteractiveUI {
         if (relatedGroups.contains(entryRelatedGroup)) {
             for (Groupe groupe : relatedGroups) {
                 if (groupe.equals(entryRelatedGroup)) {
+                    leftPanel.remove(ticketTree);
+                    ticketTree = null;
                     if (entryAsTicket.equals(selectedTicket)) {
-                        updateTicketDisplayer(entryAsTicket);
                         selectedTicket.merge(entryAsTicket);
 
                         if (entryAsTicket.containsUnreadOrUnreceivedMessages()) {
@@ -229,8 +250,7 @@ public class ClientMainScreen extends InteractiveUI {
                         }
                     }
 
-
-                    updateTree();
+                    updateTicketTree();
                     return;
                 }
             }
@@ -255,7 +275,7 @@ public class ClientMainScreen extends InteractiveUI {
                                 ticket.merge(entryAsMessage);
 
                                 if (ticket.equals(selectedTicket)) {
-                                    updateTicketDisplayer(selectedTicket);
+                                    ticketDisplayer.updateContents();
                                     if (entryRelatedTicket.containsUnreadOrUnreceivedMessages()) {
                                         client.sendNotificationTicketClicked(entryRelatedTicket);
                                     }
@@ -288,7 +308,7 @@ public class ClientMainScreen extends InteractiveUI {
 
     }
 
-    public void deleteGroupe(Groupe entryAsGroupe) {
+    public void deleteGroup(Groupe entryAsGroupe) {
         Debugger.logMessage("ClientMainScreen",
                 "Delete following group: " + entryAsGroupe.toJSON() + " present : " + relatedGroups.contains(entryAsGroupe));
         relatedGroups.remove(entryAsGroupe);
@@ -312,13 +332,20 @@ public class ClientMainScreen extends InteractiveUI {
         }
     }
 
-    private void deleteTicket(Ticket ticket) {
+
+    public void deleteTicket(Ticket entryAsTicket) {
         for (Groupe groupe : relatedGroups) {
-            if (groupe.getTickets().remove(ticket)) {
-                return;
+            if (groupe.getTickets().contains(entryAsTicket)) {
+                if (entryAsTicket.equals(selectedTicket)) {
+                    updateTicketDisplayer(null);
+                }
+
+                groupe.getTickets().remove(entryAsTicket);
+                updateTree();
             }
         }
     }
+
 
     public void deleteMessage(Groupe entryRelatedGroup, Ticket entryRelatedTicket, Message entryAsMessage) {
         for (Groupe groupe : relatedGroups) {
@@ -327,7 +354,7 @@ public class ClientMainScreen extends InteractiveUI {
                     if (ticket.equals(entryRelatedTicket)) {
                         ticket.getMessages().remove(entryAsMessage);
                         if (ticket.equals(selectedTicket)) {
-                            updateTicketDisplayer(ticket);
+                            ticketDisplayer.updateContents();
                         }
 
                         return;
@@ -368,8 +395,10 @@ public class ClientMainScreen extends InteractiveUI {
                     if (ticket.equals(entryRelatedTicket)) {
                         ticket.merge(entryAsMessage);
                         if (ticket.equals(selectedTicket)) {
-                            updateTicketDisplayer(ticket);
+                            ticketDisplayer.updateContents();
                         }
+
+                        updateTree();
 
                         return;
                     }

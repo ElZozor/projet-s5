@@ -1,6 +1,6 @@
-package backend.server.communication.classic;
+package backend.server.communication;
 
-public enum CLASSIC_MESSAGE_TYPE {
+public enum MESSAGE_TYPE {
     KEYXCHANGE,
     CONNECTION,
     TICKET,

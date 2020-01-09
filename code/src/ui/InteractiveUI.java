@@ -45,9 +45,11 @@ public abstract class InteractiveUI extends JFrame {
 
     public abstract void deleteUser(Utilisateur entryAsUser);
 
-    public abstract void deleteGroupe(Groupe entryAsGroupe);
+    public abstract void deleteGroup(Groupe entryAsGroupe);
 
     public abstract void deleteTicket(Groupe entryRelatedGroup, Ticket entryAsTicket);
+
+    public abstract void deleteTicket(Ticket entryAsTicket);
 
     public abstract void deleteMessage(Groupe entryRelatedGroup, Ticket entryRelatedTicket, Message entryAsMessage);
 

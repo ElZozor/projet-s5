@@ -2,7 +2,8 @@ package ui.Server;
 
 import backend.data.*;
 import backend.modele.*;
-import backend.server.communication.classic.ClassicMessage;
+import backend.server.communication.CommunicationMessage;
+import utils.Utils;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
@@ -35,6 +36,7 @@ public class ServerUIPanel extends JPanel {
     private JButton add_button;
     private JButton edit_button;
     private JButton del_button;
+    private JButton refresh_button;
     private JPanel upside_options;
     private JScrollPane table_container;
     private JTable table;
@@ -202,6 +204,8 @@ public class ServerUIPanel extends JPanel {
             }
         });
 
+        refresh_button.addActionListener(actionEvent -> update());
+
     }
 
     private void updateModelTable() {
@@ -239,16 +243,16 @@ public class ServerUIPanel extends JPanel {
         constraints.gridx = 0;
         constraints.gridy = 0;
         constraints.weightx = 0.5;
-        constraints.fill = GridBagConstraints.HORIZONTAL;
+        constraints.fill = GridBagConstraints.BOTH;
         upside_options.add(table_selector, constraints);
 
         search_bar = new JTextField(HINT_SEARCH_BAR);
         constraints = new GridBagConstraints();
         constraints.gridx = 1;
         constraints.gridy = 0;
-        constraints.gridwidth = 2;
+        constraints.gridwidth = 3;
         constraints.weightx = 0.5;
-        constraints.fill = GridBagConstraints.HORIZONTAL;
+        constraints.fill = GridBagConstraints.BOTH;
         constraints.insets = new Insets(0, 8, 0, 8);
         upside_options.add(search_bar, constraints);
 
@@ -257,7 +261,7 @@ public class ServerUIPanel extends JPanel {
         constraints.gridx = 0;
         constraints.gridy = 1;
         constraints.weightx = 0;
-        constraints.fill = GridBagConstraints.HORIZONTAL;
+        constraints.fill = GridBagConstraints.BOTH;
         upside_options.add(add_button, constraints);
 
         edit_button = new JButton("Éditer");
@@ -265,7 +269,7 @@ public class ServerUIPanel extends JPanel {
         constraints.gridx = 1;
         constraints.gridy = 1;
         constraints.weightx = 0.5;
-        constraints.fill = GridBagConstraints.HORIZONTAL;
+        constraints.fill = GridBagConstraints.BOTH;
         upside_options.add(edit_button, constraints);
 
         del_button = new JButton("Supprimer");
@@ -273,8 +277,16 @@ public class ServerUIPanel extends JPanel {
         constraints.gridx = 2;
         constraints.gridy = 1;
         constraints.weightx = 0.5;
-        constraints.fill = GridBagConstraints.HORIZONTAL;
+        constraints.fill = GridBagConstraints.BOTH;
         upside_options.add(del_button, constraints);
+
+        refresh_button = new JButton(new ImageIcon(Utils.getPathOfFile("res/refresh.png")));
+        constraints = new GridBagConstraints();
+        constraints.gridx = 3;
+        constraints.gridy = 1;
+        constraints.weightx = 0.0;
+        constraints.fill = GridBagConstraints.VERTICAL;
+        upside_options.add(refresh_button, constraints);
 
     }
 
@@ -324,7 +336,7 @@ public class ServerUIPanel extends JPanel {
 
     private void delUser(Long id) {
         parent.client.sendData(
-                ClassicMessage.createDeleteMessage(
+                CommunicationMessage.createDeleteMessage(
                         TABLE_NAME_UTILISATEUR,
                         new Utilisateur(id, "", "", "", "")
                 )
@@ -333,7 +345,7 @@ public class ServerUIPanel extends JPanel {
 
     private void delGroup(Long id) {
         parent.client.sendData(
-                ClassicMessage.createDeleteMessage(
+                CommunicationMessage.createDeleteMessage(
                         TABLE_NAME_GROUPE,
                         new Groupe(id, "")
                 )
@@ -342,7 +354,7 @@ public class ServerUIPanel extends JPanel {
 
     private void delTicket(Long id) {
         parent.client.sendData(
-                ClassicMessage.createDeleteMessage(
+                CommunicationMessage.createDeleteMessage(
                         TABLE_NAME_TICKET,
                         new Ticket(id, "", new TreeSet<>())
                 )
@@ -351,7 +363,7 @@ public class ServerUIPanel extends JPanel {
 
     private void delMessage(Long id) {
         parent.client.sendData(
-                ClassicMessage.createDeleteMessage(
+                CommunicationMessage.createDeleteMessage(
                         TABLE_NAME_MESSAGE,
                         new Message(id, 0L, 0L, new Date(0), "", new ArrayList<>(), new ArrayList<>())
                 )
@@ -360,7 +372,7 @@ public class ServerUIPanel extends JPanel {
 
 
     public void update() {
-        updateModelTable();
-        table.updateUI();
+        table.revalidate();
+        table.repaint();
     }
 }

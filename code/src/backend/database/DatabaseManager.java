@@ -24,7 +24,7 @@ import static backend.database.Keys.*;
 public class DatabaseManager {
 
     private static final String DB_URL = "jdbc:mysql://localhost/projets5";
-    private static final String username = "projet";
+    private static final String username = "root";
     private static final String password = "";
 
 
@@ -1336,6 +1336,30 @@ public class DatabaseManager {
 
         if (set.next()) {
             return new Message(set, getRemainingReadUsernames(id), getRemainingReceiveUsernames(id));
+        }
+
+        return null;
+
+    }
+
+    /**
+     * Retourne le groupe passé en paramètre si présent
+     *
+     * @param id - L'id du groupe
+     * @return - Le groupe si présent sinon null
+     */
+    public Groupe getGroup(Long id) throws SQLException {
+
+        final String query = String.format(
+                "SELECT * FROM %s WHERE %s.%s = '%s'",
+                TABLE_NAME_GROUPE, TABLE_NAME_GROUPE, GROUPE_ID, id
+        );
+
+        Statement statement = databaseConnection.createStatement();
+        ResultSet set = statement.executeQuery(query);
+
+        if (set.next()) {
+            return new Groupe(set);
         }
 
         return null;

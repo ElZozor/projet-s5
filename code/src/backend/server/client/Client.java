@@ -8,7 +8,6 @@ import backend.data.Utilisateur;
 import backend.modele.UserModel;
 import backend.server.Server;
 import backend.server.communication.CommunicationMessage;
-import backend.server.communication.classic.ClassicMessage;
 import debug.Debugger;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -183,7 +182,7 @@ public class Client extends Thread implements Server {
 
             for (int i = 0; i < savedPendingMessages.length(); ++i) {
                 try {
-                    pendingMessages.push(new ClassicMessage(savedPendingMessages.getString(i)));
+                    pendingMessages.push(new CommunicationMessage(savedPendingMessages.getString(i)));
                 } catch (CommunicationMessage.InvalidMessageException e) {
                     e.printStackTrace();
                 }
@@ -301,16 +300,16 @@ public class Client extends Thread implements Server {
      * Envoie des données et attend le retour de l'hôte.
      * S'arrête en cas de timeout.
      *
-     * @param classicMessage Le message à envoyer
+     * @param communicationMessage Le message à envoyer
      * @return Le message retourné par l'hôte
      * @throws IOException -
      */
-    public ClassicMessage sendAndWaitForReturn(ClassicMessage classicMessage) throws IOException {
-        sendData(classicMessage);
+    public CommunicationMessage sendAndWaitForReturn(CommunicationMessage communicationMessage) throws IOException {
+        sendData(communicationMessage);
 
         try {
             return readData();
-        } catch (IOException | ClassicMessage.InvalidMessageException | SocketDisconnectedException e) {
+        } catch (IOException | CommunicationMessage.InvalidMessageException | SocketDisconnectedException e) {
             return null;
         }
     }
@@ -320,22 +319,24 @@ public class Client extends Thread implements Server {
      * Fonction utilisée pour se conncter à l'hôte.
      * Bloquante.
      *
-     * @param INE - L'ine
+     * @param INE      - L'ine
      * @param password - Le mot de passe
      * @return Si la connection est un succès ou non
      */
-    public ClassicMessage sendConnectionMessage(String INE, String password) {
+    public CommunicationMessage sendConnectionMessage(String INE, String password) {
 
-        ClassicMessage returnedData = null;
+        CommunicationMessage returnedData = null;
 
         try {
             returnedData = sendAndWaitForReturn(
-                    ClassicMessage.createConnection(INE, password)
+                    CommunicationMessage.createConnection(INE, password)
             );
 
             if (returnedData != null && returnedData.isAck()) {
-                myUser = new Utilisateur(0L, "", "", INE, "");
-                myUser.setPassword(password);
+                if (myUser == null) {
+                    myUser = new Utilisateur(0L, "", "", INE, "");
+                    myUser.setPassword(password);
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -379,7 +380,7 @@ public class Client extends Thread implements Server {
         while (running) {
 
             try {
-                ClassicMessage message = readData();
+                CommunicationMessage message = readData();
                 if (message == null || ui == null) {
                     continue;
                 }
@@ -388,7 +389,7 @@ public class Client extends Thread implements Server {
 
             } catch (SocketDisconnectedException e) {
                 reconnect();
-            } catch (IOException | ClassicMessage.InvalidMessageException e) {
+            } catch (IOException | CommunicationMessage.InvalidMessageException e) {
                 e.printStackTrace();
             }
 
@@ -414,7 +415,7 @@ public class Client extends Thread implements Server {
                 mWriteStream = new BufferedWriter(new OutputStreamWriter(mSocket.getOutputStream()));
                 mReadStream = new BufferedReader(new InputStreamReader(mSocket.getInputStream()));
 
-                ClassicMessage message = sendConnectionMessage(myUser.getINE(), myUser.getPassword());
+                CommunicationMessage message = sendConnectionMessage(myUser.getINE(), myUser.getPassword());
                 connected = (message != null && message.isAck());
 
                 mSocket.setSoTimeout(0);
@@ -454,9 +455,10 @@ public class Client extends Thread implements Server {
 
     /**
      * Methode recevant un message et le redirigeant vers les fonction de traitement adaptées au type du message
+     *
      * @param message - objet ClassiqueMessage étant le message reçu
-    **/
-    private void handleMessage(ClassicMessage message) {
+     **/
+    private void handleMessage(CommunicationMessage message) {
 
         switch (message.getType()) {
             case LOCAL_UPDATE_RESPONSE:
@@ -487,7 +489,7 @@ public class Client extends Thread implements Server {
      *
      * @param message - Le message envoyé par l'hôte
      */
-    private void handleTableModelMessage(ClassicMessage message) {
+    private void handleTableModelMessage(CommunicationMessage message) {
 
         if (ui instanceof ServerUI) {
             Debugger.logMessage("Client", "Table model received, sending to the ui");
@@ -516,7 +518,7 @@ public class Client extends Thread implements Server {
      *
      * @param message - Le message envoyé par l'hôte.
      */
-    private void handleLocalUpdate(ClassicMessage message) {
+    private void handleLocalUpdate(CommunicationMessage message) {
         TreeSet<Groupe> relatedGroups = message.getLocalUpdateResponseRelatedGroups();
         TreeSet<String> allGroups = message.getLocalUpdateResponseAllGroups();
         TreeSet<Utilisateur> users = message.getLocalUpdateResponseUsers();
@@ -548,7 +550,7 @@ public class Client extends Thread implements Server {
             }
         }
 
-        sendData(ClassicMessage.createMessageReceived(received));
+        sendData(CommunicationMessage.createMessageReceived(received));
     }
 
 
@@ -557,7 +559,7 @@ public class Client extends Thread implements Server {
      *
      * @param message - Le message envoyé par l'hôte.
      */
-    private void handleEntryAdded(ClassicMessage message) {
+    private void handleEntryAdded(CommunicationMessage message) {
         ArrayList<Message> received = new ArrayList<>();
 
         switch (message.getTable()) {
@@ -592,7 +594,7 @@ public class Client extends Thread implements Server {
 
 
         if (!received.isEmpty()) {
-            sendData(ClassicMessage.createMessageReceived(received));
+            sendData(CommunicationMessage.createMessageReceived(received));
         }
     }
 
@@ -601,7 +603,7 @@ public class Client extends Thread implements Server {
      *
      * @param message - Le message envoyé par l'hôte.
      */
-    private void handleEntryDeleted(ClassicMessage message) {
+    private void handleEntryDeleted(CommunicationMessage message) {
         switch (message.getTable()) {
             case TABLE_NAME_UTILISATEUR:
                 Utilisateur user = message.getEntryAsUtilisateur();
@@ -613,6 +615,7 @@ public class Client extends Thread implements Server {
                             "Déconnexion",
                             JOptionPane.ERROR_MESSAGE
                     );
+
                     ui.dispose();
 
                 } else {
@@ -621,11 +624,16 @@ public class Client extends Thread implements Server {
                 break;
 
             case TABLE_NAME_GROUPE:
-                ui.deleteGroupe(message.getEntryAsGroupe());
+                ui.deleteGroup(message.getEntryAsGroupe());
                 break;
 
             case TABLE_NAME_TICKET:
-                ui.deleteTicket(message.getEntryRelatedGroup(), message.getEntryAsTicket());
+                if (message.containsRelatedGroup()) {
+                    ui.deleteTicket(message.getEntryRelatedGroup(), message.getEntryAsTicket());
+                } else {
+                    ui.deleteTicket(message.getEntryAsTicket());
+                }
+
                 break;
 
             case TABLE_NAME_MESSAGE:
@@ -640,7 +648,7 @@ public class Client extends Thread implements Server {
      *
      * @param message - Le message envoyé par l'hôte.
      */
-    private void handleEntryUpdated(ClassicMessage message) {
+    private void handleEntryUpdated(CommunicationMessage message) {
         ArrayList<Message> received = new ArrayList<>();
 
         switch (message.getTable()) {
@@ -674,7 +682,6 @@ public class Client extends Thread implements Server {
                 break;
 
             case TABLE_NAME_MESSAGE:
-                System.out.println("blblbl");
                 ui.updateMessage(message.getEntryRelatedGroup(), message.getEntryRelatedTicket(), message.getEntryAsMessage());
                 if (message.getEntryAsMessage().state() < 3) {
                     received.add(message.getEntryAsMessage());
@@ -684,7 +691,7 @@ public class Client extends Thread implements Server {
         }
 
         if (!received.isEmpty()) {
-            sendData(ClassicMessage.createMessageReceived(received));
+            sendData(CommunicationMessage.createMessageReceived(received));
         }
     }
 
@@ -697,7 +704,7 @@ public class Client extends Thread implements Server {
      * @param contents - Le contenu du message.
      */
     public void postAMessage(Long ticketid, String contents) {
-        sendData(ClassicMessage.createMessage(ticketid, contents));
+        sendData(CommunicationMessage.createMessage(ticketid, contents));
     }
 
 
@@ -707,7 +714,7 @@ public class Client extends Thread implements Server {
      * Non bloquante.
      */
     public void updateLocalDatabase() {
-        sendData(ClassicMessage.createLocalUpdate(new Date(0)));
+        sendData(CommunicationMessage.createLocalUpdate(new Date(0)));
     }
 
     /**
@@ -717,7 +724,7 @@ public class Client extends Thread implements Server {
      * @param ticket - Le ticket en question
      */
     public void sendNotificationTicketClicked(Ticket ticket) {
-        sendData(ClassicMessage.createTicketClicked(ticket));
+        sendData(CommunicationMessage.createTicketClicked(ticket));
     }
 
 
@@ -726,7 +733,7 @@ public class Client extends Thread implements Server {
      * toutes les tables au serveur.
      */
     public void retrieveAllModels() {
-        sendData(ClassicMessage.createTableModelRequest());
+        sendData(CommunicationMessage.createTableModelRequest());
     }
 
     /**
@@ -740,7 +747,7 @@ public class Client extends Thread implements Server {
         requestEverything = b;
 
         if (requestEverything) {
-            sendData(ClassicMessage.createRequestEverything());
+            sendData(CommunicationMessage.createRequestEverything());
         }
     }
 

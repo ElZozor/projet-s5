@@ -64,7 +64,6 @@ public class Message extends ProjectTable implements Comparable<Message> {
     
     /**
      * Constructeur de l'objet Message à partir d'un objet au fromat JSON
-     *
      * @param json - objet au format json contenant les informations du message 
     **/
     public Message(JSONObject json) {
@@ -74,21 +73,24 @@ public class Message extends ProjectTable implements Comparable<Message> {
         mHeureEnvoie = new Date(json.getLong(MESSAGE_HEURE_ENVOIE));
         mContenu = json.getString(MESSAGE_CONTENU);
 
-        mHaveToRead = new ArrayList<>();
-        JSONArray array = json.getJSONArray("have_to_read");
-        for (int i = 0; i < array.length(); ++i) {
-            mHaveToRead.add(array.getString(i));
+        JSONArray array = json.optJSONArray("have_to_read");
+        if (array != null) {
+            mHaveToRead = new ArrayList<>();
+            for (int i = 0; i < array.length(); ++i) {
+                mHaveToRead.add(array.getString(i));
+            }
         }
 
-        mHaveToReceive = new ArrayList<>();
-        array = json.getJSONArray("have_to_receive");
-        for (int i = 0; i < array.length(); ++i) {
-            mHaveToReceive.add(array.getString(i));
+        array = json.optJSONArray("have_to_receive");
+        if (array != null) {
+            mHaveToReceive = new ArrayList<>();
+            for (int i = 0; i < array.length(); ++i) {
+                mHaveToReceive.add(array.getString(i));
+            }
         }
     }
     /**
      * Methode encodant un objet Message au format json
-     *
      * @return un objet au format json contenant toutes les information du message
     **/
     public JSONObject toJSON() {
@@ -100,16 +102,21 @@ public class Message extends ProjectTable implements Comparable<Message> {
         json.put(MESSAGE_CONTENU, getContenu());
         json.put(MESSAGE_TICKET_ID, getTicketID());
 
+
         JSONArray array = new JSONArray();
-        for (String s : mHaveToRead) {
-            array.put(s);
+        if (mHaveToRead != null) {
+            for (String s : mHaveToRead) {
+                array.put(s);
+            }
         }
         json.put("have_to_read", array);
 
 
         array = new JSONArray();
-        for (String s : mHaveToReceive) {
-            array.put(s);
+        if (mHaveToReceive != null) {
+            for (String s : mHaveToReceive) {
+                array.put(s);
+            }
         }
         json.put("have_to_receive", array);
 
@@ -117,7 +124,6 @@ public class Message extends ProjectTable implements Comparable<Message> {
     }
     /**
      * Accesseur sur l'identifiant du message
-     *
      * @return l'identifiant unique du message
     **/
     public Long getID() {
@@ -126,7 +132,6 @@ public class Message extends ProjectTable implements Comparable<Message> {
     
     /**
      * Accesseur sur l'identifiant de l'utilisateur ayant posté le message
-     *
      * @return l'identifiant unique de l'utilisateur ayant posté le message
     **/
     public Long getUtilisateurID() {
@@ -135,7 +140,6 @@ public class Message extends ProjectTable implements Comparable<Message> {
     
     /**
      * Accesseur sur l'identifiant du ticket sur lequel est posté le message
-     *
      * @return l'identifiant unique du ticket sue lequel est posté le message
     **/
     public Long getTicketID() {
@@ -144,7 +148,6 @@ public class Message extends ProjectTable implements Comparable<Message> {
     
     /**
      * Accesseur sur l'heure d'envoi du message sur le ticket
-     *
      * @return heur d'envoi du message sur le ticket
     **/
     public Date getHeureEnvoie() {
@@ -153,18 +156,17 @@ public class Message extends ProjectTable implements Comparable<Message> {
     
     /**
      * Accesseur sur le contenu du message
-     *
      * @return corps du message
     **/
     public String getContenu() {
         return mContenu;
     }
-    
+
     /**
-     * methode verifiant le status du message 
+     * methode verifiant le status du message
      *
      * @return un int représentant l'etat du message : 1 -> pas envoyé; 2 -> pas reçu par tous; 3 -> pas lu par tous; 4 -> reçu et lu par tous
-    **/
+     **/
     public int state() {
         if (mHaveToRead == null || mHaveToReceive == null) {
             return 1;
@@ -179,7 +181,6 @@ public class Message extends ProjectTable implements Comparable<Message> {
     
     /**
      * methode renvoyant le status sous forme de string
-     *
      * @return une chaine de caractère indiquant le status du message 
     **/
     public String getFormattedState() {
@@ -207,6 +208,10 @@ public class Message extends ProjectTable implements Comparable<Message> {
                     builder.append("-> ").append(s).append("\n");
                 }
             }
+        }
+
+        if (builder.length() == 0) {
+            builder.append("En attente d'envoi au serveur");
         }
 
         return builder.toString();

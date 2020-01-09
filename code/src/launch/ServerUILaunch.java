@@ -2,6 +2,7 @@ package launch;
 
 import backend.server.Server;
 import backend.server.client.Client;
+import debug.Debugger;
 import ui.Client.ConnexionScreen;
 import utils.Utils;
 
@@ -17,8 +18,8 @@ import static utils.Utils.PORT;
 public class ServerUILaunch {
 
     public static void main(String[] args) {
+        Debugger.isDebugging = false;
         Utils.setSystemProperties();
-//        Debugger.isDebugging = true;
 
         try {
             Client client = new Client((SSLSocket) SSLContext.getDefault().getSocketFactory().createSocket(HOST, PORT));

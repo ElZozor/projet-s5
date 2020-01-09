@@ -1,7 +1,7 @@
 package ui.Server;
 
 import backend.data.Utilisateur;
-import backend.server.communication.classic.ClassicMessage;
+import backend.server.communication.CommunicationMessage;
 
 import javax.swing.*;
 import java.awt.*;
@@ -251,7 +251,7 @@ public class EditUserPanel extends JPanel {
         user.setPassword(mdp);
 
         parent.client.sendData(
-                ClassicMessage.createAddMessage(
+                CommunicationMessage.createAddMessage(
                         TABLE_NAME_UTILISATEUR,
                         user
                 )
@@ -280,7 +280,7 @@ public class EditUserPanel extends JPanel {
             edittedUser.setPassword(mdp);
 
             parent.client.sendData(
-                    ClassicMessage.createUpdateMessage(
+                    CommunicationMessage.createUpdateMessage(
                             TABLE_NAME_UTILISATEUR,
                             edittedUser
                     )

@@ -2,6 +2,7 @@ package launch;
 
 import backend.database.DatabaseManager;
 import backend.server.host.Host;
+import debug.Debugger;
 import utils.Utils;
 
 import javax.swing.*;
@@ -12,8 +13,8 @@ import java.sql.SQLException;
 public class ServerLaunch {
 
     public static void main(String[] args) {
+        Debugger.isDebugging = false;
         Utils.setSystemProperties();
-//        Debugger.isDebugging = true;
 
         boolean successfulyLaunched = false;
         try {

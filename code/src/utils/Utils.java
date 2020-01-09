@@ -68,7 +68,7 @@ public class Utils {
         final String currentPath = getCurrentPath() + "data/";
 
         File file = new File(currentPath + filename);
-        try (BufferedReader reader = new BufferedReader(new FileReader(file));) {
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             StringBuilder builder = new StringBuilder();
 
             String line;

@@ -2,7 +2,7 @@ package backend.modele;
 
 import backend.data.Groupe;
 import backend.data.Ticket;
-import backend.server.communication.classic.ClassicMessage;
+import backend.server.communication.CommunicationMessage;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 import java.util.TreeSet;
@@ -16,7 +16,7 @@ public class GroupeTreeModel extends DefaultMutableTreeNode {
     }
 
 
-    public GroupeTreeModel(ClassicMessage groupes) {
+    public GroupeTreeModel(CommunicationMessage groupes) {
         if (!groupes.isLocalUpdateResponse()) {
             return;
         }

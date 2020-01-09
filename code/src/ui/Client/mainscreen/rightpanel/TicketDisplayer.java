@@ -6,6 +6,7 @@ import debug.Debugger;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.ArrayList;
 
 public class TicketDisplayer extends JPanel {
 
@@ -50,6 +51,7 @@ public class TicketDisplayer extends JPanel {
 
         scrollPane.setViewportView(messagePanel);
         add(scrollPane, BorderLayout.CENTER);
+        scrollPane.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
 
     }
 
@@ -62,7 +64,8 @@ public class TicketDisplayer extends JPanel {
 
         if (ticket != null) {
             int y = 0;
-            for (Message message : ticket.getMessages()) {
+            ArrayList<Message> messages = ticket.getMessagesWithPending();
+            for (Message message : messages) {
                 GridBagConstraints gbc = new GridBagConstraints();
                 gbc.weightx = 1.0;
                 gbc.weighty = 0.0;
@@ -85,6 +88,9 @@ public class TicketDisplayer extends JPanel {
             messagePanel.add(panel, gbc);
         }
 
+        messagePanel.revalidate();
+        messagePanel.repaint();
+        setViewToBottom();
     }
 
     private void initMessageEditor() {
@@ -109,6 +115,11 @@ public class TicketDisplayer extends JPanel {
     public void setViewToBottom() {
         scrollPane.revalidate();
         scrollPane.getVerticalScrollBar().setValue(scrollPane.getVerticalScrollBar().getMaximum());
+    }
+
+    public void updateContents() {
+        messagePanel.removeAll();
+        updateView();
     }
 
 

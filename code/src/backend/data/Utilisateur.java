@@ -243,8 +243,8 @@ public class Utilisateur extends ProjectTable implements Comparable<Utilisateur>
     /**
      * Mutateur sur le mot de passe d'un utilisateur
      *
-     * @param nouveau mot de passe de l'utilisateur
-    **/
+     * @param password - nouveau mot de passe de l'utilisateur
+     **/
     public void setPassword(String password) {
         mPassword = password;
     }
@@ -257,12 +257,12 @@ public class Utilisateur extends ProjectTable implements Comparable<Utilisateur>
     public String[] getGroups() {
         return mGroups;
     }
-    
+
     /**
      * Mutateur sur les groupes de l'utilisateur
      *
-     * @param  nouvelle liste de groupes auxquel appartient l'utilisateur
-    **/
+     * @param groups - nouvelle liste de groupes auxquel appartient l'utilisateur
+     **/
     public void setGroups(String[] groups) {
         mGroups = new String[groups.length];
         int i = 0;

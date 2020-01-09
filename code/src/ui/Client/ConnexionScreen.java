@@ -1,7 +1,7 @@
 package ui.Client;
 
 import backend.server.client.Client;
-import backend.server.communication.classic.ClassicMessage;
+import backend.server.communication.CommunicationMessage;
 import ui.Client.mainscreen.ClientMainScreen;
 import ui.Server.ServerUI;
 
@@ -129,7 +129,7 @@ public class ConnexionScreen extends JFrame {
 
 
     private void connect() {
-        ClassicMessage result = client.sendConnectionMessage(ineField.getText(), new String(passwordField.getPassword()));
+        CommunicationMessage result = client.sendConnectionMessage(ineField.getText(), new String(passwordField.getPassword()));
 
         if (result != null && result.isAck()) {
             if (servermode) {
@@ -152,13 +152,13 @@ public class ConnexionScreen extends JFrame {
         JOptionPane.showMessageDialog(this, reason, "Erreur de connexion", JOptionPane.ERROR_MESSAGE);
     }
 
-    private void showConnectionErrorDialog(ClassicMessage message) {
+    private void showConnectionErrorDialog(CommunicationMessage message) {
         if (message == null) {
             showConnectionErrorDialog();
         } else {
             try {
                 showConnectionErrorDialog(message.getNackReason());
-            } catch (ClassicMessage.WrongMessageTypeException e) {
+            } catch (CommunicationMessage.WrongMessageTypeException e) {
                 e.printStackTrace();
             }
         }

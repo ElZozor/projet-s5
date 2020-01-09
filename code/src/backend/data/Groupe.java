@@ -6,6 +6,7 @@ import org.json.JSONObject;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
 import static backend.database.Keys.GROUPE_ID;
@@ -116,6 +117,7 @@ public class Groupe extends ProjectTable implements Comparable<Groupe> {
     public void setLabel(String label) {
         mLabel = label;
     }
+
     /**
      * Methode ajoutant un ticket au groupe
      * @param ticket - Ticket à ajouter à l'nesemble de tickets du groupe
@@ -132,12 +134,12 @@ public class Groupe extends ProjectTable implements Comparable<Groupe> {
     public TreeSet<Ticket> getTickets() {
         return mTickets;
     }
-    
+
     /**
-     * Methode qui encode un groupe en un objet json 
+     * Methode qui encode un groupe en un objet json
      *
      * @return un objet au format JSON contenant toutes les informations du groupe
-    **/
+     **/
     public JSONObject toJSON() {
         JSONObject jsonObject = new JSONObject();
 
@@ -154,15 +156,33 @@ public class Groupe extends ProjectTable implements Comparable<Groupe> {
         return jsonObject;
     }
 
-    @Override
-    public int compareTo(@NotNull Groupe groupe) {
-        int idComparison = getID().compareTo(groupe.getID());
-        if (idComparison == 0) {
-            return 0;
+    /**
+     * Utilisé pour mettre à jour le groupe courant
+     * avec le groupe passé en paramètre
+     *
+     * @param groupe - Le nouveau groupe
+     */
+    public void merge(final Groupe groupe) {
+        setLabel(groupe.getLabel());
+
+        TreeMap<Long, Ticket> updatedTickets = new TreeMap<>();
+
+        final TreeSet<Ticket> newTickets = groupe.getTickets();
+        for (Ticket ticket : newTickets) {
+            updatedTickets.put(ticket.getID(), ticket);
         }
 
-        int labelComparison = this.getLabel().compareTo(groupe.getLabel());
-        return (labelComparison == 0 ? idComparison : labelComparison);
+        for (Ticket ticket : mTickets) {
+            Ticket correpondingTicket = updatedTickets.get(ticket.getID());
+            if (correpondingTicket != null) {
+                ticket.merge(correpondingTicket);
+            }
+        }
+    }
+
+    @Override
+    public int compareTo(@NotNull Groupe groupe) {
+        return this.getLabel().compareTo(groupe.getLabel());
     }
 
     @Override
@@ -173,13 +193,20 @@ public class Groupe extends ProjectTable implements Comparable<Groupe> {
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof Groupe) {
-            return getID().equals(((Groupe) obj).getID());
+            return compareTo((Groupe) obj) == 0;
         }
 
         return false;
     }
 
     public void updateTickets() {
-        mTickets = new TreeSet<>(mTickets);
+        System.out.println("UPADTE TICKETS");
+        TreeSet<Ticket> p = new TreeSet<>();
+        for (Ticket ticket : mTickets) {
+            p.add(ticket);
+        }
+
+        mTickets = p;
     }
+
 }

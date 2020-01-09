@@ -12,9 +12,7 @@ import java.util.List;
 public class TicketModel extends SearchableModel<Ticket> {
     private static final String[] columnNames = {
             "ID",
-            "TITRE",
-            "PREMIER_MESSAGE",
-            "DERNIER MESSAGE"
+            "TITRE"
     };
 
 
@@ -73,12 +71,6 @@ public class TicketModel extends SearchableModel<Ticket> {
             case 0 : return t.getID();
             case 1 :
                 return t.getTitre();
-
-            case 2 :
-                return t.premierMessage();
-
-            case 3 :
-                return t.dernierMessage();
 
             default : return "ohohoh";
         }

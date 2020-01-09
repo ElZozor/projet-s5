@@ -143,31 +143,31 @@ public class ServerUI extends InteractiveUI {
 
     public void updateUser(Utilisateur user) {
         userModel.updateEntry(user);
-        uiPanel.update();
     }
 
     @Override
     public void deleteUser(Utilisateur entryAsUser) {
         userModel.removeEntry(entryAsUser.getID());
-        uiPanel.update();
     }
 
     @Override
-    public void deleteGroupe(Groupe entryAsGroupe) {
+    public void deleteGroup(Groupe entryAsGroupe) {
         groupModel.removeEntry(entryAsGroupe.getID());
-        uiPanel.update();
     }
 
     @Override
     public void deleteTicket(Groupe entryRelatedGroup, Ticket entryAsTicket) {
         ticketModel.removeEntry(entryAsTicket.getID());
-        uiPanel.update();
+    }
+
+    @Override
+    public void deleteTicket(Ticket entryAsTicket) {
+        ticketModel.removeEntry(entryAsTicket.getID());
     }
 
     @Override
     public void deleteMessage(Groupe entryRelatedGroup, Ticket entryRelatedTicket, Message entryAsMessage) {
         messageModel.removeEntry(entryAsMessage.getID());
-        uiPanel.update();
     }
 
     public void addUser(Utilisateur user) {

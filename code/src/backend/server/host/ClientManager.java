@@ -4,7 +4,6 @@ import backend.data.*;
 import backend.database.DatabaseManager;
 import backend.server.Server;
 import backend.server.communication.CommunicationMessage;
-import backend.server.communication.classic.ClassicMessage;
 import debug.Debugger;
 
 import javax.net.ssl.SSLSocket;
@@ -72,14 +71,14 @@ public class ClientManager extends Thread implements Server {
         while (Host.isRunning && running) {
             System.out.println("trying to read");
             try {
-                ClassicMessage classicMessage = readData();
-                if (classicMessage == null) {
+                CommunicationMessage communicationMessage = readData();
+                if (communicationMessage == null) {
                     continue;
                 }
 
-                handleMessage(classicMessage);
+                handleMessage(communicationMessage);
 
-            } catch (IOException | ClassicMessage.InvalidMessageException e) {
+            } catch (IOException | CommunicationMessage.InvalidMessageException e) {
                 e.printStackTrace();
             } catch (SocketDisconnectedException e) {
                 running = false;
@@ -93,7 +92,7 @@ public class ClientManager extends Thread implements Server {
             final String groups;
             try {
                 groups = DatabaseManager.getInstance().relatedUserGroup(user.getINE());
-                Host.removeClient(new ArrayList<>(Arrays.asList(groups.split(";"))), user.getID(), this);
+                Host.removeClient(new ArrayList<>(Arrays.asList(groups.split(";"))), user, this);
             } catch (SQLException e) {
                 e.printStackTrace();
             }
@@ -105,6 +104,7 @@ public class ClientManager extends Thread implements Server {
             e.printStackTrace();
         }
 
+        interrupt();
     }
 
 
@@ -112,22 +112,22 @@ public class ClientManager extends Thread implements Server {
      * Traite un message envoyé par le client et le dispache
      * dans les différentes fonctions appropriés
      *
-     * @param classicMessage Le message à traiter
+     * @param communicationMessage Le message à traiter
      */
-    private void handleMessage(ClassicMessage classicMessage) {
+    private void handleMessage(CommunicationMessage communicationMessage) {
 
-        switch (classicMessage.getType()) {
+        switch (communicationMessage.getType()) {
 
             case CONNECTION:
-                handleConnection(classicMessage);
+                handleConnection(communicationMessage);
                 break;
 
             case TICKET:
-                handleTicketCreation(classicMessage);
+                handleTicketCreation(communicationMessage);
                 break;
 
             case MESSAGE:
-                handleClassicMessage(classicMessage);
+                handleClassicMessage(communicationMessage);
                 break;
 
             case LOCAL_UPDATE:
@@ -135,19 +135,19 @@ public class ClientManager extends Thread implements Server {
                 break;
 
             case TICKET_CLICKED:
-                handleTicketClickedMessage(classicMessage);
+                handleTicketClickedMessage(communicationMessage);
                 break;
 
             case DELETE:
-                handleDeleteMessage(classicMessage);
+                handleDeleteMessage(communicationMessage);
                 break;
 
             case UPDATE:
-                handleUpdateMessage(classicMessage);
+                handleUpdateMessage(communicationMessage);
                 break;
 
             case ADD:
-                handleAddMessage(classicMessage);
+                handleAddMessage(communicationMessage);
                 break;
 
             case TABLE_MODEL_REQUEST:
@@ -159,7 +159,7 @@ public class ClientManager extends Thread implements Server {
                 break;
 
             case MESSAGE_RECEIVED:
-                handleMessageReceivedMessage(classicMessage);
+                handleMessageReceivedMessage(communicationMessage);
                 break;
         }
 
@@ -169,9 +169,9 @@ public class ClientManager extends Thread implements Server {
     /**
      * Fonction qui traite une connexion.
      *
-     * @param classicMessage Le message de connexion
+     * @param communicationMessage Le message de connexion
      */
-    private void handleConnection(ClassicMessage classicMessage) {
+    private void handleConnection(CommunicationMessage communicationMessage) {
 
         boolean queryResult = false;
         String fail_reason = "";
@@ -179,9 +179,9 @@ public class ClientManager extends Thread implements Server {
 
         try {
 
-            if (classicMessage.isConnection()) {
+            if (communicationMessage.isConnection()) {
                 DatabaseManager database = DatabaseManager.getInstance();
-                ResultSet set = database.credentialsAreValid(classicMessage.getConnectionINE(), classicMessage.getConnectionPassword());
+                ResultSet set = database.credentialsAreValid(communicationMessage.getConnectionINE(), communicationMessage.getConnectionPassword());
                 queryResult = set.next();
 
                 if (queryResult) {
@@ -207,9 +207,9 @@ public class ClientManager extends Thread implements Server {
 
 
         if (queryResult) {
-            sendData(ClassicMessage.createAck());
+            sendData(CommunicationMessage.createAck());
         } else {
-            sendData(ClassicMessage.createNack(fail_reason));
+            sendData(CommunicationMessage.createNack(fail_reason));
         }
 
     }
@@ -218,17 +218,17 @@ public class ClientManager extends Thread implements Server {
     /**
      * Fonction qui traite la création d'un ticket
      *
-     * @param classicMessage Le message qui contient le ticket
+     * @param communicationMessage Le message qui contient le ticket
      */
-    private synchronized void handleTicketCreation(ClassicMessage classicMessage) {
+    private synchronized void handleTicketCreation(CommunicationMessage communicationMessage) {
 
         try {
 
-            if (classicMessage.isTicket()) {
+            if (communicationMessage.isTicket()) {
 
-                final String title = classicMessage.getTicketTitle();
-                final String contents = classicMessage.getTicketMessage();
-                final String group = classicMessage.getTicketGroup();
+                final String title = communicationMessage.getTicketTitle();
+                final String contents = communicationMessage.getTicketMessage();
+                final String group = communicationMessage.getTicketGroup();
 
                 DatabaseManager databaseManager = DatabaseManager.getInstance();
                 Ticket inserted = databaseManager.createNewTicket(user.getID(), title, contents, group);
@@ -239,7 +239,7 @@ public class ClientManager extends Thread implements Server {
                     Debugger.logColorMessage(DBG_COLOR, "ClientManager",
                             "Host must send : \n" + inserted.toJSON() + "\nto : " + relatedGroup.getLabel());
 
-                    ClassicMessage message = ClassicMessage.createTicketAddedMessage(
+                    CommunicationMessage message = CommunicationMessage.createTicketAddedMessage(
                             TABLE_NAME_TICKET,
                             inserted,
                             relatedGroup
@@ -250,8 +250,7 @@ public class ClientManager extends Thread implements Server {
                             relatedGroup.getLabel()
                     );
 
-                    System.out.println("Sending to " + user.getID());
-                    sendData(message);
+                    Host.sendToClient(user, message);
                 }
             }
 
@@ -265,17 +264,17 @@ public class ClientManager extends Thread implements Server {
     /**
      * Fonction qui traite le post d'un message.
      *
-     * @param classicMessage Le message à ajouter.
+     * @param communicationMessage Le message à ajouter.
      */
-    private synchronized void handleClassicMessage(ClassicMessage classicMessage) {
-        Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Classic message: \n" + classicMessage.toString());
+    private synchronized void handleClassicMessage(CommunicationMessage communicationMessage) {
+        Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Classic message: \n" + communicationMessage.toString());
 
         try {
 
-            if (classicMessage.isMessage()) {
+            if (communicationMessage.isMessage()) {
 
-                Long ticketid = classicMessage.getMessageTicketID();
-                String contents = classicMessage.getMessageContents();
+                Long ticketid = communicationMessage.getMessageTicketID();
+                String contents = communicationMessage.getMessageContents();
 
                 DatabaseManager database = DatabaseManager.getInstance();
                 Message insertedMessage = database.insertNewMessage(contents, ticketid, user.getID());
@@ -290,7 +289,7 @@ public class ClientManager extends Thread implements Server {
                     Ticket ticket = database.getTicket(insertedMessage.getTicketID());
                     Long userID = database.ticketCreator(insertedMessage.getTicketID());
                     if (group != null) {
-                        ClassicMessage message = ClassicMessage.createMessageAddedMessage(
+                        CommunicationMessage message = CommunicationMessage.createMessageAddedMessage(
                                 TABLE_NAME_MESSAGE,
                                 insertedMessage,
                                 group,
@@ -299,7 +298,7 @@ public class ClientManager extends Thread implements Server {
 
                         Debugger.logColorMessage(DBG_COLOR, "ClientManager", "Broadcasting to group : " + group);
                         Host.broadcastToGroup(message, group.getLabel());
-                        Host.sendToClient(userID, message);
+                        Host.sendToClient(user, message);
                     }
 
                 }
@@ -325,7 +324,7 @@ public class ClientManager extends Thread implements Server {
             TreeSet<String> allGroups = DatabaseManager.getInstance().getAllGroups();
             TreeSet<Utilisateur> users = DatabaseManager.getInstance().getAllUsers();
 
-            sendData(ClassicMessage.createLocalUpdateResponse(relatedGroups, allGroups, users));
+            sendData(CommunicationMessage.createLocalUpdateResponse(relatedGroups, allGroups, users));
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -335,28 +334,36 @@ public class ClientManager extends Thread implements Server {
     /**
      * Fonction qui traite un click sur un ticket
      *
-     * @param classicMessage Le ticket
+     * @param communicationMessage Le ticket
      */
-    private synchronized void handleTicketClickedMessage(ClassicMessage classicMessage) {
+    private synchronized void handleTicketClickedMessage(CommunicationMessage communicationMessage) {
 
         try {
 
             DatabaseManager manager = DatabaseManager.getInstance();
+            if (manager.getTicket(communicationMessage.getTicketClickedID()) != null) {
+                int editted = manager.setMessagesFromTicketRead(communicationMessage.getTicketClickedID(), user.getID());
 
-            int editted = manager.setMessagesFromTicketRead(classicMessage.getTicketClickedID(), user.getID());
+                if (editted > 0) {
+                    Ticket ticket = manager.getTicket(communicationMessage.getTicketClickedID());
+                    if (ticket != null) {
+                        Groupe groupe = manager.relatedTicketGroup(ticket.getID());
+                        if (groupe != null) {
+                            CommunicationMessage message = CommunicationMessage.createTicketUpdatedMessage(TABLE_NAME_TICKET, ticket, groupe);
+                            Host.broadcastToGroup(message, groupe.getLabel());
 
-            if (editted > 0) {
-                Ticket ticket = manager.getTicket(classicMessage.getTicketClickedID());
-                if (ticket != null) {
-                    Groupe groupe = manager.relatedTicketGroup(ticket.getID());
-                    if (groupe != null) {
-                        ClassicMessage message = ClassicMessage.createTicketUpdatedMessage(TABLE_NAME_TICKET, ticket, groupe);
-                        Host.broadcastToGroup(message, groupe.getLabel());
-
-                        Long ticketCreator = manager.ticketCreator(ticket.getID());
-                        Host.sendToClient(ticketCreator, message);
+                            Long ticketCreator = manager.ticketCreator(ticket.getID());
+                            Host.sendToClient(ticketCreator, message);
+                        }
                     }
                 }
+            } else {
+                sendData(
+                        CommunicationMessage.createTicketDeletedMessage(
+                                TABLE_NAME_TICKET,
+                                communicationMessage.getEntryAsTicket()
+                        )
+                );
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -367,55 +374,62 @@ public class ClientManager extends Thread implements Server {
     /**
      * Fonction qui traite la suppression d'une entrée ( uniquement admin )
      *
-     * @param classicMessage L'entrée à supprimer et sa table
+     * @param communicationMessage L'entrée à supprimer et sa table
      */
-    private synchronized void handleDeleteMessage(ClassicMessage classicMessage) {
+    private synchronized void handleDeleteMessage(CommunicationMessage communicationMessage) {
 
         if (!isAdminOrStaff()) {
             return;
         }
 
-        ProjectTable entry = classicMessage.getEntry();
+        ProjectTable entry = communicationMessage.getEntry();
         boolean success = true;
         Groupe relatedGroup = null;
-        ClassicMessage message = null;
+        CommunicationMessage message = null;
 
         try {
             DatabaseManager database = DatabaseManager.getInstance();
 
-            switch (classicMessage.getTable()) {
+            switch (communicationMessage.getTable()) {
                 case TABLE_NAME_UTILISATEUR:
                     database.deleteUser(entry.getID());
-                    message = ClassicMessage.createEntryDeletedMessage(TABLE_NAME_UTILISATEUR, classicMessage.getEntry());
+                    message = CommunicationMessage.createEntryDeletedMessage(TABLE_NAME_UTILISATEUR, communicationMessage.getEntry());
                     break;
 
 
                 case TABLE_NAME_GROUPE:
-                    relatedGroup = classicMessage.getEntryAsGroupe();
-                    database.deleteGroup(entry.getID());
-                    message = ClassicMessage.createEntryDeletedMessage(TABLE_NAME_GROUPE, classicMessage.getEntry());
-                    break;
-
-
-                case TABLE_NAME_TICKET:
-                    relatedGroup = database.relatedTicketGroup(entry.getID());
-                    database.deleteTicket(entry.getID());
-                    message = ClassicMessage.createTicketDeletedMessage(
-                            classicMessage.getTable(), classicMessage.getEntryAsTicket(), relatedGroup
-                    );
+                    Groupe groupe = database.getGroup(communicationMessage.getEntryAsGroupe().getID());
+                    if (groupe != null) {
+                        database.deleteGroup(entry.getID());
+                        message = CommunicationMessage.createEntryDeletedMessage(TABLE_NAME_GROUPE, groupe);
+                    }
 
                     break;
+
+
+                case TABLE_NAME_TICKET: {
+                    Ticket ticket = database.getTicket(entry.getID());
+                    if (ticket != null) {
+                        relatedGroup = database.relatedTicketGroup(ticket.getID());
+                        database.deleteTicket(ticket.getID());
+                        message = CommunicationMessage.createTicketDeletedMessage(
+                                communicationMessage.getTable(), ticket
+                        );
+                    }
+                }
+
+                break;
 
 
                 case TABLE_NAME_MESSAGE:
-
-                    Ticket ticket = database.relatedMessageTicket(classicMessage.getEntryAsMessage().getID());
+                    Message msg = database.getMessage(entry.getID());
+                    Ticket ticket = database.relatedMessageTicket(msg.getID());
                     if (ticket != null) {
                         relatedGroup = database.relatedTicketGroup(ticket.getID());
                         if (relatedGroup != null) {
                             if (database.deleteMessage(entry.getID())) {
-                                message = ClassicMessage.createMessageDeletedMessage(
-                                        classicMessage.getTable(), classicMessage.getEntryAsMessage(),
+                                message = CommunicationMessage.createMessageDeletedMessage(
+                                        communicationMessage.getTable(), msg,
                                         relatedGroup, ticket
                                 );
                             } else {
@@ -450,19 +464,19 @@ public class ClientManager extends Thread implements Server {
     /**
      * Fonction qui traite la mise à jour d'une entrée ( admin uniquement )
      *
-     * @param classicMessage L'entrée et sa table
+     * @param communicationMessage L'entrée et sa table
      */
-    private synchronized void handleUpdateMessage(ClassicMessage classicMessage) {
+    private synchronized void handleUpdateMessage(CommunicationMessage communicationMessage) {
 
         if (!isAdminOrStaff()) {
             return;
         }
 
-        ProjectTable entry = classicMessage.getEntry();
+        ProjectTable entry = communicationMessage.getEntry();
         boolean success = true;
 
         try {
-            switch (classicMessage.getTable()) {
+            switch (communicationMessage.getTable()) {
                 case TABLE_NAME_UTILISATEUR: {
                     Utilisateur user = (Utilisateur) entry;
                     final String INE = user.getINE();
@@ -508,7 +522,7 @@ public class ClientManager extends Thread implements Server {
 
 
         if (success) {
-            ClassicMessage message = ClassicMessage.createEntryUpdatedMessage(classicMessage.getTable(), entry);
+            CommunicationMessage message = CommunicationMessage.createEntryUpdatedMessage(communicationMessage.getTable(), entry);
             Host.broadcast(message);
         }
 
@@ -518,20 +532,19 @@ public class ClientManager extends Thread implements Server {
     /**
      * Fonction qui traite l'ajout d'une entrée ( admin uniquement )
      *
-     * @param classicMessage L'entrée et sa table
+     * @param communicationMessage L'entrée et sa table
      */
-    private synchronized void handleAddMessage(ClassicMessage classicMessage) {
+    private synchronized void handleAddMessage(CommunicationMessage communicationMessage) {
 
         if (!isAdminOrStaff()) {
             return;
         }
 
-        ProjectTable entry = classicMessage.getEntry();
+        ProjectTable entry = communicationMessage.getEntry();
         boolean success = true;
-        String relatedGroup = null;
 
         try {
-            switch (classicMessage.getTable()) {
+            switch (communicationMessage.getTable()) {
                 case TABLE_NAME_UTILISATEUR: {
                     Utilisateur user = (Utilisateur) entry;
                     final String INE = user.getINE();
@@ -554,6 +567,8 @@ public class ClientManager extends Thread implements Server {
                         user.setID(set.getLong(1));
                     }
 
+                    user.setPassword("");
+
                     break;
                 }
 
@@ -566,8 +581,6 @@ public class ClientManager extends Thread implements Server {
 
                     success = entry != null;
 
-                    if (success) relatedGroup = groupe.getLabel();
-
                     break;
             }
         } catch (SQLException e) {
@@ -577,11 +590,7 @@ public class ClientManager extends Thread implements Server {
 
 
         if (success) {
-            if (relatedGroup != null) {
-                Host.broadcastToGroup(ClassicMessage.createEntryAddedMessage(classicMessage.getTable(), entry), relatedGroup);
-            } else {
-                Host.broadcast(ClassicMessage.createEntryAddedMessage(classicMessage.getTable(), entry));
-            }
+            Host.broadcast(CommunicationMessage.createEntryAddedMessage(communicationMessage.getTable(), entry));
         }
 
 
@@ -609,7 +618,7 @@ public class ClientManager extends Thread implements Server {
             List<Ticket> tickets = databaseManager.retrieveAllTickets();
             List<Message> messages = databaseManager.retrieveAllMessages();
 
-            sendData(ClassicMessage.createTableModel(
+            sendData(CommunicationMessage.createTableModel(
                     users,
                     groups,
                     tickets,
@@ -640,12 +649,12 @@ public class ClientManager extends Thread implements Server {
     /**
      * Fonction qui traite le fait qu'un message soit recu par un utilisateur
      *
-     * @param classicMessage - Le message et l'utilisateur
+     * @param communicationMessage - Le message et l'utilisateur
      */
-    private synchronized void handleMessageReceivedMessage(ClassicMessage classicMessage) {
+    private synchronized void handleMessageReceivedMessage(CommunicationMessage communicationMessage) {
 
         DatabaseManager database = DatabaseManager.getInstance();
-        ArrayList<Message> messages = classicMessage.getMessagesReceived();
+        ArrayList<Message> messages = communicationMessage.getMessagesReceived();
 
         Debugger.logColorMessage(Debugger.BLUE, "ClientManager", user.getNom() + " has received " + messages);
 
@@ -660,7 +669,7 @@ public class ClientManager extends Thread implements Server {
                         if (ticket != null) {
                             Groupe groupe = database.relatedTicketGroup(ticket.getID());
                             if (groupe != null) {
-                                ClassicMessage msg = ClassicMessage.createMessageUpdatedMessage(TABLE_NAME_MESSAGE, m, groupe, ticket);
+                                CommunicationMessage msg = CommunicationMessage.createMessageUpdatedMessage(TABLE_NAME_MESSAGE, m, groupe, ticket);
                                 Host.broadcastToGroup(msg, groupe.getLabel());
                                 Host.sendToClient(database.ticketCreator(ticket.getID()), msg);
                             }

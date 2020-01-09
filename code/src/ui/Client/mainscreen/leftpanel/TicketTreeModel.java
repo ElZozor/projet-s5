@@ -25,6 +25,7 @@ public class TicketTreeModel extends DefaultTreeModel {
             return ((TreeSet) o).toArray()[index];
         }
 
+
         if (o instanceof Groupe) {
             Groupe groupe = (Groupe) o;
             return groupe.getTickets().toArray()[index];

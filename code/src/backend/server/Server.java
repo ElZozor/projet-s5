@@ -1,7 +1,6 @@
 package backend.server;
 
 import backend.server.communication.CommunicationMessage;
-import backend.server.communication.classic.ClassicMessage;
 import debug.Debugger;
 
 import java.io.BufferedReader;
@@ -26,9 +25,9 @@ public interface Server {
     /**
      * Used to send data through a socket.
      *
-     * @param classicMessage The message to send
+     * @param communicationMessage The message to send
      */
-    default boolean sendData(CommunicationMessage classicMessage) {
+    default boolean sendData(CommunicationMessage communicationMessage) {
         try {
 
             BufferedWriter socketWriter = getSocketWriter();
@@ -36,14 +35,14 @@ public interface Server {
                 throw new IOException();
             }
 
-            Debugger.logMessage("Server sendData", "Sending following data: " + classicMessage.toFormattedString());
-            socketWriter.write(classicMessage.toString());
+            Debugger.logMessage("Server sendData", "Sending following data: " + communicationMessage.toFormattedString());
+            socketWriter.write(communicationMessage.toString());
             socketWriter.flush();
 
             return true;
 
         } catch (IOException e) {
-            addPendingMessage(classicMessage);
+            addPendingMessage(communicationMessage);
             return false;
         }
 
@@ -56,8 +55,8 @@ public interface Server {
      * @return The data
      * @throws IOException Exception if read has failed
      */
-    default ClassicMessage readData()
-            throws IOException, ClassicMessage.InvalidMessageException, SocketDisconnectedException {
+    default CommunicationMessage readData()
+            throws IOException, CommunicationMessage.InvalidMessageException, SocketDisconnectedException {
 
         String line;
         BufferedReader socketReader = getSocketReader();
@@ -72,7 +71,7 @@ public interface Server {
                 throw new SocketDisconnectedException();
             }
 
-            ClassicMessage message = new ClassicMessage(line);
+            CommunicationMessage message = new CommunicationMessage(line);
             Debugger.logColorMessage(Debugger.GREEN, "Server", "Received data: \n" + message.toFormattedString());
             return message;
         } catch (SocketTimeoutException e) {

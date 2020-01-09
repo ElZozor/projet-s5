@@ -2,6 +2,7 @@ package backend.modele;
 
 import backend.data.ProjectTable;
 
+import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableModel;
 import java.util.ArrayList;
 import java.util.ListIterator;
@@ -23,7 +24,6 @@ public abstract class SearchableModel<T extends ProjectTable> implements TableMo
 
         for (; ite.hasNext() && !deleted; ) {
             T t = ite.next();
-            System.out.println(t.getID() + " " + id);
             if (t.getID().equals(id)) {
                 ite.previous();
                 ite.remove();
@@ -31,6 +31,9 @@ public abstract class SearchableModel<T extends ProjectTable> implements TableMo
                 deleted = true;
             }
         }
+
+        DefaultTableModel model = new DefaultTableModel();
+        model.addRow(new String[]{});
 
         return deleted;
     }
@@ -60,7 +63,7 @@ public abstract class SearchableModel<T extends ProjectTable> implements TableMo
         boolean inserted = false;
         for (; iterator.hasNext() && !inserted; ) {
             T t = iterator.next();
-            if (t.getID() > t.getID()) {
+            if (t.getID() > ts.getID()) {
                 iterator.previous();
                 iterator.add(ts);
             }

@@ -13,17 +13,16 @@ public class ServerStopUI extends JFrame {
     private JLabel nbAdmin = new JLabel("Admins : 0");
     private JPanel logPanel = new JPanel();
     private JScrollPane messages = new JScrollPane();
+    private int messagesCount = 0;
 
     public ServerStopUI(Host host) {
-        super("Serveur controller");
+        super("Status du serveur");
         setMinimumSize(new Dimension(640, 480));
         setContentPane(new JPanel(new GridBagLayout()));
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 
         this.host = host;
-        killButton.addActionListener(action -> {
-            dispose();
-        });
+        killButton.addActionListener(action -> dispose());
 
         initPanel();
 
@@ -56,8 +55,8 @@ public class ServerStopUI extends JFrame {
         getContentPane().add(killButton, gbc);
 
         logPanel.setBackground(new Color(0x37474F));
-        logPanel.setLayout(new BoxLayout(logPanel, BoxLayout.Y_AXIS));
-        logPanel.setAlignmentY(JPanel.TOP_ALIGNMENT);
+        logPanel.setLayout(new GridBagLayout());
+
         messages.setViewportView(logPanel);
         messages.setSize(300, 300);
         gbc = new GridBagConstraints();
@@ -69,6 +68,7 @@ public class ServerStopUI extends JFrame {
         gbc.gridheight = 4;
         gbc.insets = new Insets(8, 8, 8, 8);
         getContentPane().add(messages, gbc);
+        messages.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
     }
 
     public void setConnectionNumber(int number) {
@@ -79,14 +79,52 @@ public class ServerStopUI extends JFrame {
         nbAdmin.setText("Admins : " + number);
     }
 
-    public void addLogMessage(final String message) {
+    public synchronized void addLogMessage(String message) {
+        if (messagesCount > 0) {
+            logPanel.remove(messagesCount);
+        }
+
+        message = "############################################\n"
+                + message
+                + "\n############################################\n";
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.anchor = GridBagConstraints.NORTHWEST;
+        gbc.gridy = messagesCount++;
+        gbc.gridx = 0;
+        gbc.weightx = 1.0;
+        gbc.weighty = 0.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
         JTextArea log = new JTextArea(message);
         log.setForeground(Color.WHITE);
         log.setBackground(new Color(0x37474F));
         log.setEditable(false);
-        logPanel.add(log);
+        log.setLineWrap(true);
+        log.setWrapStyleWord(true);
+
+
+        logPanel.add(log, gbc);
         logPanel.revalidate();
         logPanel.repaint();
+
+        addBottomMessage();
+
+        messages.revalidate();
+        messages.getVerticalScrollBar().setValue(messages.getVerticalScrollBar().getMaximum());
+    }
+
+    private void addBottomMessage() {
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.anchor = GridBagConstraints.NORTHWEST;
+        gbc.gridy = messagesCount;
+        gbc.gridx = 0;
+        gbc.weightx = 1.0;
+        gbc.weighty = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        JPanel panel = new JPanel();
+        panel.setBackground(new Color(0x37474F));
+        logPanel.add(panel, gbc);
     }
 
     @Override

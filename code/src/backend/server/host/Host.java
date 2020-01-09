@@ -3,7 +3,7 @@ package backend.server.host;
 import backend.data.Utilisateur;
 import backend.database.DatabaseManager;
 import backend.server.Server;
-import backend.server.communication.classic.ClassicMessage;
+import backend.server.communication.CommunicationMessage;
 import debug.Debugger;
 import ui.Server.ServerStopUI;
 import utils.Utils;
@@ -52,11 +52,11 @@ public class Host extends Thread {
         clientsByID.get(user.getID()).add(client);
 
         ui.setConnectionNumber(++nbConnectes);
-        ui.addLogMessage(user.getINE() + " s'est connecté !");
+        postLogMessage(user.getINE() + " s'est connecté !");
     }
 
 
-    public synchronized static void removeClient(Collection<String> groups, Long clientID, Server client) {
+    public synchronized static void removeClient(Collection<String> groups, Utilisateur user, Server client) {
         for (String group : groups) {
             HashSet<Server> set = clientsByGroups.get(group);
             if (set != null) {
@@ -64,16 +64,17 @@ public class Host extends Thread {
             }
         }
 
-        HashSet<Server> set = clientsByID.get(clientID);
+        HashSet<Server> set = clientsByID.get(user.getID());
         set.remove(client);
         if (admins.remove(client)) {
             ui.setAdminNumber(--nbAdmins);
         }
 
         ui.setConnectionNumber(--nbConnectes);
+        postLogMessage(user.getINE() + " s'est déconnecté !");
     }
 
-    public synchronized static void broadcastToGroup(final ClassicMessage message, final String group) {
+    public synchronized static void broadcastToGroup(final CommunicationMessage message, final String group) {
         HashSet<Server> clients = clientsByGroups.get(group);
 
         if (clients != null) {
@@ -85,9 +86,11 @@ public class Host extends Thread {
         for (Server server : admins) {
             server.sendData(message);
         }
+
+        postLogMessage(String.format("Broadcast du message suivant (%s):\n%s", group, message.toFormattedString()));
     }
 
-    public synchronized static void broadcast(final ClassicMessage message) {
+    public synchronized static void broadcast(final CommunicationMessage message) {
         Collection<HashSet<Server>> clients = clientsByID.values();
         System.out.println(clientsByID.values());
         for (HashSet<Server> clientList : clients) {
@@ -99,6 +102,8 @@ public class Host extends Thread {
         for (Server server : admins) {
             server.sendData(message);
         }
+
+        postLogMessage(String.format("Broadcast du message suivant :\n%s", message.toFormattedString()));
     }
 
     public synchronized static void changeGroupName(String relatedGroup, String label) {
@@ -107,9 +112,16 @@ public class Host extends Thread {
             clientsByGroups.remove(relatedGroup);
             clientsByGroups.put(label, servers);
         }
+
+        postLogMessage(String.format("Changement du nom de groupe : %s -> %s", relatedGroup, label));
     }
 
-    public synchronized static void sendToClient(Long userID, ClassicMessage message) {
+    public synchronized static void sendToClient(Utilisateur user, CommunicationMessage message) {
+        sendToClient(user.getID(), message);
+        postLogMessage("Envoi du message suivant à " + user.getINE() + "\n" + message.toFormattedString());
+    }
+
+    public synchronized static void sendToClient(Long userID, CommunicationMessage message) {
         HashSet<Server> client = clientsByID.get(userID);
         if (client != null) {
             for (Server s : client) {
@@ -120,8 +132,11 @@ public class Host extends Thread {
 
     public synchronized static void addAdmin(Server server) {
         admins.add(server);
-
         ui.setAdminNumber(++nbAdmins);
+    }
+
+    public static synchronized void postLogMessage(String message) {
+        ui.addLogMessage(message);
     }
 
     @Override

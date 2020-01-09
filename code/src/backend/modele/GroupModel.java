@@ -32,11 +32,9 @@ public class GroupModel extends SearchableModel<Groupe> {
     }
 
     public GroupModel(List<Groupe> groups) {
-        elements.addAll(groups);
-    }
-
-    public void addRow(Groupe ts) {
-        elements.add(ts);
+        for (Groupe groupe : groups) {
+            addRow(groupe);
+        }
     }
 
     @Override
