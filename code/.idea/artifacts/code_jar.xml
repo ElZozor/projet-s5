@@ -1,0 +1,25 @@
+<component name="ArtifactManager">
+  <artifact build-on-make="true" name="code:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/code_jar</output-path>
+    <root id="root">
+      <element id="archive" name="code.jar">
+        <element id="module-output" name="code" />
+      </element>
+      <element id="library" level="project" name="Maven: com.fasterxml.jackson.core:jackson-annotations:2.10.0.pr3" />
+      <element id="library" level="project" name="Maven: commons-codec:commons-codec:1.12" />
+      <element id="library" level="project" name="Maven: org.clojure:java.jdbc:0.7.10" />
+      <element id="library" level="project" name="Maven: org.clojure:clojure:1.7.0" />
+      <element id="library" level="project" name="Maven: junit:junit:4.10" />
+      <element id="library" level="project" name="Maven: com.fasterxml.jackson.core:jackson-core:2.10.0.pr3" />
+      <element id="library" level="project" name="org.json:json:20190722" />
+      <element id="library" level="project" name="Maven: org.json:json:20190722" />
+      <element id="library" level="project" name="Maven: org.jetbrains:annotations:17.0.0" />
+      <element id="library" level="project" name="Maven: com.fasterxml.jackson.core:jackson-databind:2.10.0.pr3" />
+      <element id="library" level="project" name="Maven: com.googlecode.json-simple:json-simple:1.1.1" />
+      <element id="library" level="project" name="Maven: com.auth0:java-jwt:3.8.3" />
+      <element id="library" level="project" name="com.auth0:java-jwt:3.8.3" />
+      <element id="library" level="project" name="Maven: mysql:mysql-connector-java:5.1.39" />
+      <element id="library" level="project" name="Maven: org.hamcrest:hamcrest-core:1.1" />
+    </root>
+  </artifact>
+</component>
